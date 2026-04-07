@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EKA MINING SAC | Log de Cotizaciones</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="auth-shell is-hidden" id="authShell">
+      <section class="auth-card">
+        <div class="auth-card__brand">
+          <div class="brand-card__logo-wrap brand-card__logo-wrap--auth">
+            <img
+              class="brand-card__logo"
+              src="./assets/eka-logo-clean.png"
+              alt="Logo EKA MINING SAC"
+            />
+          </div>
+          <div>
+            <p class="eyebrow">Acceso seguro</p>
+            <h1>EKA MINING SAC</h1>
+            <p>Accede con tu usuario aprobado o solicita acceso para que el administrador valide tu cuenta.</p>
+          </div>
+        </div>
+
+        <div class="auth-tabs" id="authTabs">
+          <button class="auth-tab is-active" data-auth-mode="login" type="button">Ingresar</button>
+          <button class="auth-tab" data-auth-mode="register" type="button">Solicitar acceso</button>
+          <button class="auth-tab" data-auth-mode="reset" type="button">Recuperar clave</button>
+        </div>
+
+        <form class="auth-form" id="authForm">
+          <div class="auth-status" id="authStatus"></div>
+          <label class="field auth-field auth-field--name is-hidden" id="authNameField">
+            <span>Nombre completo</span>
+            <input id="authNameInput" name="full_name" type="text" autocomplete="name" placeholder="Tu nombre y apellido" />
+          </label>
+          <label class="field">
+            <span>Correo</span>
+            <input id="authEmailInput" name="email" type="email" autocomplete="username" value="edwin.qm@outlook.com" required />
+          </label>
+          <label class="field auth-field auth-field--password" id="authPasswordField">
+            <span>Contraseña</span>
+            <input id="authPasswordInput" name="password" type="password" autocomplete="current-password" placeholder="Ingresa tu contraseña" required />
+          </label>
+          <p class="auth-hint" id="authHint">
+            Usa tu cuenta aprobada. Si tu correo pertenece a EKA Mining SAC, también puedes ingresar con Google.
+          </p>
+          <button class="ghost-button ghost-button--soft auth-google-button" id="authGoogleButton" type="button">
+            Continuar con Google
+          </button>
+          <div class="auth-form__actions">
+            <button class="ghost-button ghost-button--soft" id="authResetButton" type="button">Limpiar</button>
+            <button class="ghost-button ghost-button--accent" id="authSubmitButton" type="submit">Ingresar</button>
+          </div>
+        </form>
+
+      </section>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar__glow sidebar__glow--top"></div>
+        <div class="sidebar__glow sidebar__glow--bottom"></div>
+
+        <div class="brand-card">
+          <div class="brand-card__logo-wrap">
+            <img
+              class="brand-card__logo"
+              src="./assets/eka-logo-clean.png"
+              alt="Logo EKA MINING SAC"
+            />
+          </div>
+          <h1>EKA MINING SAC</h1>
+        </div>
+
+        <div class="sidebar__section">
+          <p class="sidebar__label">Principal</p>
+          <nav class="nav-list">
+            <button class="nav-item" data-view="dashboard" type="button">
+              <span class="nav-item__icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 13h7V4H4zm9 7h7V11h-7zM4 20h7v-5H4zm9-9h7V4h-7z"></path>
+                </svg>
+              </span>
+              <span>
+                <strong>Dashboard</strong>
+                <small>KPIs ejecutivos</small>
+              </span>
+            </button>
+
+            <button class="nav-item is-active" data-view="quotations-log" type="button">
+              <span class="nav-item__icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M5 5h14v2H5zm0 4h14v10H5zm3 3v4h2v-4zm4-2v6h2v-6zm4 1v5h2v-5z"
+                  ></path>
+                </svg>
+              </span>
+              <span>
+                <strong>Log de Cotizaciones</strong>
+                <small>Historial elegante</small>
+              </span>
+            </button>
+
+            <button class="nav-item" data-view="requirements-log" type="button">
+              <span class="nav-item__icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 4h9l3 3v13H6zm8 1.5V8h2.5zM9 11h6v1.5H9zm0 3h6v1.5H9zm0 3h4v1.5H9z"></path>
+                </svg>
+              </span>
+              <span>
+                <strong>Log de Requerimientos</strong>
+                <small>RQ por centro de costo</small>
+              </span>
+            </button>
+
+            <button class="nav-item" data-view="requirements-detail" type="button">
+              <span class="nav-item__icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 5h16v2H4zm0 4h16v10H4zm3 2v2h2v-2zm0 4v2h2v-2zm4-4h6v2h-6zm0 4h6v2h-6z"></path>
+                </svg>
+              </span>
+              <span>
+                <strong>Detalle de Requerimientos</strong>
+                <small>Items por RQ</small>
+              </span>
+            </button>
+
+            <button class="nav-item" data-view="resources" type="button">
+              <span class="nav-item__icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 2l8 4v5c0 5.2-3.4 9.9-8 11-4.6-1.1-8-5.8-8-11V6zm0 3.2L7 7.7V11c0 3.9 2.4 7.4 5 8.6 2.6-1.2 5-4.7 5-8.6V7.7z"></path>
+                </svg>
+              </span>
+              <span>
+                <strong>Recursos</strong>
+                <small>Materiales y equipos</small>
+              </span>
+            </button>
+
+            <button class="nav-item" data-view="suppliers" type="button">
+              <span class="nav-item__icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1zm13-9h4v9h-4zm-1-6h5v4h-5z"
+                  ></path>
+                </svg>
+              </span>
+              <span>
+                <strong>Proveedores</strong>
+                <small>Seguimiento comercial</small>
+              </span>
+            </button>
+          </nav>
+        </div>
+
+        <div class="sidebar__section sidebar__section--footer">
+          <div class="sidebar__actions">
+            <button class="ghost-button ghost-button--sidebar" id="adminButton" type="button" hidden>Administrador</button>
+            <button class="ghost-button ghost-button--danger" id="logoutButton" type="button">Cerrar Sesión</button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú lateral">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <section class="content-view is-visible" id="view-quotations-log">
+          <section class="panel panel--table">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Bitácora reciente</p>
+                <h3>Movimientos de cotización</h3>
+              </div>
+              <div class="panel__actions">
+                <button class="ghost-button ghost-button--soft" id="columnsButton" type="button">Columnas</button>
+                <button class="ghost-button ghost-button--soft" id="refreshButton" type="button">Actualizar</button>
+                <button class="ghost-button ghost-button--accent" id="newRecordButton" type="button">Nuevo registro</button>
+              </div>
+            </div>
+
+            <div class="sync-status" id="syncStatus">Configura Supabase para ver tus registros reales.</div>
+
+            <div class="log-table-shell">
+              <div class="column-manager is-hidden" id="columnManager">
+                <div class="column-manager__header">
+                  <strong>Visibilidad de columnas</strong>
+                  <button class="column-manager__reset" id="resetColumnsButton" type="button">Restablecer</button>
+                </div>
+                <div class="column-manager__list" id="columnManagerList"></div>
+              </div>
+
+              <div class="log-table-scroll">
+                <table class="log-table is-pending-layout" id="quotationsTable">
+                  <colgroup id="logTableColgroup"></colgroup>
+                  <thead id="logTableHead"></thead>
+                  <tbody id="logTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="content-view" id="view-requirements-log">
+          <section class="panel panel--table">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Log consolidado</p>
+                <h3>Requerimientos registrados</h3>
+              </div>
+              <div class="panel__actions">
+                <button class="ghost-button ghost-button--soft" id="requirementsRefreshButton" type="button">Actualizar</button>
+                <button class="ghost-button ghost-button--accent" id="newRequirementButton" type="button">Nuevo requerimiento</button>
+              </div>
+            </div>
+
+            <div class="sync-status" id="requirementsSyncStatus">
+              Pendiente de conectar la tabla consolidada de requerimientos en Supabase.
+            </div>
+
+            <div class="log-table-shell">
+              <div class="log-table-scroll">
+                <table class="log-table log-table--requirements is-pending-layout" id="requirementsTable">
+                  <colgroup id="requirementsTableColgroup"></colgroup>
+                  <thead id="requirementsTableHead"></thead>
+                  <tbody id="requirementsTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="content-view" id="view-requirements-detail">
+          <section class="panel panel--table">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Detalle operativo</p>
+                <h3>Items del requerimiento</h3>
+              </div>
+              <div class="panel__actions">
+                <button class="ghost-button ghost-button--soft" id="requirementsDetailRefreshButton" type="button">Actualizar</button>
+              </div>
+            </div>
+
+            <div class="sync-status" id="requirementsDetailStatus">
+              Selecciona un requerimiento para ver sus items y su traza operativa.
+            </div>
+
+            <div class="requirements-detail-context" id="requirementsDetailContext"></div>
+            <div class="table-pager" id="requirementsDetailPager">
+              <div class="table-pager__summary" id="requirementsDetailPagerSummary">Mostrando 0 de 0</div>
+              <div class="table-pager__controls">
+                <label class="table-pager__label" for="requirementsDetailPageSize">Filas</label>
+                <select class="table-pager__select" id="requirementsDetailPageSize">
+                  <option value="100">100</option>
+                  <option value="200" selected>200</option>
+                  <option value="500">500</option>
+                </select>
+                <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsDetailPrevPage" type="button">Anterior</button>
+                <span class="table-pager__page" id="requirementsDetailPageIndicator">Página 1 / 1</span>
+                <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsDetailNextPage" type="button">Siguiente</button>
+              </div>
+            </div>
+
+            <div class="log-table-shell">
+              <div class="log-table-scroll">
+                <table class="log-table log-table--requirements-detail is-pending-layout" id="requirementsDetailTable">
+                  <colgroup id="requirementsDetailColgroup"></colgroup>
+                  <thead id="requirementsDetailTableHead"></thead>
+                  <tbody id="requirementsDetailTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="content-view" id="view-resources">
+          <section class="panel panel--table">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Catálogo base</p>
+                <h3>Recursos reutilizables</h3>
+              </div>
+              <div class="panel__actions">
+                <button class="ghost-button ghost-button--soft" id="resourcesRefreshButton" type="button">Actualizar</button>
+              </div>
+            </div>
+
+            <div class="sync-status" id="resourcesStatus">
+              Catálogo local listo para registrar materiales, equipos, mano de obra y servicios.
+            </div>
+
+            <form class="resource-form" id="resourcesForm">
+              <div class="resource-form__grid">
+                <label class="field">
+                  <span>Código</span>
+                  <input id="resourceCode" name="codigo" type="text" placeholder="Ej. MAT-001" />
+                </label>
+                <label class="field">
+                  <span>Descripción</span>
+                  <input id="resourceDescription" name="descripcion" type="text" placeholder="Nombre del recurso" required />
+                </label>
+                <label class="field">
+                  <span>Categoría</span>
+                  <select id="resourceCategory" name="categoria">
+                    <option value="MATERIAL">Material</option>
+                    <option value="EQUIPO">Equipo</option>
+                    <option value="MANO DE OBRA">Mano de obra</option>
+                    <option value="SERVICIO">Servicio</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Unidad</span>
+                  <input id="resourceUnit" name="unidad" type="text" placeholder="UND, M, HH..." />
+                </label>
+                <label class="field">
+                  <span>Moneda</span>
+                  <select id="resourceCurrency" name="moneda">
+                    <option value="PEN">PEN</option>
+                    <option value="USD">USD</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Costo unitario</span>
+                  <input id="resourceUnitCost" name="costo_unitario" type="number" step="0.01" placeholder="0.00" />
+                </label>
+                <label class="field">
+                  <span>Proveedor</span>
+                  <input id="resourceSupplier" name="proveedor" type="text" placeholder="Proveedor sugerido" />
+                </label>
+                <label class="field">
+                  <span>Imagen referencia</span>
+                  <input id="resourceImageUrl" name="imagen_url" type="text" placeholder="URL o ruta de imagen" />
+                </label>
+                <label class="field field--wide">
+                  <span>Observación</span>
+                  <input id="resourceNotes" name="observacion" type="text" placeholder="Notas opcionales del recurso" />
+                </label>
+              </div>
+              <div class="resource-form__actions">
+                <button class="ghost-button ghost-button--soft" id="resourcesFormReset" type="button">Limpiar</button>
+                <button class="ghost-button ghost-button--accent" id="resourcesFormSubmit" type="submit">Guardar recurso</button>
+              </div>
+            </form>
+
+            <div class="resources-toolbar">
+              <div class="filter-shell resources-toolbar__search">
+                <input class="column-filter" id="resourcesSearch" type="text" placeholder="Buscar por código, descripción o categoría" />
+              </div>
+            </div>
+
+            <div class="log-table-shell">
+              <div class="log-table-scroll">
+                <table class="log-table" id="resourcesTable">
+                  <thead id="resourcesTableHead"></thead>
+                  <tbody id="resourcesTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="content-view" id="view-admin">
+          <section class="panel panel--table">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Administración</p>
+                <h3>Usuarios registrados</h3>
+              </div>
+              <div class="panel__actions">
+                <button class="ghost-button ghost-button--soft" id="adminUsersRefreshButton" type="button">Actualizar</button>
+              </div>
+            </div>
+
+            <div class="sync-status" id="adminUsersStatus">
+              Solo el administrador general puede aprobar o desactivar cuentas.
+            </div>
+
+            <div class="log-table-shell">
+              <div class="log-table-scroll">
+                <table class="log-table" id="adminUsersTable">
+                  <thead id="adminUsersTableHead"></thead>
+                  <tbody id="adminUsersTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="content-view" id="view-dashboard">
+          <div class="empty-panel">
+            <p class="eyebrow">Dashboard</p>
+            <h3>Vista lista para crecer</h3>
+            <p>Esta sección está preparada para KPIs, tarjetas y alertas con el mismo lenguaje visual del sidebar.</p>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-suppliers">
+          <div class="empty-panel">
+            <p class="eyebrow">Proveedores</p>
+            <h3>Espacio comercial conectado</h3>
+            <p>Puedes usar esta vista para ranking de proveedores, tiempos de respuesta y comparativas de negociación.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-shell is-hidden" id="recordModal">
+      <div class="modal-backdrop" id="modalBackdrop"></div>
+      <section class="modal-card modal-card--record">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Edición</p>
+            <h3 id="modalTitle">Nuevo registro</h3>
+          </div>
+          <button class="icon-close" id="closeModalButton" type="button" aria-label="Cerrar">
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+
+        <form class="record-form" id="recordForm">
+          <div class="record-form__grid" id="recordFormGrid"></div>
+          <div class="catalog-manager-panel is-hidden" id="catalogManagerPanel"></div>
+          <div class="record-form__actions">
+            <button class="ghost-button ghost-button--soft" id="cancelModalButton" type="button">Cancelar</button>
+            <button class="ghost-button ghost-button--accent" id="saveRecordButton" type="submit">Guardar</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-shell is-hidden" id="requirementsExplorerModal">
+      <div class="modal-backdrop" id="requirementsExplorerBackdrop"></div>
+      <section class="modal-card modal-card--explorer">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow" id="requirementsExplorerEyebrow">Trazabilidad</p>
+            <h3 id="requirementsExplorerTitle">Requerimientos vinculados</h3>
+          </div>
+          <button class="icon-close" id="closeRequirementsExplorerButton" type="button" aria-label="Cerrar">
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+        <div class="requirements-explorer" id="requirementsExplorerContent"></div>
+      </section>
+    </div>
+
+    <div class="modal-shell is-hidden" id="requirementEntryModal">
+      <div class="modal-backdrop" id="requirementEntryBackdrop"></div>
+      <section class="modal-card modal-card--requirement-entry">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Registro</p>
+            <h3 id="requirementEntryTitle">Nuevo requerimiento</h3>
+          </div>
+          <button class="icon-close" id="closeRequirementEntryButton" type="button" aria-label="Cerrar">
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+
+        <form class="record-form record-form--requirement-entry" id="requirementEntryForm">
+          <div class="requirement-entry-status" id="requirementEntryStatus"></div>
+          <div class="record-form__grid record-form__grid--requirement" id="requirementEntryGrid">
+            <label class="field">
+              <span>Código RQ</span>
+              <input id="requirementCodeInput" name="rq_codigo" type="text" required />
+            </label>
+            <label class="field">
+              <span>Cotización</span>
+              <input id="requirementQuotationInput" name="cotizacion_codigo" type="text" />
+            </label>
+            <label class="field">
+              <span>Centro de costo</span>
+              <input id="requirementCostCenterInput" name="centro_costos" type="text" />
+            </label>
+            <label class="field field--wide">
+              <span>Descripción cotización</span>
+              <input id="requirementDescriptionInput" name="descripcion_cotizacion" type="text" />
+            </label>
+            <label class="field">
+              <span>Cliente</span>
+              <input id="requirementClientInput" name="cliente" type="text" />
+            </label>
+            <label class="field">
+              <span>Unidad / trabajo</span>
+              <input id="requirementUnitInput" name="unidad" type="text" />
+            </label>
+            <label class="field">
+              <span>Fecha RQ</span>
+              <input id="requirementDateInput" name="fecha_rq" type="date" />
+            </label>
+            <label class="field">
+              <span>Fecha entrega</span>
+              <input id="requirementDeliveryInput" name="fecha_entrega" type="date" />
+            </label>
+            <label class="field">
+              <span>Tipo de servicio</span>
+              <input id="requirementServiceInput" name="tipo_servicio" type="text" />
+            </label>
+            <label class="field">
+              <span>Solicitante</span>
+              <input id="requirementRequesterInput" name="solicitante" type="text" />
+            </label>
+            <label class="field">
+              <span>Área</span>
+              <input id="requirementAreaInput" name="area" type="text" />
+            </label>
+            <label class="field">
+              <span>Estado</span>
+              <select id="requirementStateInput" name="estado">
+                <option value="REGISTRADO">REGISTRADO</option>
+                <option value="BORRADOR">BORRADOR</option>
+                <option value="OBSERVADO">OBSERVADO</option>
+              </select>
+            </label>
+          </div>
+          <div class="record-form__actions">
+            <button class="ghost-button ghost-button--soft" id="cancelRequirementEntryButton" type="button">Cancelar</button>
+            <button class="ghost-button ghost-button--accent" id="saveRequirementEntryButton" type="submit">Guardar requerimiento</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-shell is-hidden" id="adminPermissionsModal">
+      <div class="modal-backdrop" id="adminPermissionsBackdrop"></div>
+      <section class="modal-card modal-card--permissions">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Permisos</p>
+            <h3 id="adminPermissionsTitle">Log de Cotizaciones</h3>
+          </div>
+          <button class="icon-close" id="closeAdminPermissionsButton" type="button" aria-label="Cerrar">
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+        <form class="permissions-form" id="adminPermissionsForm">
+          <div class="sync-status" id="adminPermissionsStatus">Configura lo que este usuario podrá ver y editar dentro de Log de Cotizaciones.</div>
+          <div class="permissions-summary" id="adminPermissionsSummary"></div>
+
+          <section class="permissions-section">
+            <div class="permissions-section__header">
+              <strong>Acceso general</strong>
+              <small>Define si puede entrar al módulo y qué botones verá.</small>
+            </div>
+            <div class="permissions-grid permissions-grid--compact" id="adminPermissionsGeneral"></div>
+          </section>
+
+          <section class="permissions-section">
+            <div class="permissions-section__header">
+              <strong>Vista relacionada de cotización</strong>
+              <small>Permisos dentro del icono del ojo y la tabla de requerimientos vinculados.</small>
+            </div>
+            <div class="permissions-grid permissions-grid--compact" id="adminPermissionsLinked"></div>
+          </section>
+
+          <section class="permissions-section">
+            <div class="permissions-section__header">
+              <strong>Columnas editables</strong>
+              <small>Si puede editar, aquí eliges exactamente qué campos podrá modificar.</small>
+            </div>
+            <div class="permissions-grid" id="adminPermissionsFields"></div>
+          </section>
+
+          <div class="record-form__actions">
+            <button class="ghost-button ghost-button--soft" id="cancelAdminPermissionsButton" type="button">Cancelar</button>
+            <button class="ghost-button ghost-button--accent" id="saveAdminPermissionsButton" type="submit">Guardar permisos</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./supabase-config.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
