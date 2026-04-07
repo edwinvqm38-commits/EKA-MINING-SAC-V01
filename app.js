@@ -187,6 +187,12 @@ let currentUserProfile = null
 let authListenerAttached = false
 let authMode = 'login'
 let adminUsersRecords = []
+const adminUsersFilters = {
+  full_name: '',
+  email: '',
+  role: '',
+  active: '',
+}
 let activePermissionsUserId = ''
 let activePermissionsProfile = null
 
@@ -224,6 +230,12 @@ const quotationPermissionLinkedOptions = [
   { key: 'show_linked_columns_button', label: 'Botón Columnas', description: 'Muestra la gestión de columnas en la vista relacionada.' },
   { key: 'show_linked_export_excel_button', label: 'Botón Exportar Excel', description: 'Permite exportar la tabla vinculada.' },
   { key: 'show_linked_share_button', label: 'Botón Compartir', description: 'Permite compartir el enlace de la vista relacionada.' },
+]
+
+const adminAssignableRoles = [
+  { value: 'consulta', label: 'Lectura' },
+  { value: 'comercial', label: 'Editor' },
+  { value: 'admin', label: 'Administrador' },
 ]
 
 const fallbackRecords = [
@@ -1046,6 +1058,23 @@ async function saveAdminQuotationPermissions() {
   updateAdminUsersStatus(`Permisos de cotizaciones actualizados para ${activePermissionsProfile.email || 'el usuario'}.`, 'success')
 }
 
+function getAdminRoleLabel(role) {
+  return adminAssignableRoles.find((option) => option.value === role)?.label || String(role || 'Lectura')
+}
+
+function getFilteredAdminUsersRecords() {
+  return adminUsersRecords.filter((profile) => {
+    const matchesName = !adminUsersFilters.full_name || String(profile.full_name || '').toLowerCase().includes(adminUsersFilters.full_name)
+    const matchesEmail = !adminUsersFilters.email || String(profile.email || '').toLowerCase().includes(adminUsersFilters.email)
+    const matchesRole = !adminUsersFilters.role || String(profile.role || '') === adminUsersFilters.role
+    const matchesActive =
+      !adminUsersFilters.active ||
+      (adminUsersFilters.active === 'active' ? Boolean(profile.active) : !profile.active)
+
+    return matchesName && matchesEmail && matchesRole && matchesActive
+  })
+}
+
 function renderAdminUsersTable() {
   if (!adminUsersTableHead || !adminUsersTableBody) {
     return
@@ -1061,14 +1090,41 @@ function renderAdminUsersTable() {
       <th>ACCESO</th>
       <th>PERMISOS</th>
     </tr>
+    <tr class="log-table__filters-row">
+      <th><input class="column-filter" data-admin-filter="full_name" type="text" placeholder="Buscar" value="${escapeHtml(adminUsersFilters.full_name)}" /></th>
+      <th><input class="column-filter" data-admin-filter="email" type="text" placeholder="Buscar" value="${escapeHtml(adminUsersFilters.email)}" /></th>
+      <th>
+        <select class="column-filter column-filter--select" data-admin-filter="role">
+          <option value="">Todos</option>
+          ${adminAssignableRoles
+            .map(
+              (option) =>
+                `<option value="${escapeHtml(option.value)}" ${adminUsersFilters.role === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`,
+            )
+            .join('')}
+        </select>
+      </th>
+      <th>
+        <select class="column-filter column-filter--select" data-admin-filter="active">
+          <option value="">Todos</option>
+          <option value="active" ${adminUsersFilters.active === 'active' ? 'selected' : ''}>Activos</option>
+          <option value="pending" ${adminUsersFilters.active === 'pending' ? 'selected' : ''}>Pendientes</option>
+        </select>
+      </th>
+      <th><span class="table-filter-placeholder">Registro</span></th>
+      <th><span class="table-filter-placeholder">Acceso</span></th>
+      <th><span class="table-filter-placeholder">Permisos</span></th>
+    </tr>
   `
 
-  if (!adminUsersRecords.length) {
+  const filteredUsers = getFilteredAdminUsersRecords()
+
+  if (!filteredUsers.length) {
     adminUsersTableBody.innerHTML = '<tr><td class="empty-table" colspan="7">No hay usuarios registrados para mostrar.</td></tr>'
     return
   }
 
-  adminUsersTableBody.innerHTML = adminUsersRecords
+  adminUsersTableBody.innerHTML = filteredUsers
     .map((profile) => {
       const isCurrentUser = profile.user_id === authSession?.user?.id
       const createdAt = formatDateTime(profile.created_at)
@@ -1076,7 +1132,18 @@ function renderAdminUsersTable() {
         <tr>
           <td>${escapeHtml(profile.full_name || '-')}</td>
           <td>${escapeHtml(profile.email || '-')}</td>
-          <td><span class="tag tag--${profile.role === 'admin' ? 'accent' : 'info'}">${escapeHtml(String(profile.role || 'consulta').toUpperCase())}</span></td>
+          <td>
+            <label class="admin-role-cell">
+              <select class="admin-role-select" data-action="change-user-role" data-user-id="${escapeHtml(profile.user_id)}" ${isCurrentUser ? 'disabled' : ''}>
+                ${adminAssignableRoles
+                  .map(
+                    (option) =>
+                      `<option value="${escapeHtml(option.value)}" ${String(profile.role || 'consulta') === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`,
+                  )
+                  .join('')}
+              </select>
+            </label>
+          </td>
           <td><span class="tag tag--${profile.active ? 'success' : 'warning'}">${profile.active ? 'ACTIVO' : 'PENDIENTE'}</span></td>
           <td>${escapeHtml(createdAt || '-')}</td>
           <td>
@@ -1159,6 +1226,39 @@ async function updateAdminUserAccess(userId, active) {
       : `Acceso desactivado para ${affected?.email || 'el usuario'}.`,
     active ? 'success' : 'warning',
   )
+}
+
+async function updateAdminUserRole(userId, role) {
+  if (!supabaseClient || currentUserProfile?.role !== 'admin') {
+    return
+  }
+
+  const normalizedRole = adminAssignableRoles.some((option) => option.value === role) ? role : 'consulta'
+  updateAdminUsersStatus(`Actualizando rol a ${getAdminRoleLabel(normalizedRole)}...`, 'info')
+
+  const { error } = await supabaseClient
+    .from('user_profiles')
+    .update({ role: normalizedRole })
+    .eq('user_id', userId)
+
+  if (error) {
+    updateAdminUsersStatus(`No se pudo actualizar el rol: ${error.message}`, 'danger')
+    await loadAdminUsers()
+    return
+  }
+
+  adminUsersRecords = adminUsersRecords.map((profile) =>
+    profile.user_id === userId ? { ...profile, role: normalizedRole } : profile,
+  )
+
+  if (authSession?.user?.id === userId) {
+    currentUserProfile = { ...currentUserProfile, role: normalizedRole }
+    setSidebarUserState()
+  }
+
+  renderAdminUsersTable()
+  const affected = adminUsersRecords.find((profile) => profile.user_id === userId)
+  updateAdminUsersStatus(`Rol actualizado a ${getAdminRoleLabel(normalizedRole)} para ${affected?.email || 'el usuario'}.`, 'success')
 }
 
 async function loadSecureDatasets() {
@@ -5247,12 +5347,38 @@ resourcesTableBody?.addEventListener('click', async (event) => {
 })
 
 adminUsersTableBody?.addEventListener('change', async (event) => {
+  const roleSelect = event.target.closest('[data-action="change-user-role"]')
+  if (roleSelect) {
+    await updateAdminUserRole(roleSelect.dataset.userId, roleSelect.value)
+    return
+  }
+
   const toggle = event.target.closest('[data-action="toggle-user-active"]')
   if (!toggle) {
     return
   }
 
   await updateAdminUserAccess(toggle.dataset.userId, Boolean(toggle.checked))
+})
+
+adminUsersTableHead?.addEventListener('input', (event) => {
+  const filterInput = event.target.closest('[data-admin-filter]')
+  if (!filterInput) {
+    return
+  }
+
+  adminUsersFilters[filterInput.dataset.adminFilter] = String(filterInput.value || '').trim().toLowerCase()
+  renderAdminUsersTable()
+})
+
+adminUsersTableHead?.addEventListener('change', (event) => {
+  const filterSelect = event.target.closest('[data-admin-filter]')
+  if (!filterSelect) {
+    return
+  }
+
+  adminUsersFilters[filterSelect.dataset.adminFilter] = String(filterSelect.value || '').trim().toLowerCase()
+  renderAdminUsersTable()
 })
 
 adminUsersTableBody?.addEventListener('click', (event) => {
