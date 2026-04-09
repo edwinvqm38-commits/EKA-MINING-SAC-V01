@@ -4860,8 +4860,8 @@ async function saveExplorerTrackingEvent(formElement, mode = 'tracking') {
     event_type: isCommunication ? 'comunicacion' : String(formData.get('event_type') || 'comentario').trim(),
     title: title || (isCommunication ? 'Comunicación registrada' : 'Seguimiento registrado'),
     comment: comment || null,
-    created_by: currentSession?.user?.id || null,
-    updated_by: currentSession?.user?.id || null,
+    created_by: authSession?.user?.id || null,
+    updated_by: authSession?.user?.id || null,
   }
 
   if (isCommunication) {
@@ -4875,11 +4875,29 @@ async function saveExplorerTrackingEvent(formElement, mode = 'tracking') {
     payload.status_after = String(formData.get('status_after') || '').trim() || null
   }
 
-  const { error } = await supabaseClient.from('seguimiento_eventos').insert(payload)
+  console.log('[Expediente] Guardando seguimiento/comunicación', {
+    context,
+    mode,
+    payload,
+  })
+
+  const { data, error } = await supabaseClient.from('seguimiento_eventos').insert(payload).select('*')
   if (error) {
+    console.error('[Expediente] Error al guardar seguimiento/comunicación', {
+      context,
+      mode,
+      payload,
+      error,
+    })
     setExplorerNotice(`No se pudo guardar el ${isCommunication ? 'registro de comunicación' : 'seguimiento'}: ${error.message}`)
     return false
   }
+
+  console.log('[Expediente] Seguimiento/comunicación guardado', {
+    context,
+    mode,
+    result: data,
+  })
 
   explorerTrackingComposerMode = ''
   setExplorerNotice(isCommunication ? 'Comunicación registrada en el expediente.' : 'Seguimiento registrado en el expediente.')
@@ -4910,8 +4928,8 @@ async function saveExplorerEvidenceRecord(formElement) {
     description: String(formData.get('description') || '').trim() || null,
     external_url: String(formData.get('external_url') || '').trim() || null,
     file_name: String(formData.get('file_name') || '').trim() || null,
-    uploaded_by: currentSession?.user?.id || null,
-    updated_by: currentSession?.user?.id || null,
+    uploaded_by: authSession?.user?.id || null,
+    updated_by: authSession?.user?.id || null,
   }
 
   if (payload.source_type === 'link' && !payload.external_url) {
@@ -4919,11 +4937,26 @@ async function saveExplorerEvidenceRecord(formElement) {
     return false
   }
 
-  const { error } = await supabaseClient.from('evidencias_relacionadas').insert(payload)
+  console.log('[Expediente] Guardando evidencia', {
+    context,
+    payload,
+  })
+
+  const { data, error } = await supabaseClient.from('evidencias_relacionadas').insert(payload).select('*')
   if (error) {
+    console.error('[Expediente] Error al guardar evidencia', {
+      context,
+      payload,
+      error,
+    })
     setExplorerNotice(`No se pudo registrar la evidencia: ${error.message}`)
     return false
   }
+
+  console.log('[Expediente] Evidencia guardada', {
+    context,
+    result: data,
+  })
 
   explorerEvidenceComposerOpen = false
   setExplorerNotice('Evidencia registrada en el expediente.')
