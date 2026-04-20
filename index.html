@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EKA MINING SAC | Log de Cotizaciones</title>
+    <script>
+      ;(() => {
+        document.documentElement.classList.add('auth-boot-pending')
+        const search = window.location.search || ''
+        const hash = window.location.hash || ''
+        const searchParams = new URLSearchParams(search)
+        const hashParams = new URLSearchParams(String(hash).replace(/^#/, ''))
+        const isRecoveryFlow =
+          searchParams.get('auth_flow') === 'reset-password' ||
+          hashParams.get('type') === 'recovery' ||
+          hashParams.get('type') === 'invite'
+
+        if (isRecoveryFlow) {
+          document.documentElement.classList.add('auth-recovery-pending')
+        }
+      })()
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -42,13 +59,17 @@
             <span>Nombre completo</span>
             <input id="authNameInput" name="full_name" type="text" autocomplete="name" placeholder="Tu nombre y apellido" />
           </label>
-          <label class="field">
+          <label class="field" id="authEmailField">
             <span>Correo</span>
             <input id="authEmailInput" name="email" type="email" autocomplete="username" value="edwin.qm@outlook.com" required />
           </label>
           <label class="field auth-field auth-field--password" id="authPasswordField">
             <span>Contraseña</span>
             <input id="authPasswordInput" name="password" type="password" autocomplete="current-password" placeholder="Ingresa tu contraseña" required />
+          </label>
+          <label class="field auth-field auth-field--password is-hidden" id="authConfirmPasswordField">
+            <span>Confirmar contraseña</span>
+            <input id="authConfirmPasswordInput" name="password_confirm" type="password" autocomplete="new-password" placeholder="Repite la nueva contraseña" />
           </label>
           <p class="auth-hint" id="authHint">
             Usa tu cuenta aprobada. Si tu correo pertenece a EKA Mining SAC, también puedes ingresar con Google.
@@ -199,6 +220,15 @@
                   <strong>Visibilidad de columnas</strong>
                   <button class="column-manager__reset" id="resetColumnsButton" type="button">Restablecer</button>
                 </div>
+                <div class="column-manager__freeze">
+                  <label class="column-manager__freeze-label" for="columnFreezeCount">Inmovilizar</label>
+                  <select class="column-manager__freeze-select" id="columnFreezeCount">
+                    <option value="0">Ninguna</option>
+                    <option value="1">1 columna</option>
+                    <option value="2">2 columnas</option>
+                    <option value="3">3 columnas</option>
+                  </select>
+                </div>
                 <div class="column-manager__list" id="columnManagerList"></div>
               </div>
 
@@ -250,28 +280,23 @@
                 <h3>Items del requerimiento</h3>
               </div>
               <div class="panel__actions">
+                <div class="table-pager__controls table-pager__controls--header">
+                  <label class="table-pager__label" for="requirementsDetailPageSize">Filas</label>
+                  <select class="table-pager__select" id="requirementsDetailPageSize">
+                    <option value="100">100</option>
+                    <option value="200" selected>200</option>
+                    <option value="500">500</option>
+                  </select>
+                  <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsDetailPrevPage" type="button">Anterior</button>
+                  <span class="table-pager__page" id="requirementsDetailPageIndicator">Página 1 / 1</span>
+                  <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsDetailNextPage" type="button">Siguiente</button>
+                </div>
                 <button class="ghost-button ghost-button--soft" id="requirementsDetailRefreshButton" type="button">Actualizar</button>
               </div>
             </div>
 
             <div class="sync-status" id="requirementsDetailStatus">
               Selecciona un requerimiento para ver sus items y su traza operativa.
-            </div>
-
-            <div class="requirements-detail-context" id="requirementsDetailContext"></div>
-            <div class="table-pager" id="requirementsDetailPager">
-              <div class="table-pager__summary" id="requirementsDetailPagerSummary">Mostrando 0 de 0</div>
-              <div class="table-pager__controls">
-                <label class="table-pager__label" for="requirementsDetailPageSize">Filas</label>
-                <select class="table-pager__select" id="requirementsDetailPageSize">
-                  <option value="100">100</option>
-                  <option value="200" selected>200</option>
-                  <option value="500">500</option>
-                </select>
-                <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsDetailPrevPage" type="button">Anterior</button>
-                <span class="table-pager__page" id="requirementsDetailPageIndicator">Página 1 / 1</span>
-                <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsDetailNextPage" type="button">Siguiente</button>
-              </div>
             </div>
 
             <div class="log-table-shell">
@@ -294,6 +319,7 @@
                 <h3>Recursos reutilizables</h3>
               </div>
               <div class="panel__actions">
+                <button class="ghost-button ghost-button--accent" id="resourcesNewButton" type="button">Nuevo recurso</button>
                 <button class="ghost-button ghost-button--soft" id="resourcesRefreshButton" type="button">Actualizar</button>
               </div>
             </div>
@@ -302,68 +328,9 @@
               Catálogo local listo para registrar materiales, equipos, mano de obra y servicios.
             </div>
 
-            <form class="resource-form" id="resourcesForm">
-              <div class="resource-form__grid">
-                <label class="field">
-                  <span>Código</span>
-                  <input id="resourceCode" name="codigo" type="text" placeholder="Ej. MAT-001" />
-                </label>
-                <label class="field">
-                  <span>Descripción</span>
-                  <input id="resourceDescription" name="descripcion" type="text" placeholder="Nombre del recurso" required />
-                </label>
-                <label class="field">
-                  <span>Categoría</span>
-                  <select id="resourceCategory" name="categoria">
-                    <option value="MATERIAL">Material</option>
-                    <option value="EQUIPO">Equipo</option>
-                    <option value="MANO DE OBRA">Mano de obra</option>
-                    <option value="SERVICIO">Servicio</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span>Unidad</span>
-                  <input id="resourceUnit" name="unidad" type="text" placeholder="UND, M, HH..." />
-                </label>
-                <label class="field">
-                  <span>Moneda</span>
-                  <select id="resourceCurrency" name="moneda">
-                    <option value="PEN">PEN</option>
-                    <option value="USD">USD</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span>Costo unitario</span>
-                  <input id="resourceUnitCost" name="costo_unitario" type="number" step="0.01" placeholder="0.00" />
-                </label>
-                <label class="field">
-                  <span>Proveedor</span>
-                  <input id="resourceSupplier" name="proveedor" type="text" placeholder="Proveedor sugerido" />
-                </label>
-                <label class="field">
-                  <span>Imagen referencia</span>
-                  <input id="resourceImageUrl" name="imagen_url" type="text" placeholder="URL o ruta de imagen" />
-                </label>
-                <label class="field field--wide">
-                  <span>Observación</span>
-                  <input id="resourceNotes" name="observacion" type="text" placeholder="Notas opcionales del recurso" />
-                </label>
-              </div>
-              <div class="resource-form__actions">
-                <button class="ghost-button ghost-button--soft" id="resourcesFormReset" type="button">Limpiar</button>
-                <button class="ghost-button ghost-button--accent" id="resourcesFormSubmit" type="submit">Guardar recurso</button>
-              </div>
-            </form>
-
-            <div class="resources-toolbar">
-              <div class="filter-shell resources-toolbar__search">
-                <input class="column-filter" id="resourcesSearch" type="text" placeholder="Buscar por código, descripción o categoría" />
-              </div>
-            </div>
-
             <div class="log-table-shell">
               <div class="log-table-scroll">
-                <table class="log-table" id="resourcesTable">
+                <table class="log-table log-table--resources" id="resourcesTable">
                   <thead id="resourcesTableHead"></thead>
                   <tbody id="resourcesTableBody"></tbody>
                 </table>
@@ -385,7 +352,7 @@
             </div>
 
             <div class="sync-status" id="adminUsersStatus">
-              Solo el administrador general puede aprobar o desactivar cuentas.
+              Los administradores habilitados pueden aprobar accesos y ajustar permisos por usuario.
             </div>
 
             <div class="log-table-shell">
@@ -421,9 +388,14 @@
       <div class="modal-backdrop" id="modalBackdrop"></div>
       <section class="modal-card modal-card--record">
         <div class="modal-card__header">
-          <div>
+          <div class="modal-card__header-main">
+            <span class="modal-card__header-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 19.5V20h.5l11-11-1.5-1.5-11 11zm13.7-12.8 1.6-1.6a1 1 0 0 0 0-1.4l-.6-.6a1 1 0 0 0-1.4 0l-1.6 1.6 2 2zM6 20h12"/></svg>
+            </span>
+            <div>
             <p class="eyebrow">Edición</p>
             <h3 id="modalTitle">Nuevo registro</h3>
+            </div>
           </div>
           <button class="icon-close" id="closeModalButton" type="button" aria-label="Cerrar">
             <span></span>
@@ -435,6 +407,7 @@
           <div class="record-form__grid" id="recordFormGrid"></div>
           <div class="catalog-manager-panel is-hidden" id="catalogManagerPanel"></div>
           <div class="record-form__actions">
+            <button class="ghost-button ghost-button--accent is-hidden" id="newRequirementFromQuotationButton" type="button">Nuevo requerimiento</button>
             <button class="ghost-button ghost-button--soft" id="cancelModalButton" type="button">Cancelar</button>
             <button class="ghost-button ghost-button--accent" id="saveRecordButton" type="submit">Guardar</button>
           </div>
@@ -457,15 +430,21 @@
         </div>
         <div class="requirements-explorer" id="requirementsExplorerContent"></div>
       </section>
+      <aside class="explorer-sidepanel is-hidden" id="requirementsExplorerSidePanel"></aside>
     </div>
 
     <div class="modal-shell is-hidden" id="requirementEntryModal">
       <div class="modal-backdrop" id="requirementEntryBackdrop"></div>
       <section class="modal-card modal-card--requirement-entry">
         <div class="modal-card__header">
-          <div>
+          <div class="modal-card__header-main">
+            <span class="modal-card__header-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M9 4h6m-5 0a1 1 0 0 0-1 1v1h6V5a1 1 0 0 0-1-1m-4 0h4m-8 3h12a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1zm3 5h6m-6 4h6"/></svg>
+            </span>
+            <div>
             <p class="eyebrow">Registro</p>
             <h3 id="requirementEntryTitle">Nuevo requerimiento</h3>
+            </div>
           </div>
           <button class="icon-close" id="closeRequirementEntryButton" type="button" aria-label="Cerrar">
             <span></span>
@@ -512,13 +491,35 @@
               <span>Tipo de servicio</span>
               <input id="requirementServiceInput" name="tipo_servicio" type="text" />
             </label>
-            <label class="field">
+            <label class="field field--managed">
               <span>Solicitante</span>
-              <input id="requirementRequesterInput" name="solicitante" type="text" />
+              <div class="field__managed-control">
+                <select id="requirementRequesterInput" name="solicitante"></select>
+                <button class="field__manage-button" id="requirementRequesterManageButton" type="button" title="Editar lista de responsables / solicitantes">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75zM20.7 7.04a1 1 0 0 0 0-1.41L18.37 3.3a1 1 0 0 0-1.41 0L15.13 5.13l3.75 3.75z"></path>
+                  </svg>
+                </button>
+              </div>
+            </label>
+            <label class="field field--managed">
+              <span>Área</span>
+              <div class="field__managed-control">
+                <select id="requirementAreaInput" name="area"></select>
+                <button class="field__manage-button" id="requirementAreaManageButton" type="button" title="Editar lista de áreas">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75zM20.7 7.04a1 1 0 0 0 0-1.41L18.37 3.3a1 1 0 0 0-1.41 0L15.13 5.13l3.75 3.75z"></path>
+                  </svg>
+                </button>
+              </div>
             </label>
             <label class="field">
-              <span>Área</span>
-              <input id="requirementAreaInput" name="area" type="text" />
+              <span>Correo solicitante</span>
+              <input id="requirementRequesterEmailInput" name="solicitante_correo" type="email" readonly />
+            </label>
+            <label class="field">
+              <span>Teléfono solicitante</span>
+              <input id="requirementRequesterPhoneInput" name="solicitante_telefono" type="text" readonly />
             </label>
             <label class="field">
               <span>Estado</span>
@@ -529,9 +530,136 @@
               </select>
             </label>
           </div>
+          <div class="catalog-manager-panel is-hidden" id="requirementCatalogManagerPanel"></div>
           <div class="record-form__actions">
             <button class="ghost-button ghost-button--soft" id="cancelRequirementEntryButton" type="button">Cancelar</button>
             <button class="ghost-button ghost-button--accent" id="saveRequirementEntryButton" type="submit">Guardar requerimiento</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-shell is-hidden" id="resourcesModal">
+      <div class="modal-backdrop" id="resourcesModalBackdrop"></div>
+      <section class="modal-card modal-card--resource">
+        <div class="modal-card__header">
+          <div class="modal-card__header-main">
+            <span class="modal-card__header-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 2h12m-12 0H5a1 1 0 0 0-1 1v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a1 1 0 0 0-1-1h-1m-8-2h4"/></svg>
+            </span>
+            <div>
+            <p class="eyebrow">Catálogo base</p>
+            <h3 id="resourcesModalTitle">Nuevo recurso</h3>
+            </div>
+          </div>
+          <button class="icon-close" id="closeResourcesModalButton" type="button" aria-label="Cerrar">
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+
+        <form class="resource-form resource-form--modal" id="resourcesForm">
+          <section class="resource-form__section">
+            <div class="resource-form__section-title">
+              <span class="resource-form__section-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M11 4H7a2 2 0 0 0-2 2v4l8.5 8.5a1.5 1.5 0 0 0 2.1 0l4.9-4.9a1.5 1.5 0 0 0 0-2.1L12 4zm-3 3h.01"/></svg>
+              </span>
+              <strong>Identificación y compra</strong>
+            </div>
+            <div class="resource-form__grid">
+              <label class="field">
+                <span>Código EKA</span>
+                <input id="resourceCode" name="codigo" type="text" placeholder="Ej. MAT-001" />
+              </label>
+              <label class="field">
+                <span>Código fabricante / catálogo</span>
+                <input id="resourceCatalogCode" name="codigo_fabricante" type="text" placeholder="Código de proveedor o fábrica" />
+              </label>
+              <label class="field field--wide">
+                <span>Descripción</span>
+                <input id="resourceDescription" name="descripcion" type="text" placeholder="Nombre del recurso" required />
+              </label>
+              <label class="field">
+                <span>Categoría</span>
+                <select id="resourceCategory" name="categoria">
+                  <option value="MATERIAL">Material</option>
+                  <option value="EQUIPO">Equipo</option>
+                  <option value="MANO DE OBRA">Mano de obra</option>
+                  <option value="SERVICIO">Servicio</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Unidad</span>
+                <input id="resourceUnit" name="unidad" type="text" placeholder="UND, M, HH..." />
+              </label>
+              <label class="field">
+                <span>Marca</span>
+                <input id="resourceBrand" name="marca" type="text" placeholder="Marca o fabricante" />
+              </label>
+              <label class="field">
+                <span>Proveedor</span>
+                <input id="resourceSupplier" name="proveedor" type="text" placeholder="Proveedor sugerido" />
+              </label>
+              <label class="field">
+                <span>Moneda</span>
+                <select id="resourceCurrency" name="moneda">
+                  <option value="PEN">PEN</option>
+                  <option value="USD">USD</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Costo unitario</span>
+                <input id="resourceUnitCost" name="costo_unitario" type="number" step="0.01" placeholder="0.00" />
+              </label>
+              <label class="field field--wide">
+                <span>Tiempo de entrega</span>
+                <input id="resourceLeadTime" name="tiempo_entrega" type="text" placeholder="Ej. 3 días / inmediato / 2 semanas" />
+              </label>
+            </div>
+          </section>
+
+          <section class="resource-form__section">
+            <div class="resource-form__section-title">
+              <span class="resource-form__section-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6zm3 9 2.5-3 2.5 3 3.5-5 3.5 5M9 9h.01"/></svg>
+              </span>
+              <strong>Referencias técnicas</strong>
+            </div>
+            <div class="resource-form__grid resource-form__grid--documents">
+              <label class="field">
+                <span>Imagen referencia</span>
+                <input id="resourceImageUrl" name="imagen_url" type="text" placeholder="URL de imagen" />
+                <input id="resourceImageFile" name="imagen_file" type="file" accept="image/*" />
+                <small class="resource-form__hint" id="resourceImageHint">Puedes ingresar una URL o subir una imagen.</small>
+                <div class="resource-form__preview is-hidden" id="resourceImagePreview"></div>
+              </label>
+              <label class="field">
+                <span>Ficha técnica</span>
+                <input id="resourceTechnicalSheetUrl" name="ficha_tecnica_url" type="text" placeholder="URL de ficha técnica o documento" />
+                <input id="resourceTechnicalSheetFile" name="ficha_tecnica_file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" />
+                <small class="resource-form__hint" id="resourceTechnicalSheetHint">Puedes ingresar una URL o subir un archivo digital.</small>
+                <div class="resource-form__preview is-hidden" id="resourceTechnicalSheetPreview"></div>
+              </label>
+            </div>
+          </section>
+
+          <section class="resource-form__section">
+            <div class="resource-form__section-title">
+              <span class="resource-form__section-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M7 4h10a2 2 0 0 1 2 2v12l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2zm2 5h6m-6 4h6"/></svg>
+              </span>
+              <strong>Notas internas</strong>
+            </div>
+            <div class="resource-form__grid resource-form__grid--notes">
+              <label class="field field--full">
+                <span>Observación</span>
+                <input id="resourceNotes" name="observacion" type="text" placeholder="Notas opcionales del recurso" />
+              </label>
+            </div>
+          </section>
+          <div class="resource-form__actions">
+            <button class="ghost-button ghost-button--soft" id="resourcesFormReset" type="button">Limpiar</button>
+            <button class="ghost-button ghost-button--accent" id="resourcesFormSubmit" type="submit">Guardar recurso</button>
           </div>
         </form>
       </section>
@@ -541,9 +669,14 @@
       <div class="modal-backdrop" id="adminPermissionsBackdrop"></div>
       <section class="modal-card modal-card--permissions">
         <div class="modal-card__header">
-          <div>
+          <div class="modal-card__header-main">
+            <span class="modal-card__header-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.8 8.4-7 9.8C7.8 19.4 5 15.4 5 11V6l7-3zm0 5v8m-3-5h6"/></svg>
+            </span>
+            <div>
             <p class="eyebrow">Permisos</p>
             <h3 id="adminPermissionsTitle">Log de Cotizaciones</h3>
+            </div>
           </div>
           <button class="icon-close" id="closeAdminPermissionsButton" type="button" aria-label="Cerrar">
             <span></span>
@@ -583,6 +716,40 @@
           <div class="record-form__actions">
             <button class="ghost-button ghost-button--soft" id="cancelAdminPermissionsButton" type="button">Cancelar</button>
             <button class="ghost-button ghost-button--accent" id="saveAdminPermissionsButton" type="submit">Guardar permisos</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-shell is-hidden" id="confirmDialogModal">
+      <div class="modal-backdrop" id="confirmDialogBackdrop"></div>
+      <section class="modal-card modal-card--confirm">
+        <div class="confirm-dialog">
+          <div class="confirm-dialog__header">
+            <p class="eyebrow" id="confirmDialogEyebrow">Confirmación</p>
+            <h3 id="confirmDialogTitle">¿Deseas continuar?</h3>
+          </div>
+          <p class="confirm-dialog__message" id="confirmDialogMessage">Esta acción requiere tu confirmación.</p>
+          <div class="confirm-dialog__actions">
+            <button class="ghost-button ghost-button--soft" id="confirmDialogCancelButton" type="button">Cancelar</button>
+            <button class="ghost-button ghost-button--accent" id="confirmDialogAcceptButton" type="button">Aceptar</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-shell is-hidden" id="quickEditDialogModal">
+      <div class="modal-backdrop" id="quickEditDialogBackdrop"></div>
+      <section class="modal-card modal-card--confirm modal-card--quick-edit">
+        <form class="confirm-dialog quick-edit-dialog" id="quickEditDialogForm">
+          <div class="confirm-dialog__header">
+            <p class="eyebrow" id="quickEditDialogEyebrow">Edición</p>
+            <h3 id="quickEditDialogTitle">Editar item del requerimiento</h3>
+          </div>
+          <div class="quick-edit-dialog__grid" id="quickEditDialogFields"></div>
+          <div class="confirm-dialog__actions">
+            <button class="ghost-button ghost-button--soft" id="quickEditDialogCancelButton" type="button">Cancelar</button>
+            <button class="ghost-button ghost-button--accent" id="quickEditDialogSaveButton" type="submit">Guardar cambios</button>
           </div>
         </form>
       </section>

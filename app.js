@@ -7,11 +7,14 @@ const authShell = document.getElementById('authShell')
 const authForm = document.getElementById('authForm')
 const authStatus = document.getElementById('authStatus')
 const authTabs = document.getElementById('authTabs')
+const authEmailField = document.getElementById('authEmailField')
 const authEmailInput = document.getElementById('authEmailInput')
 const authNameField = document.getElementById('authNameField')
 const authNameInput = document.getElementById('authNameInput')
 const authPasswordInput = document.getElementById('authPasswordInput')
 const authPasswordField = document.getElementById('authPasswordField')
+const authConfirmPasswordField = document.getElementById('authConfirmPasswordField')
+const authConfirmPasswordInput = document.getElementById('authConfirmPasswordInput')
 const authHint = document.getElementById('authHint')
 const authGoogleButton = document.getElementById('authGoogleButton')
 const authSubmitButton = document.getElementById('authSubmitButton')
@@ -35,6 +38,7 @@ const newRecordButton = document.getElementById('newRecordButton')
 const columnManager = document.getElementById('columnManager')
 const columnManagerList = document.getElementById('columnManagerList')
 const resetColumnsButton = document.getElementById('resetColumnsButton')
+const columnFreezeCount = document.getElementById('columnFreezeCount')
 
 const requirementsTableHead = document.getElementById('requirementsTableHead')
 const requirementsTableBody = document.getElementById('requirementsTableBody')
@@ -57,12 +61,21 @@ const requirementsDetailPrevPage = document.getElementById('requirementsDetailPr
 const requirementsDetailNextPage = document.getElementById('requirementsDetailNextPage')
 const requirementsDetailPageSize = document.getElementById('requirementsDetailPageSize')
 const resourcesStatus = document.getElementById('resourcesStatus')
+const resourcesNewButton = document.getElementById('resourcesNewButton')
+const resourcesModal = document.getElementById('resourcesModal')
+const resourcesModalBackdrop = document.getElementById('resourcesModalBackdrop')
+const closeResourcesModalButton = document.getElementById('closeResourcesModalButton')
+const resourcesModalTitle = document.getElementById('resourcesModalTitle')
 const resourcesForm = document.getElementById('resourcesForm')
 const resourcesFormReset = document.getElementById('resourcesFormReset')
 const resourcesRefreshButton = document.getElementById('resourcesRefreshButton')
 const resourcesSearch = document.getElementById('resourcesSearch')
 const resourcesTableHead = document.getElementById('resourcesTableHead')
 const resourcesTableBody = document.getElementById('resourcesTableBody')
+const resourceImageHint = document.getElementById('resourceImageHint')
+const resourceTechnicalSheetHint = document.getElementById('resourceTechnicalSheetHint')
+const resourceImagePreview = document.getElementById('resourceImagePreview')
+const resourceTechnicalSheetPreview = document.getElementById('resourceTechnicalSheetPreview')
 const adminUsersStatus = document.getElementById('adminUsersStatus')
 const adminUsersRefreshButton = document.getElementById('adminUsersRefreshButton')
 const adminUsersTableHead = document.getElementById('adminUsersTableHead')
@@ -77,12 +90,14 @@ const recordFormGrid = document.getElementById('recordFormGrid')
 const catalogManagerPanel = document.getElementById('catalogManagerPanel')
 const modalTitle = document.getElementById('modalTitle')
 const saveRecordButton = document.getElementById('saveRecordButton')
+const newRequirementFromQuotationButton = document.getElementById('newRequirementFromQuotationButton')
 const requirementsExplorerModal = document.getElementById('requirementsExplorerModal')
 const requirementsExplorerBackdrop = document.getElementById('requirementsExplorerBackdrop')
 const closeRequirementsExplorerButton = document.getElementById('closeRequirementsExplorerButton')
 const requirementsExplorerTitle = document.getElementById('requirementsExplorerTitle')
 const requirementsExplorerEyebrow = document.getElementById('requirementsExplorerEyebrow')
 const requirementsExplorerContent = document.getElementById('requirementsExplorerContent')
+const requirementsExplorerSidePanel = document.getElementById('requirementsExplorerSidePanel')
 const requirementEntryModal = document.getElementById('requirementEntryModal')
 const requirementEntryBackdrop = document.getElementById('requirementEntryBackdrop')
 const closeRequirementEntryButton = document.getElementById('closeRequirementEntryButton')
@@ -100,8 +115,13 @@ const requirementDateInput = document.getElementById('requirementDateInput')
 const requirementDeliveryInput = document.getElementById('requirementDeliveryInput')
 const requirementServiceInput = document.getElementById('requirementServiceInput')
 const requirementRequesterInput = document.getElementById('requirementRequesterInput')
+const requirementRequesterManageButton = document.getElementById('requirementRequesterManageButton')
+const requirementRequesterEmailInput = document.getElementById('requirementRequesterEmailInput')
+const requirementRequesterPhoneInput = document.getElementById('requirementRequesterPhoneInput')
 const requirementAreaInput = document.getElementById('requirementAreaInput')
+const requirementAreaManageButton = document.getElementById('requirementAreaManageButton')
 const requirementStateInput = document.getElementById('requirementStateInput')
+const requirementCatalogManagerPanel = document.getElementById('requirementCatalogManagerPanel')
 const adminPermissionsModal = document.getElementById('adminPermissionsModal')
 const adminPermissionsBackdrop = document.getElementById('adminPermissionsBackdrop')
 const closeAdminPermissionsButton = document.getElementById('closeAdminPermissionsButton')
@@ -115,6 +135,20 @@ const adminPermissionsSummary = document.getElementById('adminPermissionsSummary
 const adminPermissionsGeneral = document.getElementById('adminPermissionsGeneral')
 const adminPermissionsLinked = document.getElementById('adminPermissionsLinked')
 const adminPermissionsFields = document.getElementById('adminPermissionsFields')
+const confirmDialogModal = document.getElementById('confirmDialogModal')
+const confirmDialogBackdrop = document.getElementById('confirmDialogBackdrop')
+const confirmDialogEyebrow = document.getElementById('confirmDialogEyebrow')
+const confirmDialogTitle = document.getElementById('confirmDialogTitle')
+const confirmDialogMessage = document.getElementById('confirmDialogMessage')
+const confirmDialogCancelButton = document.getElementById('confirmDialogCancelButton')
+const confirmDialogAcceptButton = document.getElementById('confirmDialogAcceptButton')
+const quickEditDialogModal = document.getElementById('quickEditDialogModal')
+const quickEditDialogBackdrop = document.getElementById('quickEditDialogBackdrop')
+const quickEditDialogForm = document.getElementById('quickEditDialogForm')
+const quickEditDialogEyebrow = document.getElementById('quickEditDialogEyebrow')
+const quickEditDialogTitle = document.getElementById('quickEditDialogTitle')
+const quickEditDialogFields = document.getElementById('quickEditDialogFields')
+const quickEditDialogCancelButton = document.getElementById('quickEditDialogCancelButton')
 
 const viewTitles = {
   dashboard: 'Dashboard',
@@ -128,12 +162,22 @@ const viewTitles = {
 
 const config = window.SUPABASE_CONFIG || null
 const primaryKey = config?.primaryKey || 'id'
+const expedienteEvidenceBucket = config?.expedienteEvidenceBucket || 'requerimientos'
+const expedienteEvidencePathPrefix = config?.expedienteEvidencePathPrefix || 'expediente'
+const primarySuperAdminEmail = 'edwin.qm@outlook.com'
+const companyDocumentRepositoryEmail = 'presupuestos@ekamining.com'
+const initialAuthSearch = typeof window !== 'undefined' ? String(window.location.search || '') : ''
+const initialAuthHash = typeof window !== 'undefined' ? String(window.location.hash || '') : ''
 const visibilityStorageKey = `eka-column-visibility-${config?.table || 'default'}`
 const quotationWidthStorageKey = `eka-column-widths-${config?.table || 'default'}`
 const requirementsWidthStorageKey = 'eka-column-widths-requirements'
 const requirementDetailsWidthStorageKey = 'eka-column-widths-requirements-detail'
+const quotationLinkedWidthStorageKey = 'eka-column-widths-quotation-linked'
 const requirementModalVisibilityStorageKey = 'eka-column-visibility-requirement-modal'
 const quotationLinkedVisibilityStorageKey = 'eka-column-visibility-quotation-linked'
+const quotationFrozenColumnsStorageKey = `eka-frozen-columns-${config?.table || 'default'}`
+const quotationLinkedFrozenColumnsStorageKey = 'eka-frozen-columns-quotation-linked'
+const requirementModalFrozenColumnsStorageKey = 'eka-frozen-columns-requirement-modal'
 const selectCatalogStorageKey = 'eka-select-catalogs'
 const cacheDatabaseName = 'eka-dashboard-cache'
 const cacheStoreName = 'datasets'
@@ -144,10 +188,12 @@ let supabaseClient = null
 let columns = Array.isArray(config?.columns) ? [...config.columns] : []
 let records = []
 let currentEditingId = null
+let currentEditingRecord = null
 let visibleColumnKeys = []
 let activeFilters = {}
 let activeSort = { key: '', direction: 'asc' }
 let columnWidths = loadStoredMap(quotationWidthStorageKey)
+let quotationFrozenColumnCount = loadStoredCount(quotationFrozenColumnsStorageKey)
 
 let requirementsRecords = []
 let requirementsActiveFilters = {}
@@ -166,15 +212,19 @@ let requirementModalColumns = []
 let requirementModalFilters = {}
 let requirementModalSort = { key: 'item', direction: 'asc' }
 let requirementModalVisibleColumnKeys = []
+let requirementModalFrozenColumnCount = loadStoredCount(requirementModalFrozenColumnsStorageKey)
 let requirementModalColumnManagerOpen = false
 let requirementModalResourcePickerOpen = false
 let requirementModalResourceSearch = ''
 let activeRequirementRecord = null
+let activeExpedienteContext = null
 let quotationLinkedRecord = null
 let quotationLinkedRequirements = []
 let quotationLinkedFilters = {}
 let quotationLinkedSort = { key: 'fecha_rq', direction: 'desc' }
 let quotationLinkedVisibleColumnKeys = []
+let quotationLinkedFrozenColumnCount = loadStoredCount(quotationLinkedFrozenColumnsStorageKey)
+let quotationLinkedColumnWidths = loadStoredMap(quotationLinkedWidthStorageKey)
 let quotationLinkedColumnManagerOpen = false
 let activeRequirementEntryContext = null
 let activeExplorerMode = ''
@@ -189,20 +239,30 @@ let explorerEvidenceError = ''
 let explorerLegacyAttachmentRecords = []
 let explorerTrackingComposerMode = ''
 let explorerEvidenceComposerOpen = false
+let explorerExpedienteSnapshotRecord = null
+let explorerExpedienteSnapshotSource = ''
 let resourcesRecords = []
 let resourcesSearchTerm = ''
+let resourcesActiveFilters = {}
+let resourcesSort = { key: 'descripcion', direction: 'asc' }
 let editingResourceId = null
 let customRequirementItems = []
 let activeResize = null
 let pendingDeepLinkRequirementKey = ''
+let confirmDialogResolver = null
+let quickEditDialogResolver = null
+let requirementModalInlineEdit = null
 let optionCatalogs = {}
 let deletedCatalogOptions = {}
 let activeCatalogFieldKey = ''
+let activeCatalogHost = 'record'
 let editingCatalogOptionValue = ''
 let authSession = null
 let currentUserProfile = null
 let authListenerAttached = false
 let authMode = 'login'
+let authRecoveryMode = false
+let authRecoveryRedirectPending = false
 let adminUsersRecords = []
 const adminUsersFilters = {
   full_name: '',
@@ -236,25 +296,29 @@ const quotationPermissionGeneralOptions = [
   { key: 'show_refresh_button', label: 'Botón Actualizar', description: 'Muestra el botón de recarga de datos.' },
   { key: 'show_columns_button', label: 'Botón Columnas', description: 'Permite abrir el selector de columnas visibles.' },
   { key: 'show_new_button', label: 'Botón Nuevo registro', description: 'Muestra la creación de una nueva cotización.' },
-  { key: 'show_edit_button', label: 'Botón Editar', description: 'Muestra el botón para abrir la ficha de la cotización.' },
+  { key: 'show_edit_button', label: 'Icono Lápiz', description: 'Muestra la acción para abrir la ficha de la cotización.' },
   { key: 'show_eye_button', label: 'Icono Ojo', description: 'Permite ver requerimientos vinculados a la cotización.' },
   { key: 'open_edit_modal', label: 'Abrir ficha de cotización', description: 'Permite abrir el formulario, aunque sea en modo lectura.' },
   { key: 'save_edits', label: 'Guardar cambios', description: 'Permite guardar cambios dentro del formulario.' },
 ]
 
 const quotationPermissionLinkedOptions = [
-  { key: 'show_linked_detail_button', label: 'Botón Detalle del RQ', description: 'Abre el detalle del requerimiento desde el ojo.' },
+  { key: 'show_linked_detail_button', label: 'Icono Ver detalle del RQ', description: 'Abre el detalle del requerimiento desde la vista vinculada.' },
   { key: 'show_linked_new_requirement', label: 'Botón Nuevo requerimiento', description: 'Permite crear un RQ desde la cotización.' },
   { key: 'show_linked_columns_button', label: 'Botón Columnas', description: 'Muestra la gestión de columnas en la vista relacionada.' },
   { key: 'show_linked_export_excel_button', label: 'Botón Exportar Excel', description: 'Permite exportar la tabla vinculada.' },
   { key: 'show_linked_share_button', label: 'Botón Compartir', description: 'Permite compartir el enlace de la vista relacionada.' },
 ]
 
-const adminAssignableRoles = [
-  { value: 'consulta', label: 'Lectura' },
-  { value: 'comercial', label: 'Editor' },
-  { value: 'admin', label: 'Administrador' },
-]
+const adminRoleLabelMap = {
+  consulta: 'Consulta / Auditoría',
+  comercial: 'Responsable Cotización',
+  tecnico: 'Técnico / Validación',
+  logistica: 'Logística',
+  admin: 'Administrador',
+}
+
+const adminAssignableRoles = Object.entries(adminRoleLabelMap).map(([value, label]) => ({ value, label }))
 
 const adminPermissionModules = [
   { key: 'quotations', label: 'Log de Cotizaciones', description: 'Acceso, botones y columnas editables.', ready: true },
@@ -277,13 +341,14 @@ const requirementsPermissionDefaultState = {
   show_new_button: false,
   show_detail_button: true,
   open_detail_modal: true,
+  editable_fields: [],
 }
 
 const requirementsPermissionGeneralOptions = [
   { key: 'access', label: 'Acceso a Log de Requerimientos', description: 'Permite entrar al módulo y ver la tabla agrupada.' },
   { key: 'show_refresh_button', label: 'Botón Actualizar', description: 'Muestra el botón para recargar requerimientos.' },
   { key: 'show_new_button', label: 'Botón Nuevo requerimiento', description: 'Permite registrar un nuevo requerimiento.' },
-  { key: 'show_detail_button', label: 'Botón Detalle', description: 'Muestra el acceso al detalle de cada RQ.' },
+  { key: 'show_detail_button', label: 'Icono Ver detalle', description: 'Muestra el acceso visual al detalle de cada RQ.' },
   { key: 'open_detail_modal', label: 'Abrir detalle del RQ', description: 'Permite abrir la vista completa del requerimiento seleccionado.' },
 ]
 
@@ -298,6 +363,7 @@ const requirementDetailsPermissionDefaultState = {
   show_export_pdf_button: true,
   show_print_button: true,
   show_share_button: true,
+  editable_fields: [],
 }
 
 const requirementDetailsPermissionGeneralOptions = [
@@ -323,6 +389,7 @@ const resourcesPermissionDefaultState = {
   save_edits: false,
   show_edit_button: true,
   show_delete_button: false,
+  editable_fields: [],
 }
 
 const resourcesPermissionGeneralOptions = [
@@ -330,8 +397,8 @@ const resourcesPermissionGeneralOptions = [
   { key: 'show_refresh_button', label: 'Botón Actualizar', description: 'Permite recargar el catálogo local.' },
   { key: 'show_form', label: 'Mostrar formulario', description: 'Permite ver el formulario de alta/edición de recursos.' },
   { key: 'save_edits', label: 'Guardar recursos', description: 'Permite crear o actualizar recursos.' },
-  { key: 'show_edit_button', label: 'Botón Editar', description: 'Muestra la edición de recursos existentes.' },
-  { key: 'show_delete_button', label: 'Botón Eliminar', description: 'Permite eliminar recursos del catálogo.' },
+  { key: 'show_edit_button', label: 'Icono Lápiz', description: 'Muestra la acción para editar recursos existentes.' },
+  { key: 'show_delete_button', label: 'Icono Eliminar', description: 'Permite eliminar recursos del catálogo.' },
 ]
 
 const suppliersPermissionDefaultState = {
@@ -360,6 +427,10 @@ const modulePermissionConfigs = {
     description: 'Acceso al log agrupado y acciones del RQ.',
     defaultState: requirementsPermissionDefaultState,
     generalOptions: requirementsPermissionGeneralOptions,
+    fieldKeys: () => getRequirementsEditableFieldKeys(),
+    fieldDefinitions: () => getRequirementsEditableFieldDefinitions(),
+    fieldTitle: 'Columnas editables',
+    fieldDescription: 'Define qué columnas del requerimiento podrá modificar el usuario cuando se habilite edición controlada.',
   },
   details: {
     label: 'Detalle de Requerimientos',
@@ -369,12 +440,20 @@ const modulePermissionConfigs = {
     secondaryOptions: requirementDetailsPermissionSecondaryOptions,
     secondaryTitle: 'Acciones del detalle',
     secondaryDescription: 'Controla botones y acciones dentro del detalle del RQ.',
+    fieldKeys: () => getRequirementDetailsEditableFieldKeys(),
+    fieldDefinitions: () => getRequirementDetailsEditableFieldDefinitions(),
+    fieldTitle: 'Columnas editables',
+    fieldDescription: 'Elige qué columnas del detalle podrán quedar habilitadas para edición controlada.',
   },
   resources: {
     label: 'Recursos',
     description: 'Catálogo, formulario y acciones de recursos.',
     defaultState: resourcesPermissionDefaultState,
     generalOptions: resourcesPermissionGeneralOptions,
+    fieldKeys: () => getResourcesEditableFieldKeys(),
+    fieldDefinitions: () => getResourcesEditableFieldDefinitions(),
+    fieldTitle: 'Columnas editables',
+    fieldDescription: 'Selecciona qué datos del recurso podrá editar el usuario dentro del catálogo.',
   },
   suppliers: {
     label: 'Proveedores',
@@ -605,12 +684,16 @@ const requirementsFallbackRecords = [
 
 const resourceColumns = [
   { key: 'codigo', label: 'CÓDIGO', type: 'text' },
+  { key: 'codigo_fabricante', label: 'CÓDIGO FAB.', type: 'text' },
   { key: 'descripcion', label: 'DESCRIPCIÓN', type: 'text' },
   { key: 'categoria', label: 'CATEGORÍA', type: 'text', tag: true },
+  { key: 'marca', label: 'MARCA', type: 'text' },
   { key: 'unidad', label: 'UNIDAD', type: 'text' },
+  { key: 'tiempo_entrega', label: 'TIEMPO ENTREGA', type: 'text' },
   { key: 'moneda', label: 'MONEDA', type: 'text', tag: true },
   { key: 'costo_unitario', label: 'COSTO UNITARIO', type: 'number' },
   { key: 'proveedor', label: 'PROVEEDOR', type: 'text' },
+  { key: 'ficha_tecnica_url', label: 'FICHA TÉCNICA', type: 'text' },
   { key: 'observacion', label: 'OBSERVACIÓN', type: 'text' },
 ]
 
@@ -618,37 +701,49 @@ const defaultResourceCatalog = [
   {
     id: 'resource-default-1',
     codigo: 'MAT-001',
+    codigo_fabricante: 'THHN-4AWG',
     descripcion: 'Cable THHN 4 AWG',
     categoria: 'MATERIAL',
+    marca: 'Indeco',
     unidad: 'M',
+    tiempo_entrega: 'Stock',
     moneda: 'PEN',
     costo_unitario: 18.5,
     proveedor: 'Proveedor eléctrico base',
     imagen_url: '',
+    ficha_tecnica_url: '',
     observacion: 'Recurso inicial de referencia',
   },
   {
     id: 'resource-default-2',
     codigo: 'EQ-001',
+    codigo_fabricante: 'SJ-19',
     descripcion: 'Plataforma tijera eléctrica',
     categoria: 'EQUIPO',
+    marca: 'Genie',
     unidad: 'DÍA',
+    tiempo_entrega: '24 horas',
     moneda: 'PEN',
     costo_unitario: 420,
     proveedor: 'Rental operativo',
     imagen_url: '',
+    ficha_tecnica_url: '',
     observacion: 'Equipo reutilizable',
   },
   {
     id: 'resource-default-3',
     codigo: 'MO-001',
+    codigo_fabricante: '',
     descripcion: 'Técnico electricista',
     categoria: 'MANO DE OBRA',
+    marca: '',
     unidad: 'HH',
+    tiempo_entrega: 'Inmediato',
     moneda: 'PEN',
     costo_unitario: 32,
     proveedor: 'Cuadrilla interna',
     imagen_url: '',
+    ficha_tecnica_url: '',
     observacion: 'Base para recursos humanos',
   },
 ]
@@ -666,17 +761,47 @@ const managedSelectFieldDefinitions = {
   },
   cliente: { label: 'Cliente', kind: 'simple' },
   unidad_minera: { label: 'Unidad Minera', kind: 'simple' },
+  responsables_contacto: {
+    label: 'Responsables / solicitantes',
+    kind: 'contact',
+    contactSources: [
+      {
+        valueKey: 'responsable_tecnico',
+        emailKey: 'correo_responsable_tecnico',
+        phoneKey: 'telefono_responsable_tecnico',
+      },
+      {
+        valueKey: 'responsable_economico',
+        emailKey: 'correo_responsable_economico',
+        phoneKey: 'telefono_responsable_economico',
+      },
+    ],
+  },
   responsable_tecnico: {
     label: 'Responsable Tecnico',
     kind: 'contact',
+    catalogKey: 'responsables_contacto',
     emailField: 'correo_responsable_tecnico',
     phoneField: 'telefono_responsable_tecnico',
   },
   responsable_economico: {
     label: 'Responsable Economico',
     kind: 'contact',
+    catalogKey: 'responsables_contacto',
     emailField: 'correo_responsable_economico',
     phoneField: 'telefono_responsable_economico',
+  },
+  requirement_solicitante: {
+    label: 'Solicitante del requerimiento',
+    kind: 'contact',
+    catalogKey: 'responsables_contacto',
+    emailField: 'solicitante_correo',
+    phoneField: 'solicitante_telefono',
+  },
+  requirement_area: {
+    label: 'Área del requerimiento',
+    kind: 'simple',
+    aliases: ['area'],
   },
   status_oferta: { label: 'Status Oferta', kind: 'simple' },
 }
@@ -685,6 +810,141 @@ function getQuotationEditableFieldKeys(sourceColumns = columns) {
   return sourceColumns
     .filter((column) => !column.readonly && column.key !== 'analisis_economico_url')
     .map((column) => column.key)
+}
+
+function getRequirementsEditableFieldDefinitions(sourceColumns = requirementsColumns) {
+  return sourceColumns
+    .filter((column) => column && column.key)
+    .map((column) => ({ key: column.key, label: column.label || toLabel(column.key) }))
+}
+
+function getRequirementsEditableFieldKeys(sourceColumns = requirementsColumns) {
+  return getRequirementsEditableFieldDefinitions(sourceColumns).map((column) => column.key)
+}
+
+function getRequirementDetailsEditableFieldDefinitions(sourceColumns = requirementDetailsColumnDefinitions) {
+  return sourceColumns
+    .filter((column) => column && column.key)
+    .map((column) => ({ key: column.key, label: column.label || toLabel(column.key) }))
+}
+
+function getRequirementDetailsEditableFieldKeys(sourceColumns = requirementDetailsColumnDefinitions) {
+  return getRequirementDetailsEditableFieldDefinitions(sourceColumns).map((column) => column.key)
+}
+
+function getResourcesEditableFieldDefinitions(sourceColumns = resourceColumns) {
+  return sourceColumns
+    .filter((column) => column && column.key)
+    .map((column) => ({ key: column.key, label: column.label || toLabel(column.key) }))
+}
+
+function getResourcesEditableFieldKeys(sourceColumns = resourceColumns) {
+  return getResourcesEditableFieldDefinitions(sourceColumns).map((column) => column.key)
+}
+
+function getProfileMetadata(profile = null) {
+  return profile?.metadata && typeof profile.metadata === 'object' && !Array.isArray(profile.metadata) ? profile.metadata : {}
+}
+
+function normalizeProfileEmail(profile = null) {
+  return String(profile?.email || '').trim().toLowerCase()
+}
+
+function isPrimarySuperAdminProfile(profile = null) {
+  return Boolean(
+    profile?.role === 'admin' &&
+      profile?.active &&
+      normalizeProfileEmail(profile) === primarySuperAdminEmail &&
+      getProfileAccessTier(profile) === 'super_admin',
+  )
+}
+
+function isCompanyAdminProfile(profile = null) {
+  return Boolean(
+    profile?.role === 'admin' &&
+      profile?.active &&
+      normalizeProfileEmail(profile) === companyDocumentRepositoryEmail,
+  )
+}
+
+function isProtectedAdminProfile(profile = null) {
+  return isPrimarySuperAdminProfile(profile)
+}
+
+function getRoleLabel(role) {
+  return adminRoleLabelMap[String(role || '').trim().toLowerCase()] || String(role || 'Consulta / Auditoría')
+}
+
+function getProfileAccessTier(profile = currentUserProfile) {
+  const metadataTier = String(getProfileMetadata(profile).access_tier || '').trim().toLowerCase()
+  if (metadataTier) {
+    return metadataTier
+  }
+
+  const email = normalizeProfileEmail(profile)
+  if (profile?.role === 'admin' && profile?.active && email === primarySuperAdminEmail) {
+    return 'super_admin'
+  }
+  if (profile?.role === 'admin' && profile?.active && email === companyDocumentRepositoryEmail) {
+    return 'admin_empresa'
+  }
+
+  return ''
+}
+
+function canManageAdminModule(profile = currentUserProfile) {
+  return Boolean(profile?.active && profile?.role === 'admin')
+}
+
+function getVisibleRoleLabel(profile = null, fallbackRole = '') {
+  if (profile && isPrimarySuperAdminProfile(profile)) {
+    return 'Administrador General'
+  }
+  if (profile && (isCompanyAdminProfile(profile) || getProfileAccessTier(profile) === 'admin_empresa')) {
+    return 'Administrador'
+  }
+  return getRoleLabel(profile?.role || fallbackRole || 'consulta')
+}
+
+function getAdminApprovalActor() {
+  return String(authSession?.user?.email || authSession?.user?.id || '').trim() || null
+}
+
+function buildGovernanceMetadata(profile = null, overrides = {}) {
+  const baseMetadata = { ...getProfileMetadata(profile) }
+  const nextMetadata = { ...baseMetadata, ...overrides }
+  const email = normalizeProfileEmail(profile)
+  const role = String(profile?.role || overrides.role || '').trim().toLowerCase()
+  const active =
+    typeof overrides.active === 'boolean'
+      ? overrides.active
+      : typeof profile?.active === 'boolean'
+        ? profile.active
+        : false
+
+  if (email === primarySuperAdminEmail && role === 'admin' && active) {
+    nextMetadata.access_tier = 'super_admin'
+  }
+
+  if (email === companyDocumentRepositoryEmail) {
+    nextMetadata.organization_email = companyDocumentRepositoryEmail
+    nextMetadata.document_repository_owner = true
+    if (role === 'admin' && active && !String(nextMetadata.access_tier || '').trim()) {
+      nextMetadata.access_tier = 'admin_empresa'
+    }
+  }
+
+  ;['access_tier', 'approved_by', 'approved_at', 'organization_email'].forEach((key) => {
+    if (nextMetadata[key] === undefined) {
+      delete nextMetadata[key]
+    }
+  })
+
+  if (nextMetadata.document_repository_owner === undefined) {
+    delete nextMetadata.document_repository_owner
+  }
+
+  return nextMetadata
 }
 
 function getModulePermissionConfig(moduleKey = 'quotations') {
@@ -842,6 +1102,11 @@ function applyAuxiliaryModuleUiPermissions() {
     resourcesRefreshButton.hidden = !resourcesPermissions.access || !resourcesPermissions.show_refresh_button
   }
 
+  if (resourcesNewButton) {
+    resourcesNewButton.hidden = !resourcesPermissions.access || !resourcesPermissions.show_form
+    resourcesNewButton.disabled = !resourcesPermissions.access || !resourcesPermissions.show_form || !resourcesPermissions.save_edits
+  }
+
   if (resourcesForm) {
     const controls = resourcesForm.querySelectorAll('input, select, textarea, button')
     controls.forEach((control) => {
@@ -949,7 +1214,7 @@ function applyQuotationFormPermissions(record = null) {
 function setActiveView(viewKey) {
   if (currentUserProfile) {
     const protectedViewMap = {
-      admin: currentUserProfile?.role === 'admin' && currentUserProfile?.active ? '__allowed__' : '',
+      admin: canManageAdminModule(currentUserProfile) ? '__allowed__' : '',
       'quotations-log': 'quotations',
       'requirements-log': 'requirements',
       'requirements-detail': 'details',
@@ -961,6 +1226,16 @@ function setActiveView(viewKey) {
     if ((viewKey === 'admin' && requiredModule !== '__allowed__') || (requiredModule && requiredModule !== '__allowed__' && !userCanAccessModule(requiredModule))) {
       viewKey = 'dashboard'
     }
+  }
+
+  if (
+    typeof window !== 'undefined' &&
+    viewKey !== 'requirements-log' &&
+    viewKey !== 'requirements-detail' &&
+    /^#rq=/.test(window.location.hash || '')
+  ) {
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+    pendingDeepLinkRequirementKey = ''
   }
 
   navItems.forEach((item) => {
@@ -1022,20 +1297,139 @@ function updateAuthStatus(message = '', tone = 'info') {
   authStatus.classList.toggle('is-visible', Boolean(message))
 }
 
+function setAppBootstrapResolved() {
+  if (typeof document === 'undefined') {
+    return
+  }
+  document.documentElement.classList.remove('auth-boot-pending')
+}
+
+function setRecoveryDocumentPending(enabled) {
+  if (typeof document === 'undefined') {
+    return
+  }
+  document.documentElement.classList.toggle('auth-recovery-pending', Boolean(enabled))
+}
+
+function getAuthRedirectBaseUrl() {
+  return `${window.location.origin}${window.location.pathname}`
+}
+
+function buildResetPasswordRedirectUrl() {
+  return `${getAuthRedirectBaseUrl()}?auth_flow=reset-password`
+}
+
+function detectAuthRecoveryFromParts(searchValue = '', hashValue = '') {
+  const searchParams = new URLSearchParams(String(searchValue || ''))
+  const hashParams = new URLSearchParams(String(hashValue || '').replace(/^#/, ''))
+  return (
+    searchParams.get('auth_flow') === 'reset-password' ||
+    hashParams.get('type') === 'recovery' ||
+    hashParams.get('type') === 'invite'
+  )
+}
+
+function isPasswordRecoveryRedirect() {
+  if (typeof window === 'undefined') {
+    return authRecoveryRedirectPending
+  }
+
+  if (authRecoveryRedirectPending) {
+    return true
+  }
+
+  return detectAuthRecoveryFromParts(window.location.search || '', window.location.hash || '')
+}
+
+function clearAuthRecoveryUrlState() {
+  if (typeof window === 'undefined') {
+    authRecoveryRedirectPending = false
+    setRecoveryDocumentPending(false)
+    return
+  }
+
+  authRecoveryRedirectPending = false
+  setRecoveryDocumentPending(false)
+  const url = new URL(window.location.href)
+  url.searchParams.delete('auth_flow')
+  url.hash = ''
+  window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+}
+
+function enterPasswordRecoveryMode(session = authSession) {
+  authRecoveryRedirectPending = true
+  setRecoveryDocumentPending(true)
+  authSession = session || authSession
+  authRecoveryMode = true
+  authMode = 'update-password'
+  if (authEmailInput) {
+    authEmailInput.value = String(authSession?.user?.email || authEmailInput.value || '').trim()
+  }
+  if (authPasswordInput) {
+    authPasswordInput.value = ''
+  }
+  if (authConfirmPasswordInput) {
+    authConfirmPasswordInput.value = ''
+  }
+  showAuthShell(
+    authSession?.user
+      ? 'Define tu nueva contraseña para completar la recuperación.'
+      : 'Ingresa la nueva contraseña solo si abriste el enlace completo del correo de recuperación.',
+    authSession?.user ? 'info' : 'warning',
+  )
+}
+
+function exitPasswordRecoveryMode() {
+  authRecoveryMode = false
+  if (authConfirmPasswordInput) {
+    authConfirmPasswordInput.value = ''
+  }
+  clearAuthRecoveryUrlState()
+}
+
 function applyAuthMode(mode = 'login') {
+  if (mode !== 'update-password') {
+    authRecoveryMode = false
+    authRecoveryRedirectPending = false
+    setRecoveryDocumentPending(false)
+    if (typeof window !== 'undefined' && detectAuthRecoveryFromParts(window.location.search || '', window.location.hash || '')) {
+      clearAuthRecoveryUrlState()
+    }
+  }
+
   authMode = mode
+  const isResetRequestMode = mode === 'reset'
+  const isPasswordUpdateMode = mode === 'update-password'
   authTabs?.querySelectorAll('[data-auth-mode]').forEach((button) => {
     button.classList.toggle('is-active', button.dataset.authMode === mode)
   })
+  authTabs?.classList.toggle('is-hidden', isPasswordUpdateMode)
 
   authNameField?.classList.toggle('is-hidden', mode !== 'register')
-  authPasswordField?.classList.toggle('is-hidden', mode === 'reset')
+  authEmailField?.classList.toggle('is-hidden', isPasswordUpdateMode)
+  authPasswordField?.classList.toggle('is-hidden', isResetRequestMode)
+  authConfirmPasswordField?.classList.toggle('is-hidden', !isPasswordUpdateMode)
 
   if (authPasswordInput) {
-    authPasswordInput.required = mode !== 'reset'
+    authPasswordInput.required = !isResetRequestMode
     authPasswordInput.autocomplete = mode === 'login' ? 'current-password' : 'new-password'
     authPasswordInput.placeholder =
-      mode === 'register' ? 'Crea una contraseña temporal' : 'Ingresa tu contraseña'
+      mode === 'register'
+        ? 'Crea una contraseña temporal'
+        : isPasswordUpdateMode
+          ? 'Ingresa tu nueva contraseña'
+          : 'Ingresa tu contraseña'
+  }
+
+  if (authConfirmPasswordInput) {
+    authConfirmPasswordInput.required = isPasswordUpdateMode
+    authConfirmPasswordInput.autocomplete = 'new-password'
+  }
+
+  if (authEmailInput) {
+    authEmailInput.required = !isPasswordUpdateMode
+    authEmailInput.readOnly = isPasswordUpdateMode
+    authEmailInput.disabled = isPasswordUpdateMode
   }
 
   if (authNameInput) {
@@ -1044,7 +1438,13 @@ function applyAuthMode(mode = 'login') {
 
   if (authSubmitButton) {
     authSubmitButton.textContent =
-      mode === 'login' ? 'Ingresar' : mode === 'register' ? 'Solicitar acceso' : 'Enviar enlace'
+      mode === 'login'
+        ? 'Ingresar'
+        : mode === 'register'
+          ? 'Solicitar acceso'
+          : isPasswordUpdateMode
+            ? 'Actualizar contraseña'
+            : 'Enviar enlace'
   }
 
   if (authHint) {
@@ -1053,17 +1453,20 @@ function applyAuthMode(mode = 'login') {
         ? 'Usa tu cuenta aprobada. Si tu correo pertenece a EKA Mining SAC, también puedes ingresar con Google.'
         : mode === 'register'
           ? 'Puedes registrarte con correo corporativo o personal. Tu acceso quedará pendiente hasta que Edwin lo apruebe.'
-          : 'Te enviaremos un enlace a tu correo para restablecer la contraseña de forma segura.'
+          : isPasswordUpdateMode
+            ? 'Crea una nueva contraseña y confírmala para cerrar la recuperación de forma segura.'
+            : 'Te enviaremos un enlace a tu correo para restablecer la contraseña de forma segura.'
   }
 
   if (authGoogleButton) {
-    authGoogleButton.style.display = mode === 'reset' ? 'none' : 'inline-flex'
+    authGoogleButton.style.display = isResetRequestMode || isPasswordUpdateMode ? 'none' : 'inline-flex'
   }
 
   updateAuthStatus('')
 }
 
 function showAuthShell(message = '', tone = 'info') {
+  setAppBootstrapResolved()
   authShell?.classList.remove('is-hidden')
   document.body.classList.add('auth-locked')
   applyAuthMode(authMode || 'login')
@@ -1071,6 +1474,7 @@ function showAuthShell(message = '', tone = 'info') {
 }
 
 function hideAuthShell() {
+  setAppBootstrapResolved()
   authShell?.classList.add('is-hidden')
   document.body.classList.remove('auth-locked')
   updateAuthStatus('')
@@ -1079,8 +1483,8 @@ function hideAuthShell() {
 function setSidebarUserState() {
   const email = authSession?.user?.email || ''
   const displayName = currentUserProfile?.full_name || email || 'Administrador'
-  const roleLabel = currentUserProfile?.role ? ` · ${String(currentUserProfile.role).toUpperCase()}` : ''
-  const canSeeAdmin = currentUserProfile?.role === 'admin' && currentUserProfile?.active
+  const roleLabel = currentUserProfile?.role ? ` · ${getVisibleRoleLabel(currentUserProfile)}` : ''
+  const canSeeAdmin = canManageAdminModule(currentUserProfile)
 
   if (adminButton) {
     adminButton.textContent = canSeeAdmin ? 'Administrador' : `${displayName}${roleLabel}`
@@ -1186,7 +1590,14 @@ function renderAdminPermissionsModal() {
   const permissions = getCurrentModulePermissions(activePermissionsModule, activePermissionsProfile)
   const editableFields = new Set(Array.isArray(permissions.editable_fields) ? permissions.editable_fields : [])
   const canConfigureFields = true
-  const fieldKeys = typeof moduleConfig.fieldKeys === 'function' ? moduleConfig.fieldKeys() : []
+  const fieldDefinitions =
+    typeof moduleConfig.fieldDefinitions === 'function'
+      ? moduleConfig.fieldDefinitions()
+      : (typeof moduleConfig.fieldKeys === 'function' ? moduleConfig.fieldKeys() : []).map((fieldKey) => ({
+          key: fieldKey,
+          label: toLabel(fieldKey),
+        }))
+  const fieldKeys = fieldDefinitions.map((field) => field.key)
   const generalSection = adminPermissionsGeneral?.closest('.permissions-section')
   const linkedSection = adminPermissionsLinked?.closest('.permissions-section')
   const fieldsSection = adminPermissionsFields?.closest('.permissions-section')
@@ -1252,7 +1663,7 @@ function renderAdminPermissionsModal() {
   if (adminPermissionsSummary) {
     adminPermissionsSummary.innerHTML = `
       <article class="rq-summary__card"><span>Correo</span><strong>${escapeHtml(activePermissionsProfile.email || '-')}</strong></article>
-      <article class="rq-summary__card"><span>Rol base</span><strong>${escapeHtml(String(activePermissionsProfile.role || 'consulta').toUpperCase())}</strong></article>
+      <article class="rq-summary__card"><span>Rol base</span><strong>${escapeHtml(getVisibleRoleLabel(activePermissionsProfile, activePermissionsProfile.role || 'consulta'))}</strong></article>
       <article class="rq-summary__card"><span>Estado</span><strong>${activePermissionsProfile.active ? 'Activo' : 'Pendiente'}</strong></article>
       <article class="rq-summary__card"><span>Modo</span><strong>${permissions.save_edits || permissions.show_new_button || permissions.show_form || permissions.show_add_resource_button ? 'Edición controlada' : 'Lectura controlada'}</strong></article>
     `
@@ -1271,14 +1682,13 @@ function renderAdminPermissionsModal() {
   }
 
   if (adminPermissionsFields) {
-    adminPermissionsFields.innerHTML = fieldKeys
-      .map((fieldKey) => {
-        const column = columns.find((entry) => entry.key === fieldKey)
-        const checked = editableFields.has(fieldKey)
+    adminPermissionsFields.innerHTML = fieldDefinitions
+      .map((field) => {
+        const checked = editableFields.has(field.key)
         return `
           <label class="permission-field ${canConfigureFields ? '' : 'is-disabled'}">
-            <input type="checkbox" name="editable_fields" value="${escapeHtml(fieldKey)}" ${checked ? 'checked' : ''} ${canConfigureFields ? '' : 'disabled'} />
-            <span>${escapeHtml(column?.label || toLabel(fieldKey))}</span>
+            <input type="checkbox" name="editable_fields" value="${escapeHtml(field.key)}" ${checked ? 'checked' : ''} ${canConfigureFields ? '' : 'disabled'} />
+            <span>${escapeHtml(field.label || toLabel(field.key))}</span>
           </label>
         `
       })
@@ -1315,7 +1725,7 @@ function renderAdminPermissionsModal() {
 }
 
 function openAdminPermissionsModal(profile) {
-  if (!profile || currentUserProfile?.role !== 'admin') {
+  if (!profile || !canManageAdminModule(currentUserProfile) || isProtectedAdminProfile(profile)) {
     return
   }
 
@@ -1358,16 +1768,20 @@ function collectAdminModulePermissions() {
 }
 
 async function saveAdminModulePermissions() {
-  if (!supabaseClient || currentUserProfile?.role !== 'admin' || !activePermissionsProfile) {
+  if (!supabaseClient || !canManageAdminModule(currentUserProfile) || !activePermissionsProfile || isProtectedAdminProfile(activePermissionsProfile)) {
     return
   }
 
   const nextPermissions = collectAdminModulePermissions()
   const moduleConfig = getModulePermissionConfig(activePermissionsModule)
+  const auditStamp = {
+    approved_by: getAdminApprovalActor(),
+    approved_at: new Date().toISOString(),
+  }
   const nextMetadata = {
-    ...(activePermissionsProfile.metadata && typeof activePermissionsProfile.metadata === 'object' ? activePermissionsProfile.metadata : {}),
+    ...buildGovernanceMetadata(activePermissionsProfile, auditStamp),
     permissions: {
-      ...((activePermissionsProfile.metadata && activePermissionsProfile.metadata.permissions) || {}),
+      ...(getProfileMetadata(activePermissionsProfile).permissions || {}),
       [activePermissionsModule]: nextPermissions,
     },
   }
@@ -1403,7 +1817,7 @@ async function saveAdminModulePermissions() {
 }
 
 function getAdminRoleLabel(role) {
-  return adminAssignableRoles.find((option) => option.value === role)?.label || String(role || 'Lectura')
+  return getRoleLabel(role || 'consulta')
 }
 
 function buildModulePermissionsPreset(moduleKey = 'quotations', presetKey = 'reader') {
@@ -1466,22 +1880,22 @@ function buildModulePermissionsPreset(moduleKey = 'quotations', presetKey = 'rea
       },
     },
     requirements: {
-      blocked: { ...requirementsPermissionDefaultState, access: false },
-      reader: { ...requirementsPermissionDefaultState, access: true, show_refresh_button: true, show_new_button: false, show_detail_button: true, open_detail_modal: true },
-      editor: { ...requirementsPermissionDefaultState, access: true, show_refresh_button: true, show_new_button: true, show_detail_button: true, open_detail_modal: true },
-      full: { ...requirementsPermissionDefaultState, access: true, show_refresh_button: true, show_new_button: true, show_detail_button: true, open_detail_modal: true },
+      blocked: { ...requirementsPermissionDefaultState, access: false, editable_fields: editableFields },
+      reader: { ...requirementsPermissionDefaultState, access: true, show_refresh_button: true, show_new_button: false, show_detail_button: true, open_detail_modal: true, editable_fields: editableFields },
+      editor: { ...requirementsPermissionDefaultState, access: true, show_refresh_button: true, show_new_button: true, show_detail_button: true, open_detail_modal: true, editable_fields: editableFields },
+      full: { ...requirementsPermissionDefaultState, access: true, show_refresh_button: true, show_new_button: true, show_detail_button: true, open_detail_modal: true, editable_fields: editableFields },
     },
     details: {
-      blocked: { ...requirementDetailsPermissionDefaultState, access: false },
-      reader: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: false, show_add_resource_button: false, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true },
-      editor: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: true, show_add_resource_button: true, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true },
-      full: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: true, show_add_resource_button: true, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true },
+      blocked: { ...requirementDetailsPermissionDefaultState, access: false, editable_fields: editableFields },
+      reader: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: false, show_add_resource_button: false, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true, editable_fields: editableFields },
+      editor: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: true, show_add_resource_button: true, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true, editable_fields: editableFields },
+      full: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: true, show_add_resource_button: true, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true, editable_fields: editableFields },
     },
     resources: {
-      blocked: { ...resourcesPermissionDefaultState, access: false },
-      reader: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: false, save_edits: false, show_edit_button: false, show_delete_button: false },
-      editor: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: true, save_edits: true, show_edit_button: true, show_delete_button: false },
-      full: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: true, save_edits: true, show_edit_button: true, show_delete_button: true },
+      blocked: { ...resourcesPermissionDefaultState, access: false, editable_fields: editableFields },
+      reader: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: false, save_edits: false, show_edit_button: false, show_delete_button: false, editable_fields: editableFields },
+      editor: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: true, save_edits: true, show_edit_button: true, show_delete_button: false, editable_fields: editableFields },
+      full: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: true, save_edits: true, show_edit_button: true, show_delete_button: true, editable_fields: editableFields },
     },
     suppliers: {
       blocked: { ...suppliersPermissionDefaultState, access: false },
@@ -1564,35 +1978,42 @@ function renderAdminUsersTable() {
   adminUsersTableBody.innerHTML = filteredUsers
     .map((profile) => {
       const isCurrentUser = profile.user_id === authSession?.user?.id
+      const isProtectedAdmin = isProtectedAdminProfile(profile)
+      const isImmutableProfile = isCurrentUser || isProtectedAdmin
       const createdAt = formatDateTime(profile.created_at)
+      const visibleRoleLabel = getVisibleRoleLabel(profile, profile.role || 'consulta')
       return `
         <tr>
           <td>${escapeHtml(profile.full_name || '-')}</td>
           <td>${escapeHtml(profile.email || '-')}</td>
           <td>
             <label class="admin-role-cell">
-              <select class="admin-role-select" data-action="change-user-role" data-user-id="${escapeHtml(profile.user_id)}" ${isCurrentUser ? 'disabled' : ''}>
-                ${adminAssignableRoles
-                  .map(
-                    (option) =>
-                      `<option value="${escapeHtml(option.value)}" ${String(profile.role || 'consulta') === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`,
-                  )
-                  .join('')}
-              </select>
+              ${
+                isProtectedAdmin
+                  ? `<span class="tag tag--info">${escapeHtml(visibleRoleLabel)}</span>`
+                  : `<select class="admin-role-select" data-action="change-user-role" data-user-id="${escapeHtml(profile.user_id)}" ${isImmutableProfile ? 'disabled' : ''}>
+                      ${adminAssignableRoles
+                        .map(
+                          (option) =>
+                            `<option value="${escapeHtml(option.value)}" ${String(profile.role || 'consulta') === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`,
+                        )
+                        .join('')}
+                    </select>`
+              }
             </label>
           </td>
           <td><span class="tag tag--${profile.active ? 'success' : 'warning'}">${profile.active ? 'ACTIVO' : 'PENDIENTE'}</span></td>
           <td>${escapeHtml(createdAt || '-')}</td>
           <td>
             <label class="admin-switch">
-              <input data-action="toggle-user-active" data-user-id="${escapeHtml(profile.user_id)}" type="checkbox" ${profile.active ? 'checked' : ''} ${isCurrentUser ? 'disabled' : ''} />
+              <input data-action="toggle-user-active" data-user-id="${escapeHtml(profile.user_id)}" type="checkbox" ${profile.active ? 'checked' : ''} ${isImmutableProfile ? 'disabled' : ''} />
               <span class="admin-switch__track"></span>
-              <span class="admin-switch__label">${profile.active ? 'On' : 'Off'}</span>
+              <span class="admin-switch__label">${isProtectedAdmin ? 'Bloqueado' : profile.active ? 'On' : 'Off'}</span>
             </label>
           </td>
           <td>
-            <button class="table-action" type="button" data-action="edit-user-quotations-permissions" data-user-id="${escapeHtml(profile.user_id)}">
-              Permisos
+            <button class="table-action" type="button" data-action="edit-user-quotations-permissions" data-user-id="${escapeHtml(profile.user_id)}" ${isProtectedAdmin ? 'disabled' : ''}>
+              ${isProtectedAdmin ? 'Protegido' : 'Permisos'}
             </button>
           </td>
         </tr>
@@ -1602,10 +2023,10 @@ function renderAdminUsersTable() {
 }
 
 async function loadAdminUsers() {
-  if (!supabaseClient || currentUserProfile?.role !== 'admin') {
+  if (!supabaseClient || !canManageAdminModule(currentUserProfile)) {
     adminUsersRecords = []
     renderAdminUsersTable()
-    updateAdminUsersStatus('Solo el administrador general puede gestionar usuarios.', 'warning')
+    updateAdminUsersStatus('Solo administradores habilitados pueden gestionar usuarios.', 'warning')
     return
   }
 
@@ -1635,15 +2056,26 @@ async function loadAdminUsers() {
 }
 
 async function updateAdminUserAccess(userId, active) {
-  if (!supabaseClient || currentUserProfile?.role !== 'admin') {
+  if (!supabaseClient || !canManageAdminModule(currentUserProfile)) {
     return
   }
 
+  const targetProfile = adminUsersRecords.find((profile) => profile.user_id === userId) || null
+  if (isProtectedAdminProfile(targetProfile)) {
+    updateAdminUsersStatus('El Administrador General está protegido y no puede desactivarse desde la app.', 'warning')
+    renderAdminUsersTable()
+    return
+  }
+  const nextMetadata = buildGovernanceMetadata(targetProfile, {
+    active,
+    approved_by: getAdminApprovalActor(),
+    approved_at: new Date().toISOString(),
+  })
   updateAdminUsersStatus(active ? 'Aprobando usuario...' : 'Desactivando usuario...', 'info')
 
   const { error } = await supabaseClient
     .from('user_profiles')
-    .update({ active })
+    .update({ active, metadata: nextMetadata })
     .eq('user_id', userId)
 
   if (error) {
@@ -1653,7 +2085,7 @@ async function updateAdminUserAccess(userId, active) {
   }
 
   adminUsersRecords = adminUsersRecords.map((profile) =>
-    profile.user_id === userId ? { ...profile, active } : profile,
+    profile.user_id === userId ? { ...profile, active, metadata: nextMetadata } : profile,
   )
   renderAdminUsersTable()
   const affected = adminUsersRecords.find((profile) => profile.user_id === userId)
@@ -1666,16 +2098,33 @@ async function updateAdminUserAccess(userId, active) {
 }
 
 async function updateAdminUserRole(userId, role) {
-  if (!supabaseClient || currentUserProfile?.role !== 'admin') {
+  if (!supabaseClient || !canManageAdminModule(currentUserProfile)) {
     return
   }
 
   const normalizedRole = adminAssignableRoles.some((option) => option.value === role) ? role : 'consulta'
+  const targetProfile = adminUsersRecords.find((profile) => profile.user_id === userId) || null
+  if (isProtectedAdminProfile(targetProfile)) {
+    updateAdminUsersStatus('El Administrador General está protegido y no puede cambiar de rol desde la app.', 'warning')
+    renderAdminUsersTable()
+    return
+  }
+  const nextMetadata = buildGovernanceMetadata(
+    {
+      ...targetProfile,
+      role: normalizedRole,
+    },
+    {
+      role: normalizedRole,
+      approved_by: getAdminApprovalActor(),
+      approved_at: new Date().toISOString(),
+    },
+  )
   updateAdminUsersStatus(`Actualizando rol a ${getAdminRoleLabel(normalizedRole)}...`, 'info')
 
   const { error } = await supabaseClient
     .from('user_profiles')
-    .update({ role: normalizedRole })
+    .update({ role: normalizedRole, metadata: nextMetadata })
     .eq('user_id', userId)
 
   if (error) {
@@ -1685,11 +2134,11 @@ async function updateAdminUserRole(userId, role) {
   }
 
   adminUsersRecords = adminUsersRecords.map((profile) =>
-    profile.user_id === userId ? { ...profile, role: normalizedRole } : profile,
+    profile.user_id === userId ? { ...profile, role: normalizedRole, metadata: nextMetadata } : profile,
   )
 
   if (authSession?.user?.id === userId) {
-    currentUserProfile = { ...currentUserProfile, role: normalizedRole }
+    currentUserProfile = { ...currentUserProfile, role: normalizedRole, metadata: nextMetadata }
     setSidebarUserState()
   }
 
@@ -1699,15 +2148,16 @@ async function updateAdminUserRole(userId, role) {
 }
 
 async function loadSecureDatasets() {
+  closeRequirementsExplorer()
+  pendingDeepLinkRequirementKey = consumeRequirementDeepLink()
   await loadResourcesCatalog()
   fillResourcesForm()
   await loadRecords()
   await loadRequirementsRecords()
   await loadRequirementDetails()
-  if (currentUserProfile?.role === 'admin') {
+  if (canManageAdminModule(currentUserProfile)) {
     await loadAdminUsers()
   }
-  pendingDeepLinkRequirementKey = readRequirementDeepLink()
   await tryOpenRequirementFromDeepLink()
 }
 
@@ -1715,6 +2165,7 @@ async function applyAuthSession(session) {
   authSession = session || null
 
   if (!authSession?.user) {
+    authRecoveryMode = false
     currentUserProfile = null
     setSidebarUserState()
     closeModal()
@@ -1722,6 +2173,11 @@ async function applyAuthSession(session) {
     closeRequirementEntryModal()
     resetAppData()
     showAuthShell('Ingresa con tu usuario de Supabase para continuar.', 'info')
+    return
+  }
+
+  if (authRecoveryMode) {
+    enterPasswordRecoveryMode(authSession)
     return
   }
 
@@ -1738,7 +2194,7 @@ async function applyAuthSession(session) {
     currentUserProfile = currentUserProfile || null
     setSidebarUserState()
     const userEmail = String(authSession?.user?.email || '').trim().toLowerCase()
-    const isPrimaryAdmin = userEmail === 'edwin.qm@outlook.com'
+    const isPrimaryAdmin = userEmail === primarySuperAdminEmail
     showAuthShell(
       isPrimaryAdmin
         ? 'Tu cuenta existe, pero tu perfil admin todavía no está activo en user_profiles. Ejecuta el seed de administrador y vuelve a ingresar.'
@@ -1754,20 +2210,29 @@ async function applyAuthSession(session) {
 }
 
 async function initializeAuth() {
+  authRecoveryRedirectPending = detectAuthRecoveryFromParts(initialAuthSearch, initialAuthHash)
+  setRecoveryDocumentPending(authRecoveryRedirectPending)
+
   if (!supabaseClient?.auth) {
+    setAppBootstrapResolved()
+    closeRequirementsExplorer()
+    pendingDeepLinkRequirementKey = consumeRequirementDeepLink()
     initializeSelectCatalogs()
     loadResourcesCatalog().then(() => fillResourcesForm())
     loadRecords()
     loadRequirementsRecords()
     loadRequirementDetails().then(() => {
-      pendingDeepLinkRequirementKey = readRequirementDeepLink()
       void tryOpenRequirementFromDeepLink()
     })
     return
   }
 
   if (!authListenerAttached) {
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || isPasswordRecoveryRedirect()) {
+        enterPasswordRecoveryMode(session)
+        return
+      }
       void applyAuthSession(session)
     })
     authListenerAttached = true
@@ -1776,6 +2241,11 @@ async function initializeAuth() {
   const {
     data: { session },
   } = await supabaseClient.auth.getSession()
+
+  if (isPasswordRecoveryRedirect()) {
+    enterPasswordRecoveryMode(session)
+    return
+  }
 
   await applyAuthSession(session)
 }
@@ -1822,7 +2292,7 @@ function inferTag(key) {
 
 function getManagedSelectFieldKey(columnKey) {
   if (managedSelectFieldDefinitions[columnKey]) {
-    return columnKey
+    return managedSelectFieldDefinitions[columnKey].catalogKey || columnKey
   }
 
   if (columnKey === 'solicitado') {
@@ -1901,6 +2371,28 @@ function persistStoredMap(storageKey, value) {
   window.localStorage.setItem(storageKey, JSON.stringify(value))
 }
 
+function loadStoredCount(storageKey, maxCount = 3) {
+  if (typeof window === 'undefined') {
+    return 0
+  }
+
+  const parsed = Number(window.localStorage.getItem(storageKey) || 0)
+  if (!Number.isFinite(parsed)) {
+    return 0
+  }
+
+  return Math.max(0, Math.min(maxCount, Math.round(parsed)))
+}
+
+function persistStoredCount(storageKey, value, maxCount = 3) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const normalized = Math.max(0, Math.min(maxCount, Math.round(Number(value) || 0)))
+  window.localStorage.setItem(storageKey, String(normalized))
+}
+
 function loadSelectCatalogState() {
   if (typeof window === 'undefined') {
     return { catalogs: {}, deleted: {} }
@@ -1959,10 +2451,37 @@ function normalizeCatalogEntries(fieldKey, entries = []) {
 
 function getBaseCatalogEntries(fieldKey) {
   const definition = managedSelectFieldDefinitions[fieldKey] || { kind: 'simple' }
-  const fieldCandidates = [fieldKey, ...(Array.isArray(definition.aliases) ? definition.aliases : [])]
-  const sourceRecords = records.length ? records : fallbackRecords
+  const sourceRecords = [
+    ...(records.length ? records : fallbackRecords),
+    ...(fieldKey === 'requirement_area'
+      ? [
+          ...(Array.isArray(requirementsRecords) ? requirementsRecords : []),
+          ...(Array.isArray(requirementsFallbackRecords) ? requirementsFallbackRecords : []),
+        ]
+      : []),
+  ]
   const registry = new Map()
 
+  if (definition.kind === 'contact' && Array.isArray(definition.contactSources) && definition.contactSources.length) {
+    sourceRecords.forEach((record) => {
+      definition.contactSources.forEach((source) => {
+        const rawValue = String(record?.[source.valueKey] ?? '').trim()
+        if (!rawValue) {
+          return
+        }
+
+        registry.set(rawValue, {
+          value: rawValue,
+          email: String(record?.[source.emailKey] ?? '').trim(),
+          phone: String(record?.[source.phoneKey] ?? '').trim(),
+        })
+      })
+    })
+
+    return normalizeCatalogEntries(fieldKey, [...registry.values()])
+  }
+
+  const fieldCandidates = [fieldKey, ...(Array.isArray(definition.aliases) ? definition.aliases : [])]
   sourceRecords.forEach((record) => {
     fieldCandidates.forEach((candidateKey) => {
       const rawValue = String(record?.[candidateKey] ?? '').trim()
@@ -1990,7 +2509,9 @@ function initializeSelectCatalogs() {
   optionCatalogs = stored.catalogs
   deletedCatalogOptions = stored.deleted
 
-  Object.keys(managedSelectFieldDefinitions).forEach((fieldKey) => {
+  const uniqueCatalogKeys = [...new Set(Object.keys(managedSelectFieldDefinitions).map((fieldKey) => getManagedSelectFieldKey(fieldKey) || fieldKey))]
+
+  uniqueCatalogKeys.forEach((fieldKey) => {
     const deletedSet = new Set(Array.isArray(deletedCatalogOptions[fieldKey]) ? deletedCatalogOptions[fieldKey] : [])
     const baseOptions = getBaseCatalogEntries(fieldKey).filter((entry) => !deletedSet.has(entry.value))
     const storedOptions = normalizeCatalogEntries(fieldKey, Array.isArray(optionCatalogs[fieldKey]) ? optionCatalogs[fieldKey] : [])
@@ -2008,7 +2529,8 @@ function initializeSelectCatalogs() {
 }
 
 function getCatalogEntries(fieldKey) {
-  return normalizeCatalogEntries(fieldKey, Array.isArray(optionCatalogs[fieldKey]) ? optionCatalogs[fieldKey] : [])
+  const managedFieldKey = getManagedSelectFieldKey(fieldKey) || fieldKey
+  return normalizeCatalogEntries(managedFieldKey, Array.isArray(optionCatalogs[managedFieldKey]) ? optionCatalogs[managedFieldKey] : [])
 }
 
 function getCatalogOptions(fieldKey) {
@@ -2114,16 +2636,135 @@ function updateResourcesStatus(message, tone = 'info') {
 }
 
 function getFilteredResourcesRecords() {
-  const term = resourcesSearchTerm.trim().toLowerCase()
-  if (!term) {
-    return [...resourcesRecords]
+  return resourcesRecords.filter((record) =>
+    Object.entries(resourcesActiveFilters).every(([key, rawFilterValue]) => {
+      const filterValue = `${rawFilterValue ?? ''}`.trim()
+      if (!filterValue) {
+        return true
+      }
+
+      const column = resourceColumns.find((item) => item.key === key)
+      const recordValue = record[key]
+      if (!column) {
+        return true
+      }
+
+      if (column.type === 'number') {
+        return String(recordValue ?? '') === filterValue
+      }
+
+      return String(recordValue ?? '').toLowerCase().includes(filterValue.toLowerCase())
+    }),
+  )
+}
+
+function getSortedResourcesRecords(recordsList) {
+  const list = [...recordsList]
+  const column = resourceColumns.find((item) => item.key === resourcesSort.key)
+  if (!column) {
+    return list
   }
 
-  return resourcesRecords.filter((record) =>
-    [record.codigo, record.descripcion, record.categoria, record.proveedor, record.observacion]
-      .map((value) => String(value ?? '').toLowerCase())
-      .some((value) => value.includes(term)),
-  )
+  list.sort((left, right) => {
+    const leftValue = left?.[column.key]
+    const rightValue = right?.[column.key]
+
+    if (column.type === 'number') {
+      const leftNumber = Number(leftValue ?? 0)
+      const rightNumber = Number(rightValue ?? 0)
+      return resourcesSort.direction === 'asc' ? leftNumber - rightNumber : rightNumber - leftNumber
+    }
+
+    const leftText = String(leftValue ?? '').trim()
+    const rightText = String(rightValue ?? '').trim()
+    const comparison = leftText.localeCompare(rightText, 'es', { sensitivity: 'base', numeric: true })
+    return resourcesSort.direction === 'asc' ? comparison : -comparison
+  })
+
+  return list
+}
+
+function getUniqueResourceColumnValues(columnKey) {
+  return [...new Set(resourcesRecords.map((record) => String(record?.[columnKey] ?? '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+}
+
+function buildResourcesHead() {
+  if (!resourcesTableHead) {
+    return
+  }
+
+  const headers = resourceColumns
+    .map(
+      (column) => `
+        <th>
+          <button class="sort-button" type="button" data-resource-sort-key="${column.key}">
+            <span>${column.label}</span>
+            <span class="sort-button__icon">${getSortIndicator(resourcesSort, column.key)}</span>
+          </button>
+        </th>
+      `,
+    )
+    .join('')
+
+  const filterCells = resourceColumns
+    .map((column) => {
+      const currentValue = resourcesActiveFilters[column.key] ?? ''
+      if (column.tag) {
+        const options = getUniqueResourceColumnValues(column.key)
+          .map((value) => `<option value="${escapeHtml(value)}" ${currentValue === value ? 'selected' : ''}>${escapeHtml(value)}</option>`)
+          .join('')
+
+        return `
+          <th class="log-table__filter-cell">
+            ${wrapFilterControl(`
+              <select class="column-filter" data-resource-filter-key="${column.key}">
+                <option value="">Todos</option>
+                ${options}
+              </select>
+            `)}
+          </th>
+        `
+      }
+
+      const inputType = column.type === 'number' ? 'number' : 'text'
+      const placeholder = column.type === 'number' ? 'Filtrar' : 'Buscar'
+      return `
+        <th class="log-table__filter-cell">
+          ${wrapFilterControl(`
+            <input
+              class="column-filter"
+              data-resource-filter-key="${column.key}"
+              type="${inputType}"
+              value="${escapeHtml(currentValue)}"
+              placeholder="${placeholder}"
+            />
+          `)}
+        </th>
+      `
+    })
+    .join('')
+
+  resourcesTableHead.innerHTML = `
+    <tr>
+      ${headers}
+      <th>
+        <span class="sort-button sort-button--static">
+          <span>ACCIONES</span>
+        </span>
+      </th>
+    </tr>
+    <tr>
+      ${filterCells}
+      <th class="log-table__filter-cell">
+        ${wrapFilterControl(`
+          <button class="ghost-button ghost-button--soft table-filter-action" type="button" id="clearResourcesFiltersButton">
+            Limpiar
+          </button>
+        `)}
+      </th>
+    </tr>
+  `
 }
 
 function renderResourcesTable() {
@@ -2132,15 +2773,7 @@ function renderResourcesTable() {
   }
 
   const permissions = getCurrentModulePermissions('resources')
-
-  resourcesTableHead.innerHTML = `
-    <tr>
-      ${resourceColumns.map((column) => `<th>${column.label}</th>`).join('')}
-      <th>ACCIONES</th>
-    </tr>
-  `
-
-  const filtered = getFilteredResourcesRecords()
+  const filtered = getSortedResourcesRecords(getFilteredResourcesRecords())
   if (!permissions.access) {
     resourcesTableBody.innerHTML = `<tr><td class="empty-table" colspan="${resourceColumns.length + 1}">No tienes acceso a Recursos.</td></tr>`
     return
@@ -2159,12 +2792,20 @@ function renderResourcesTable() {
           <td class="actions-cell">
             ${
               permissions.show_edit_button
-                ? `<button class="table-action" type="button" data-action="edit-resource" data-resource-id="${record.id}">Editar</button>`
+                ? `<button class="table-action table-action--icon table-action--tone-edit" type="button" data-action="edit-resource" data-resource-id="${record.id}" title="Editar recurso">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 20h4.2l9.9-9.9-4.2-4.2L4 15.8V20zm12.8-13.6 1.8-1.8a1.5 1.5 0 0 1 2.1 0l.7.7a1.5 1.5 0 0 1 0 2.1L19.6 9l-2.8-2.8z"></path>
+                    </svg>
+                  </button>`
                 : ''
             }
             ${
               permissions.show_delete_button
-                ? `<button class="table-action table-action--clear" type="button" data-action="delete-resource" data-resource-id="${record.id}">Eliminar</button>`
+                ? `<button class="table-action table-action--icon table-action--tone-danger" type="button" data-action="delete-resource" data-resource-id="${record.id}" title="Eliminar recurso">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9 3a1 1 0 0 0-1 1v1H4v2h1l1 13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-13h1V5h-4V4a1 1 0 0 0-1-1H9zm1 2h4v1h-4V5zm-1 4h2v8H9V9zm4 0h2v8h-2V9z"></path>
+                    </svg>
+                  </button>`
                 : ''
             }
             ${!permissions.show_edit_button && !permissions.show_delete_button ? '<span class="cell-text cell-empty">-</span>' : ''}
@@ -2175,6 +2816,21 @@ function renderResourcesTable() {
     .join('')
 }
 
+function openResourcesModal(record = null) {
+  fillResourcesForm(record)
+  if (resourcesModalTitle) {
+    resourcesModalTitle.textContent = editingResourceId ? 'Editar recurso' : 'Nuevo recurso'
+  }
+  resourcesModal?.classList.remove('is-hidden')
+  document.body.classList.add('menu-open')
+}
+
+function closeResourcesModal() {
+  resourcesModal?.classList.add('is-hidden')
+  document.body.classList.remove('menu-open')
+  fillResourcesForm()
+}
+
 function fillResourcesForm(record = null) {
   if (!resourcesForm) {
     return
@@ -2182,31 +2838,230 @@ function fillResourcesForm(record = null) {
 
   editingResourceId = record?.id || null
   resourcesForm.codigo.value = record?.codigo || ''
+  resourcesForm.codigo_fabricante.value = record?.codigo_fabricante || ''
   resourcesForm.descripcion.value = record?.descripcion || ''
   resourcesForm.categoria.value = record?.categoria || 'MATERIAL'
+  resourcesForm.marca.value = record?.marca || ''
   resourcesForm.unidad.value = record?.unidad || ''
+  resourcesForm.tiempo_entrega.value = record?.tiempo_entrega || ''
   resourcesForm.moneda.value = record?.moneda || 'PEN'
   resourcesForm.costo_unitario.value = record?.costo_unitario ?? ''
   resourcesForm.proveedor.value = record?.proveedor || ''
   resourcesForm.imagen_url.value = record?.imagen_url || ''
+  resourcesForm.ficha_tecnica_url.value = record?.ficha_tecnica_url || ''
   resourcesForm.observacion.value = record?.observacion || ''
+  if (resourcesForm.imagen_file) {
+    resourcesForm.imagen_file.value = ''
+  }
+  if (resourcesForm.ficha_tecnica_file) {
+    resourcesForm.ficha_tecnica_file.value = ''
+  }
+  refreshResourceFileHints()
+
+  const submitButton = resourcesForm.querySelector('#resourcesFormSubmit')
+  if (submitButton instanceof HTMLButtonElement) {
+    submitButton.textContent = editingResourceId ? 'Guardar cambios' : 'Guardar recurso'
+  }
 }
 
-function collectResourceFormData() {
+function readResourceFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      resolve('')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+    reader.onerror = () => reject(new Error(`No se pudo leer el archivo ${file.name}.`))
+    reader.readAsDataURL(file)
+  })
+}
+
+function isPreviewableImageResource(value = '') {
+  const normalized = String(value || '').trim().toLowerCase()
+  return Boolean(normalized) && (normalized.startsWith('data:image/') || /\.(png|jpg|jpeg|gif|webp|svg)(\?|#|$)/.test(normalized))
+}
+
+function isPreviewablePdfResource(value = '') {
+  const normalized = String(value || '').trim().toLowerCase()
+  return Boolean(normalized) && (normalized.startsWith('data:application/pdf') || /\.pdf(\?|#|$)/.test(normalized))
+}
+
+function buildPreviewMarkup(url, type, fileName = '') {
+  const safeUrl = escapeHtml(url)
+  const safeName = escapeHtml(fileName || 'Archivo')
+  if (!url) {
+    return ''
+  }
+
+  if (type === 'image' && isPreviewableImageResource(url)) {
+    return `
+      <div class="resource-preview-card">
+        <a class="resource-preview-card__link" href="${safeUrl}" target="_blank" rel="noreferrer">
+          <img class="resource-preview-card__image" src="${safeUrl}" alt="${safeName}" />
+        </a>
+        <div class="resource-preview-card__meta">
+          <strong>${safeName}</strong>
+          <a class="attachment-pill attachment-pill--link" href="${safeUrl}" target="_blank" rel="noreferrer">Ver imagen</a>
+        </div>
+      </div>
+    `
+  }
+
+  if (type === 'document' && (isPreviewableImageResource(url) || isPreviewablePdfResource(url))) {
+    const previewBody = isPreviewablePdfResource(url)
+      ? `<iframe class="resource-preview-card__frame" src="${safeUrl}" title="${safeName}"></iframe>`
+      : `<img class="resource-preview-card__image" src="${safeUrl}" alt="${safeName}" />`
+    return `
+      <div class="resource-preview-card">
+        <a class="resource-preview-card__link" href="${safeUrl}" target="_blank" rel="noreferrer">
+          ${previewBody}
+        </a>
+        <div class="resource-preview-card__meta">
+          <strong>${safeName}</strong>
+          <a class="attachment-pill attachment-pill--link" href="${safeUrl}" target="_blank" rel="noreferrer">Abrir archivo</a>
+        </div>
+      </div>
+    `
+  }
+
+  return `
+    <div class="resource-preview-card resource-preview-card--file">
+      <div class="resource-preview-card__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M8 3h6l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm5 1v4h4m-8 5h6m-6 4h4"/></svg>
+      </div>
+      <div class="resource-preview-card__meta">
+        <strong>${safeName}</strong>
+        <a class="attachment-pill attachment-pill--link" href="${safeUrl}" target="_blank" rel="noreferrer">Abrir archivo</a>
+      </div>
+    </div>
+  `
+}
+
+function buildResourceDocumentPayload(rawUrl, fileDataUrl, fileObject) {
+  const trimmedUrl = String(rawUrl || '').trim()
+  if (fileDataUrl && fileObject) {
+    return {
+      url: fileDataUrl,
+      file_name: fileObject.name || '',
+      source: 'file',
+      mime_type: fileObject.type || '',
+      size_bytes: Number(fileObject.size || 0) || null,
+    }
+  }
+
+  if (trimmedUrl) {
+    return {
+      url: trimmedUrl,
+      file_name: '',
+      source: 'url',
+      mime_type: '',
+      size_bytes: null,
+    }
+  }
+
+  return {
+    url: '',
+    file_name: '',
+    source: '',
+    mime_type: '',
+    size_bytes: null,
+  }
+}
+
+function refreshResourceDocumentPreviews() {
+  if (!resourcesForm) {
+    return
+  }
+
+  const imageFile = resourcesForm.imagen_file?.files?.[0] || null
+  const technicalFile = resourcesForm.ficha_tecnica_file?.files?.[0] || null
+  const imageUrl = String(resourcesForm.imagen_url?.value || '').trim()
+  const technicalUrl = String(resourcesForm.ficha_tecnica_url?.value || '').trim()
+
+  const imagePreviewUrl = imageFile ? URL.createObjectURL(imageFile) : imageUrl
+  const imagePreviewName = imageFile?.name || imageUrl || 'Imagen de referencia'
+  if (resourceImagePreview) {
+    const imageMarkup = buildPreviewMarkup(imagePreviewUrl, 'image', imagePreviewName)
+    resourceImagePreview.innerHTML = imageMarkup
+    resourceImagePreview.classList.toggle('is-hidden', !imageMarkup)
+  }
+
+  const technicalPreviewUrl = technicalFile ? URL.createObjectURL(technicalFile) : technicalUrl
+  const technicalPreviewName = technicalFile?.name || technicalUrl || 'Ficha técnica'
+  if (resourceTechnicalSheetPreview) {
+    const technicalMarkup = buildPreviewMarkup(technicalPreviewUrl, 'document', technicalPreviewName)
+    resourceTechnicalSheetPreview.innerHTML = technicalMarkup
+    resourceTechnicalSheetPreview.classList.toggle('is-hidden', !technicalMarkup)
+  }
+}
+
+function refreshResourceFileHints() {
+  if (!resourcesForm) {
+    return
+  }
+
+  const imageFile = resourcesForm.imagen_file?.files?.[0] || null
+  const technicalFile = resourcesForm.ficha_tecnica_file?.files?.[0] || null
+
+  if (resourceImageHint) {
+    resourceImageHint.textContent = imageFile
+      ? `Imagen seleccionada: ${imageFile.name}`
+      : editingResourceId && resourcesForm.imagen_url.value.trim()
+        ? 'Se mantendrá la referencia actual salvo que subas otra imagen.'
+        : 'Puedes ingresar una URL o subir una imagen.'
+  }
+
+  if (resourceTechnicalSheetHint) {
+    resourceTechnicalSheetHint.textContent = technicalFile
+      ? `Archivo seleccionado: ${technicalFile.name}`
+      : editingResourceId && resourcesForm.ficha_tecnica_url.value.trim()
+        ? 'Se mantendrá la ficha actual salvo que subas otro documento.'
+        : 'Puedes ingresar una URL o subir un archivo digital.'
+  }
+
+  refreshResourceDocumentPreviews()
+}
+
+async function collectResourceFormData() {
   if (!resourcesForm) {
     return null
   }
 
+  const imageFile = resourcesForm.imagen_file?.files?.[0] || null
+  const technicalSheetFile = resourcesForm.ficha_tecnica_file?.files?.[0] || null
+  const imageDataUrl = imageFile ? await readResourceFileAsDataUrl(imageFile) : ''
+  const technicalSheetDataUrl = technicalSheetFile ? await readResourceFileAsDataUrl(technicalSheetFile) : ''
+  const imagePayload = buildResourceDocumentPayload(resourcesForm.imagen_url.value, imageDataUrl, imageFile)
+  const technicalSheetPayload = buildResourceDocumentPayload(
+    resourcesForm.ficha_tecnica_url.value,
+    technicalSheetDataUrl,
+    technicalSheetFile,
+  )
+
   return {
     id: editingResourceId || createLocalId('resource'),
     codigo: resourcesForm.codigo.value.trim(),
+    codigo_fabricante: resourcesForm.codigo_fabricante.value.trim(),
     descripcion: resourcesForm.descripcion.value.trim(),
     categoria: resourcesForm.categoria.value.trim(),
+    marca: resourcesForm.marca.value.trim(),
     unidad: resourcesForm.unidad.value.trim(),
+    tiempo_entrega: resourcesForm.tiempo_entrega.value.trim(),
     moneda: resourcesForm.moneda.value.trim() || 'PEN',
     costo_unitario: resourcesForm.costo_unitario.value ? Number(resourcesForm.costo_unitario.value) : null,
     proveedor: resourcesForm.proveedor.value.trim(),
-    imagen_url: resourcesForm.imagen_url.value.trim(),
+    imagen_url: imagePayload.url,
+    imagen_nombre_archivo: imagePayload.file_name,
+    imagen_source: imagePayload.source,
+    imagen_mime_type: imagePayload.mime_type,
+    imagen_size_bytes: imagePayload.size_bytes,
+    ficha_tecnica_url: technicalSheetPayload.url,
+    ficha_tecnica_nombre_archivo: technicalSheetPayload.file_name,
+    ficha_tecnica_source: technicalSheetPayload.source,
+    ficha_tecnica_mime_type: technicalSheetPayload.mime_type,
+    ficha_tecnica_size_bytes: technicalSheetPayload.size_bytes,
     observacion: resourcesForm.observacion.value.trim(),
   }
 }
@@ -2217,6 +3072,7 @@ async function persistResourcesCatalog() {
 
 async function loadResourcesCatalog() {
   const permissions = getCurrentModulePermissions('resources')
+  buildResourcesHead()
   if (!permissions.access) {
     resourcesRecords = []
     renderResourcesTable()
@@ -2264,10 +3120,18 @@ async function loadCustomRequirementItems() {
 function mergeRequirementDetailRecords(baseRecords = [], extraRecords = []) {
   const registry = new Map()
   ;[...baseRecords, ...extraRecords].forEach((record) => {
-    const key = record.local_item_id || record.source_row_hash || `${record.rq_codigo || ''}::${record.item || ''}::${record.codigo || ''}::${record.descripcion || ''}`
+    const key = getRequirementDetailRecordIdentity(record)
     registry.set(key, record)
   })
   return [...registry.values()]
+}
+
+function getRequirementDetailRecordIdentity(record = {}) {
+  return (
+    record.local_item_id ||
+    record.source_row_hash ||
+    `${record.rq_codigo || ''}::${record.item || ''}::${record.codigo || ''}::${record.descripcion || ''}`
+  )
 }
 
 function normalizeAttachmentList(value) {
@@ -2353,17 +3217,282 @@ function buildRequirementItemFromResource(requirementRecord, resourceRecord, exi
   }
 }
 
+function isLocalRequirementItem(record) {
+  return String(record?.fuente || '').toUpperCase() === 'LOCAL' && Boolean(record?.local_item_id)
+}
+
+function getRequirementModalLocalItems(requirementRecord = activeRequirementRecord) {
+  if (!requirementRecord) {
+    return []
+  }
+
+  return customRequirementItems.filter((item) => String(item.rq_codigo || '') === String(requirementRecord.rq_codigo || ''))
+}
+
+function buildRequirementSummaryMarkup(requirementRecord = activeRequirementRecord, detailItems = requirementModalItems) {
+  if (!requirementRecord) {
+    return ''
+  }
+
+  const alerts = getRequirementAlerts(requirementRecord)
+  const statusTone = getTagTone(requirementRecord.estado)
+  const attachmentCount = countRequirementAttachments(detailItems)
+  const localItemsCount = detailItems.filter((item) => String(item.fuente || '').toUpperCase() === 'LOCAL').length
+
+  return `
+    <section class="rq-summary rq-summary--requirement">
+      <div class="rq-summary__hero">
+        <div>
+          <p class="rq-summary__eyebrow">Requerimiento seleccionado</p>
+          <h4 class="rq-summary__title">${escapeHtml(requirementRecord.rq_codigo || 'Sin RQ')}</h4>
+        </div>
+        <div class="rq-summary__chips">
+          <span class="tag tag--${statusTone}">${escapeHtml(requirementRecord.estado || 'Sin estado')}</span>
+          <span class="rq-chip rq-chip--accent">${escapeHtml(`${requirementRecord.cantidad_items ?? detailItems.length ?? 0} items`)}</span>
+          <span class="rq-chip ${alerts.length ? 'rq-chip--warning' : 'rq-chip--ok'}">${escapeHtml(alerts.length ? `${alerts.length} alerta(s)` : 'Sin alertas')}</span>
+          <span class="rq-chip">${escapeHtml(`${attachmentCount} adjuntos`)}</span>
+          <span class="rq-chip">${escapeHtml(`${localItemsCount} locales`)}</span>
+          <button class="rq-close-inline" type="button" data-action="close-explorer" aria-label="Cerrar detalle">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="rq-summary__layout rq-summary__layout--requirement">
+        <div class="rq-summary__grid rq-summary__grid--requirement-top">
+          <article class="rq-summary__card rq-summary__card--span-1"><span>Cotización</span><strong>${escapeHtml(requirementRecord.cotizacion_codigo || '-')}</strong></article>
+          <article class="rq-summary__card rq-summary__card--span-2"><span>Descripción cotización</span><strong>${escapeHtml(requirementRecord.descripcion_cotizacion || '-')}</strong></article>
+        </div>
+        <div class="rq-summary__grid rq-summary__grid--requirement-bottom">
+          <article class="rq-summary__card"><span>Centro de costo</span><strong>${escapeHtml(requirementRecord.centro_costos || '-')}</strong></article>
+          <article class="rq-summary__card"><span>Cliente</span><strong>${escapeHtml(requirementRecord.cliente || '-')}</strong></article>
+          <article class="rq-summary__card"><span>Unidad</span><strong>${escapeHtml(requirementRecord.unidad || '-')}</strong></article>
+          <article class="rq-summary__card"><span>Fecha RQ</span><strong>${escapeHtml(formatDate(requirementRecord.fecha_rq) || '-')}</strong></article>
+          <article class="rq-summary__card"><span>Solicitante</span><strong>${escapeHtml(requirementRecord.solicitante || '-')}</strong></article>
+          <article class="rq-summary__card"><span>Área</span><strong>${escapeHtml(requirementRecord.area || '-')}</strong></article>
+        </div>
+      </div>
+    </section>
+  `
+}
+
+async function syncRequirementLocalItemsState(noticeMessage = '') {
+  const nonLocalDetailItems = requirementDetailsRecords.filter((item) => String(item.fuente || '').toUpperCase() !== 'LOCAL')
+  requirementDetailsRecords = mergeRequirementDetailRecords(nonLocalDetailItems, customRequirementItems)
+
+  const activeLocalItems = getRequirementModalLocalItems(activeRequirementRecord)
+  const nonLocalModalItems = requirementModalItems.filter((item) => String(item.fuente || '').toUpperCase() !== 'LOCAL')
+  requirementModalItems = mergeRequirementDetailRecords(nonLocalModalItems, activeLocalItems)
+  requirementModalColumns = getRequirementDetailsColumns(requirementModalItems, true)
+
+  if (activeRequirementRecord) {
+    const updatedCount = requirementModalItems.length
+    activeRequirementRecord = {
+      ...activeRequirementRecord,
+      cantidad_items: updatedCount,
+    }
+
+    requirementsRecords = requirementsRecords.map((record) =>
+      getRequirementRecordKey(record) === getRequirementRecordKey(activeRequirementRecord)
+        ? { ...record, cantidad_items: updatedCount }
+        : record,
+    )
+  }
+
+  renderRequirementsTable()
+  renderRequirementDetailsTable()
+  updateRequirementDetailsContext({
+    finalCount: requirementDetailsRecords.filter((item) => item.fuente === 'FINAL').length,
+    stageCount: requirementDetailsRecords.filter((item) => item.fuente === 'STAGE').length,
+    localCount: requirementDetailsRecords.filter((item) => item.fuente === 'LOCAL').length,
+    totalCount: requirementDetailsRecords.length,
+    uniqueRqCount: new Set(requirementDetailsRecords.map((item) => item.rq_codigo).filter(Boolean)).size,
+  })
+
+  requirementsExplorerContent.dataset.summaryMarkup = buildRequirementSummaryMarkup(activeRequirementRecord, requirementModalItems)
+  requirementsExplorerContent.dataset.resourceNotice = noticeMessage
+  renderRequirementModalExplorer()
+}
+
 function getFilteredModalResources() {
-  const term = requirementModalResourceSearch.trim().toLowerCase()
+  const term = normalizeResourceSearchTerm(requirementModalResourceSearch)
   if (!term) {
     return [...resourcesRecords]
   }
 
-  return resourcesRecords.filter((record) =>
-    [record.codigo, record.descripcion, record.categoria, record.proveedor]
-      .map((value) => String(value ?? '').toLowerCase())
-      .some((value) => value.includes(term)),
-  )
+  const searchTokens = term.split(' ').filter(Boolean)
+
+  return resourcesRecords.filter((record) => {
+    const haystack = normalizeResourceSearchTerm([
+      record.codigo,
+      record.codigo_fabricante,
+      record.descripcion,
+      record.categoria,
+      record.marca,
+      record.proveedor,
+      record.unidad,
+    ].join(' '))
+
+    return searchTokens.every((token) => haystack.includes(token))
+  })
+}
+
+function normalizeResourceSearchTerm(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+function datasetKeyToAttributeName(key) {
+  return String(key || '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .toLowerCase()
+}
+
+function getFocusableElementSelector(element) {
+  if (!element || !element.tagName) {
+    return ''
+  }
+
+  const tagName = element.tagName.toLowerCase()
+  if (element.id) {
+    const escapedId = window.CSS?.escape ? window.CSS.escape(element.id) : element.id
+    return `${tagName}#${escapedId}`
+  }
+
+  const datasetEntries = Object.entries(element.dataset || {}).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  if (datasetEntries.length) {
+    const selector = datasetEntries
+      .map(([key, value]) => {
+        const attributeName = datasetKeyToAttributeName(key)
+        const safeValue = window.CSS?.escape ? window.CSS.escape(String(value)) : String(value).replace(/["\\]/g, '\\$&')
+        return `[data-${attributeName}="${safeValue}"]`
+      })
+      .join('')
+    return `${tagName}${selector}`
+  }
+
+  if (element.name) {
+    const safeName = window.CSS?.escape ? window.CSS.escape(element.name) : element.name
+    return `${tagName}[name="${safeName}"]`
+  }
+
+  return tagName
+}
+
+function captureFocusableElementState(element) {
+  if (!element) {
+    return null
+  }
+
+  return {
+    selector: getFocusableElementSelector(element),
+    selectionStart: typeof element.selectionStart === 'number' ? element.selectionStart : null,
+    selectionEnd: typeof element.selectionEnd === 'number' ? element.selectionEnd : null,
+  }
+}
+
+function restoreFocusableElementState(snapshot) {
+  if (!snapshot?.selector) {
+    return
+  }
+
+  window.requestAnimationFrame(() => {
+    const nextElement = document.querySelector(snapshot.selector)
+    if (!nextElement) {
+      return
+    }
+
+    nextElement.focus({ preventScroll: true })
+
+    if (
+      typeof snapshot.selectionStart === 'number' &&
+      typeof snapshot.selectionEnd === 'number' &&
+      typeof nextElement.setSelectionRange === 'function'
+    ) {
+      nextElement.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd)
+    }
+  })
+}
+
+function renderWithPreservedFocus(element, renderCallback) {
+  const snapshot = captureFocusableElementState(element)
+  renderCallback()
+  restoreFocusableElementState(snapshot)
+}
+
+function captureRequirementsExplorerViewportState() {
+  const tableScroll = requirementsExplorerContent?.querySelector('.log-table-scroll--explorer')
+  const sideScroll = requirementsExplorerSidePanel?.querySelector('.resource-picker')
+  return {
+    tableLeft: tableScroll?.scrollLeft ?? 0,
+    tableTop: tableScroll?.scrollTop ?? 0,
+    sideTop: sideScroll?.scrollTop ?? 0,
+  }
+}
+
+function restoreRequirementsExplorerViewportState(state = {}, options = {}) {
+  const { focusSelector = '', selectInput = false } = options
+  window.requestAnimationFrame(() => {
+    const tableScroll = requirementsExplorerContent?.querySelector('.log-table-scroll--explorer')
+    const sideScroll = requirementsExplorerSidePanel?.querySelector('.resource-picker')
+    if (tableScroll) {
+      tableScroll.scrollLeft = state.tableLeft ?? 0
+      tableScroll.scrollTop = state.tableTop ?? 0
+    }
+    if (sideScroll) {
+      sideScroll.scrollTop = state.sideTop ?? 0
+    }
+
+    if (focusSelector) {
+      const target = requirementsExplorerContent?.querySelector(focusSelector)
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+        try {
+          target.focus({ preventScroll: true })
+        } catch {
+          target.focus()
+        }
+        if (selectInput && target instanceof HTMLInputElement && typeof target.select === 'function') {
+          target.select()
+        }
+      }
+    }
+  })
+}
+
+function buildResourcePreviewFallback(resource) {
+  const category = normalizeResourceSearchTerm(resource?.categoria)
+  if (category.includes('equipo')) {
+    return `
+      <div class="resource-picker__thumb-fallback" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M7 6h10l2 4v8a2 2 0 0 1-2 2h-1v-3H8v3H7a2 2 0 0 1-2-2v-8l2-4zm1.2 2L7 10h10l-1.2-2H8.2zM9 13a1.3 1.3 0 1 0 0 2.6A1.3 1.3 0 0 0 9 13zm6 0a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6z"></path>
+        </svg>
+      </div>
+    `
+  }
+
+  if (category.includes('mano')) {
+    return `
+      <div class="resource-picker__thumb-fallback" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M8 11V5.8a1.3 1.3 0 1 1 2.6 0V10h.8V4.8a1.3 1.3 0 1 1 2.6 0V10h.8V6.2a1.3 1.3 0 1 1 2.6 0v7.2c0 3.6-2.6 6.6-6.1 7.1l-2 .3A3.8 3.8 0 0 1 6 17.1V12.4a1.6 1.6 0 0 1 2-1.4z"></path>
+        </svg>
+      </div>
+    `
+  }
+
+  return `
+    <div class="resource-picker__thumb-fallback" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M5 7.5A2.5 2.5 0 0 1 7.5 5h9A2.5 2.5 0 0 1 19 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 5 16.5v-9zm3.2 2.3a1.4 1.4 0 1 0 0-2.8 1.4 1.4 0 0 0 0 2.8zm9 6.7-3.1-4-2.5 3-1.8-2.1-2.8 3.1h10.2z"></path>
+      </svg>
+    </div>
+  `
 }
 
 function buildResourcePreviewMarkup(resource) {
@@ -2372,12 +3501,7 @@ function buildResourcePreviewMarkup(resource) {
     return `<img class="resource-picker__thumb-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(resource.descripcion || 'Recurso')}" />`
   }
 
-  const initials = String(resource?.codigo || resource?.categoria || 'R')
-    .replace(/[^A-Za-z0-9]/g, '')
-    .slice(0, 3)
-    .toUpperCase()
-
-  return `<div class="resource-picker__thumb-fallback">${escapeHtml(initials || 'R')}</div>`
+  return buildResourcePreviewFallback(resource)
 }
 
 function buildRequirementResourcePicker() {
@@ -2396,8 +3520,8 @@ function buildRequirementResourcePicker() {
               </div>
               <div class="resource-picker__item-main">
                 <strong>${escapeHtml(resource.descripcion || 'Sin descripción')}</strong>
-                <p>${escapeHtml(resource.codigo || 'Sin código')} · ${escapeHtml(resource.categoria || 'Sin categoría')} · ${escapeHtml(resource.unidad || '-')}</p>
-                <small>${escapeHtml(resource.proveedor || 'Sin proveedor referencial')}</small>
+                <p>${escapeHtml(resource.codigo || 'Sin código EKA')} · ${escapeHtml(resource.codigo_fabricante || 'Sin código fabricante')} · ${escapeHtml(resource.unidad || '-')}</p>
+                <small>${escapeHtml(resource.categoria || 'Sin categoría')} · ${escapeHtml(resource.marca || resource.proveedor || 'Sin marca o proveedor')}</small>
               </div>
               <div class="resource-picker__item-side">
                 <span>${escapeHtml(resource.moneda || 'PEN')} ${escapeHtml(formatNumber(resource.costo_unitario, { key: 'resource_cost', type: 'number' }) || '-')}</span>
@@ -2414,14 +3538,43 @@ function buildRequirementResourcePicker() {
       <div class="resource-picker__header">
         <div>
           <strong>Agregar recurso existente</strong>
-          <p>Selecciona recursos del catálogo y se insertarán solo en este requerimiento.</p>
+          <p>Busca por nombre, código EKA o código fabricante y luego agrégalo solo a este requerimiento.</p>
         </div>
         <div class="filter-shell resource-picker__search">
-          <input class="column-filter" data-resource-picker-search="true" type="text" value="${escapeHtml(requirementModalResourceSearch)}" placeholder="Buscar recurso" />
+          <input class="column-filter" data-resource-picker-search="true" type="text" value="${escapeHtml(requirementModalResourceSearch)}" placeholder="Buscar por nombre o código" />
         </div>
       </div>
       <div class="resource-picker__list">${listMarkup}</div>
     </aside>
+  `
+}
+
+function buildToolbarMenu(actions = [], label = 'Más acciones') {
+  const items = actions.filter(Boolean)
+  if (!items.length) {
+    return ''
+  }
+
+  return `
+    <details class="toolbar-menu">
+      <summary class="ghost-button ghost-button--soft toolbar-menu__summary">
+        <span>${escapeHtml(label)}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m6 9 6 6 6-6"></path>
+        </svg>
+      </summary>
+      <div class="toolbar-menu__content">
+        ${items
+          .map(
+            (item) => `
+              <button class="toolbar-menu__item" type="button" data-action="${item.action}">
+                ${escapeHtml(item.label)}
+              </button>
+            `,
+          )
+          .join('')}
+      </div>
+    </details>
   `
 }
 
@@ -2531,6 +3684,24 @@ function formatNumber(value, column) {
     return `$ ${numericValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
 
+  if (
+    [
+      'cant_rq',
+      'ajuste',
+      'atencion_real',
+      'cant_stock',
+      'compra',
+      'costo_unitario_dolar',
+      'costo_unitario_soles',
+      'factor_eq_herr',
+      'pu_soles_sin_igv',
+      'costo_total_presupuestado_s',
+      'costo_total_presupuestado_usd',
+    ].includes(column.key)
+  ) {
+    return numericValue.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+  }
+
   return numericValue.toLocaleString('es-PE')
 }
 
@@ -2541,6 +3712,355 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+function closeConfirmDialog(result = false) {
+  if (confirmDialogModal) {
+    confirmDialogModal.classList.add('is-hidden')
+  }
+
+  if (confirmDialogResolver) {
+    const resolver = confirmDialogResolver
+    confirmDialogResolver = null
+    resolver(Boolean(result))
+  }
+}
+
+function openConfirmDialog({
+  eyebrow = 'Confirmación',
+  title = '¿Deseas continuar?',
+  message = 'Esta acción requiere tu confirmación.',
+  confirmLabel = 'Aceptar',
+  cancelLabel = 'Cancelar',
+} = {}) {
+  if (!confirmDialogModal) {
+    return Promise.resolve(window.confirm(message))
+  }
+
+  if (confirmDialogResolver) {
+    closeConfirmDialog(false)
+  }
+
+  if (confirmDialogEyebrow) {
+    confirmDialogEyebrow.textContent = eyebrow
+  }
+
+  if (confirmDialogTitle) {
+    confirmDialogTitle.textContent = title
+  }
+
+  if (confirmDialogMessage) {
+    confirmDialogMessage.textContent = message
+  }
+
+  if (confirmDialogAcceptButton) {
+    confirmDialogAcceptButton.textContent = confirmLabel
+  }
+
+  if (confirmDialogCancelButton) {
+    confirmDialogCancelButton.textContent = cancelLabel
+  }
+
+  confirmDialogModal.classList.remove('is-hidden')
+
+  return new Promise((resolve) => {
+    confirmDialogResolver = resolve
+    window.requestAnimationFrame(() => confirmDialogAcceptButton?.focus())
+  })
+}
+
+function closeQuickEditDialog(result = null) {
+  if (quickEditDialogModal) {
+    quickEditDialogModal.classList.add('is-hidden')
+  }
+
+  if (quickEditDialogResolver) {
+    const resolver = quickEditDialogResolver
+    quickEditDialogResolver = null
+    resolver(result)
+  }
+}
+
+function getRequirementItemEditColumnDefinitions() {
+  const excludedKeys = new Set(['local_item_id'])
+  return requirementDetailsColumnDefinitions.filter((column) => column?.key && !excludedKeys.has(column.key))
+}
+
+function isRequirementItemAttachmentLikeField(key = '') {
+  return ['ficha_tecnica', 'fotos', 'ficha_tecnica_a_suministrar', 'archivo_guia'].includes(key)
+}
+
+function isRequirementItemLongTextField(key = '') {
+  return [
+    'descripcion',
+    'observacion',
+    'guia_remision',
+    'archivo_guia',
+    'ficha_tecnica',
+    'ficha_tecnica_a_suministrar',
+    'fotos',
+    'a_suministrar',
+    'condicion_pago',
+    'tiempo_entrega',
+  ].includes(key)
+}
+
+function formatRequirementItemEditValue(key, value) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join('\n')
+  }
+  if (value === null || value === undefined) {
+    return ''
+  }
+  return String(value)
+}
+
+function parseRequirementItemEditValue(column, rawValue) {
+  const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue
+  if (isRequirementItemAttachmentLikeField(column.key)) {
+    return String(value || '')
+      .split(/\r?\n|,/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+  }
+
+  if (column.type === 'number') {
+    if (value === '' || value === null || value === undefined) {
+      return null
+    }
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  if (column.type === 'date') {
+    return value ? String(value).slice(0, 10) : ''
+  }
+
+  return value ?? ''
+}
+
+function toNullableNumber(value) {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function roundRequirementDerivedValue(value) {
+  if (!Number.isFinite(value)) {
+    return null
+  }
+  return Math.round(value * 10000) / 10000
+}
+
+function recalculateRequirementItemDerivedFields(item = {}) {
+  const nextItem = { ...item }
+  const currency = normalizeTextForSearch(nextItem.moneda || '')
+  const unitDollar = toNullableNumber(nextItem.costo_unitario_dolar)
+  const unitSoles = toNullableNumber(nextItem.costo_unitario_soles)
+  const tc = toNullableNumber(nextItem.tc)
+  const compra = toNullableNumber(nextItem.compra)
+  const factorPercent = toNullableNumber(nextItem.factor_eq_herr)
+
+  let baseUnitSoles = null
+  if (currency.includes('DOLAR')) {
+    if (unitDollar !== null && tc !== null) {
+      baseUnitSoles = unitDollar * tc
+    }
+  } else if (currency.includes('SOL') || currency === 'pen') {
+    if (unitSoles !== null) {
+      baseUnitSoles = unitSoles
+    }
+  } else if (unitSoles !== null) {
+    baseUnitSoles = unitSoles
+  } else if (unitDollar !== null && tc !== null) {
+    baseUnitSoles = unitDollar * tc
+  }
+
+  const factorMultiplier = factorPercent !== null && factorPercent !== 0 ? 1 + factorPercent / 100 : 1
+  const unitPriceSoles = baseUnitSoles !== null ? baseUnitSoles * factorMultiplier : null
+  const totalBudgetSoles = unitPriceSoles !== null && compra !== null ? unitPriceSoles * compra : null
+  const totalBudgetUsd = totalBudgetSoles !== null && tc ? totalBudgetSoles / tc : null
+
+  nextItem.pu_soles_sin_igv = roundRequirementDerivedValue(unitPriceSoles)
+  nextItem.costo_total_presupuestado_s = roundRequirementDerivedValue(totalBudgetSoles)
+  nextItem.costo_total_presupuestado_usd = roundRequirementDerivedValue(totalBudgetUsd)
+
+  return nextItem
+}
+
+function getRequirementInlineEditableColumnsConfig() {
+  return {
+    tipo: { editor: 'select' },
+    cant_rq: { editor: 'number', decimals: 4 },
+    ajuste: { editor: 'number', decimals: 4 },
+    atencion_real: { editor: 'number', decimals: 4 },
+    cant_stock: { editor: 'number', decimals: 4 },
+    compra: { editor: 'number', decimals: 4 },
+    costo_unitario_dolar: { editor: 'number', decimals: 4 },
+    costo_unitario_soles: { editor: 'number', decimals: 4 },
+    tc: { editor: 'number', decimals: 4 },
+    factor_eq_herr: { editor: 'number', decimals: 4, suffix: '%' },
+  }
+}
+
+function getRequirementInlineEditableOptionValues(columnKey) {
+  const values = new Set(getRequirementModalUniqueValues(columnKey).filter(Boolean))
+  if (columnKey === 'tipo') {
+    ;['MATERIALES', 'CONSUMIBLES', 'EPPs', 'HERRAMIENTAS', 'SUB CONTRATOS', 'GASTOS GENERALES'].forEach((value) =>
+      values.add(value),
+    )
+  }
+  return [...values].sort((left, right) => left.localeCompare(right, 'es', { sensitivity: 'base' }))
+}
+
+function getRequirementModalInlineRowId(item) {
+  return String(getRequirementDetailRecordIdentity(item) || '').trim()
+}
+
+function isRequirementModalInlineEditable(item, columnKey) {
+  const config = getRequirementInlineEditableColumnsConfig()
+  return Boolean(getRequirementModalInlineRowId(item) && config[columnKey])
+}
+
+function formatRequirementInlineDisplayValue(value, column) {
+  if (value === null || value === undefined || value === '') {
+    return '-'
+  }
+  if (column.key === 'factor_eq_herr') {
+    const numericValue = Number(value)
+    if (Number.isNaN(numericValue)) {
+      return String(value)
+    }
+    return `${numericValue.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%`
+  }
+  return formatNumber(value, column)
+}
+
+function buildRequirementInlineEditor(item, column) {
+  const config = getRequirementInlineEditableColumnsConfig()[column.key]
+  const rowId = getRequirementModalInlineRowId(item)
+  if (!config || !rowId) {
+    return formatCellValue(item[column.key], column)
+  }
+
+  const isEditing =
+    requirementModalInlineEdit &&
+    requirementModalInlineEdit.localItemId === rowId &&
+    requirementModalInlineEdit.columnKey === column.key
+
+  if (!isEditing) {
+    const hint = column.key === 'factor_eq_herr' ? 'Porcentaje' : 'Doble clic para editar'
+    return `
+      <button
+        class="inline-edit-trigger"
+        type="button"
+        data-action="open-inline-modal-cell"
+        data-local-item-id="${escapeHtml(rowId)}"
+        data-column-key="${column.key}"
+        title="${hint}"
+      >
+        <span class="cell-text">${escapeHtml(String(formatRequirementInlineDisplayValue(item[column.key], column)))}</span>
+      </button>
+    `
+  }
+
+  if (config.editor === 'select') {
+    const options = getRequirementInlineEditableOptionValues(column.key)
+      .map((option) => `<option value="${escapeHtml(option)}" ${String(item[column.key] || '') === option ? 'selected' : ''}>${escapeHtml(option)}</option>`)
+      .join('')
+    return `
+      <select class="inline-cell-editor" data-action="inline-cell-input" data-inline-editor="true" data-local-item-id="${escapeHtml(rowId)}" data-column-key="${column.key}">
+        <option value="">Seleccionar</option>
+        ${options}
+      </select>
+    `
+  }
+
+  const step = config.decimals ? `0.${'0'.repeat(Math.max(config.decimals - 1, 0))}1` : 'any'
+  return `
+    <input
+      class="inline-cell-editor"
+      data-action="inline-cell-input"
+      data-inline-editor="true"
+      data-local-item-id="${escapeHtml(rowId)}"
+      data-column-key="${column.key}"
+      type="number"
+      step="${step}"
+      value="${escapeHtml(item[column.key] ?? '')}"
+      placeholder="${config.suffix === '%' ? 'Porcentaje' : 'Valor'}"
+    />
+  `
+}
+
+function buildRequirementItemQuickEditFields(record = {}) {
+  return getRequirementItemEditColumnDefinitions()
+    .map((column) => {
+      const value = escapeHtml(formatRequirementItemEditValue(column.key, record[column.key]))
+      const label = escapeHtml(column.label || toLabel(column.key))
+      const isLongText = isRequirementItemLongTextField(column.key)
+      const fieldClass = isLongText ? 'field field--full' : 'field'
+
+      if (isLongText) {
+        return `
+          <label class="${fieldClass}">
+            <span>${label}</span>
+            <textarea data-quick-edit-key="${column.key}" rows="4">${value}</textarea>
+          </label>
+        `
+      }
+
+      const inputType = column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'
+      const inputStep = column.type === 'number' ? ' step="any"' : ''
+
+      return `
+        <label class="${fieldClass}">
+          <span>${label}</span>
+          <input type="${inputType}"${inputStep} data-quick-edit-key="${column.key}" value="${value}" />
+        </label>
+      `
+    })
+    .join('')
+}
+
+function openQuickEditDialog({
+  eyebrow = 'Edición',
+  title = 'Editar item del requerimiento',
+  record = {},
+} = {}) {
+  if (!quickEditDialogModal || !quickEditDialogForm || !quickEditDialogFields) {
+    return Promise.resolve(null)
+  }
+
+  if (quickEditDialogResolver) {
+    closeQuickEditDialog(null)
+  }
+
+  if (quickEditDialogEyebrow) {
+    quickEditDialogEyebrow.textContent = eyebrow
+  }
+
+  if (quickEditDialogTitle) {
+    quickEditDialogTitle.textContent = title
+  }
+
+  quickEditDialogFields.innerHTML = buildRequirementItemQuickEditFields(record)
+
+  quickEditDialogModal.classList.remove('is-hidden')
+
+  return new Promise((resolve) => {
+    quickEditDialogResolver = resolve
+    window.requestAnimationFrame(() => {
+      const firstInput = quickEditDialogFields.querySelector('[data-quick-edit-key]')
+      if (firstInput instanceof HTMLInputElement || firstInput instanceof HTMLTextAreaElement) {
+        firstInput.focus()
+        if (typeof firstInput.select === 'function') {
+          firstInput.select()
+        }
+      }
+    })
+  })
 }
 
 function normalizeSortableValue(value, type = 'text') {
@@ -2614,6 +4134,92 @@ function getColumnWidth(column, widthMap) {
   return Number.isFinite(stored) && stored > 0 ? Math.max(minWidth, stored) : minWidth
 }
 
+function getFittedColumnWidths(nextColumns, widthMap, targetTotalWidth, actionsWidth = 112) {
+  const widths = {}
+  const storedFlags = {}
+
+  nextColumns.forEach((column) => {
+    const stored = Number(widthMap?.[column.key])
+    const minWidth = inferColumnMinWidth(column)
+    const hasStoredWidth = Number.isFinite(stored) && stored > 0
+    storedFlags[column.key] = hasStoredWidth
+    widths[column.key] = hasStoredWidth ? Math.max(minWidth, stored) : minWidth
+  })
+
+  if (!Number.isFinite(targetTotalWidth) || targetTotalWidth <= 0) {
+    return widths
+  }
+
+  const baseTotal = nextColumns.reduce((sum, column) => sum + widths[column.key], actionsWidth)
+  if (baseTotal >= targetTotalWidth) {
+    return widths
+  }
+
+  const expandableColumns = nextColumns.filter((column) => !storedFlags[column.key])
+  if (!expandableColumns.length) {
+    return widths
+  }
+
+  const extra = targetTotalWidth - baseTotal
+  const share = extra / expandableColumns.length
+  let consumed = 0
+
+  expandableColumns.forEach((column, index) => {
+    const delta = index === expandableColumns.length - 1 ? extra - consumed : share
+    widths[column.key] = Math.round((widths[column.key] + delta) * 100) / 100
+    consumed += delta
+  })
+
+  return widths
+}
+
+function getQuotationLinkedTargetTableWidth() {
+  if (typeof window === 'undefined') {
+    return 1200
+  }
+
+  const contentWidth = requirementsExplorerContent?.clientWidth || 0
+  const workspaceWidth =
+    requirementsExplorerContent?.querySelector('.requirements-explorer__workspace')?.clientWidth || 0
+  const viewportWidth = Math.max(960, window.innerWidth - 220)
+
+  return Math.max(960, contentWidth || workspaceWidth || viewportWidth) - 28
+}
+
+function getFrozenColumnMeta(nextColumns, widthMap, frozenCount = 0) {
+  const normalizedCount = Math.max(0, Math.min(Number(frozenCount) || 0, nextColumns.length))
+  const offsets = new Map()
+  let left = 0
+  nextColumns.forEach((column, index) => {
+    const width = getColumnWidth(column, widthMap)
+    if (index < normalizedCount) {
+      offsets.set(column.key, {
+        left,
+        width,
+        isEdge: index === normalizedCount - 1,
+      })
+      left += width
+    }
+  })
+  return offsets
+}
+
+function buildStickyCellAttributes(baseClasses = [], stickyMeta = null, variant = 'body') {
+  const classes = [...baseClasses]
+  const styles = []
+  if (stickyMeta) {
+    classes.push('log-table__sticky-left', `log-table__sticky-left--${variant}`)
+    if (stickyMeta.isEdge) {
+      classes.push('log-table__sticky-left--edge')
+    }
+    styles.push(`left:${stickyMeta.left}px`, `min-width:${stickyMeta.width}px`, `width:${stickyMeta.width}px`)
+  }
+
+  const classAttr = classes.length ? ` class="${classes.join(' ')}"` : ''
+  const styleAttr = styles.length ? ` style="${styles.join(';')}"` : ''
+  return `${classAttr}${styleAttr}`
+}
+
 function renderColgroup(tableElement, colgroupElement, nextColumns, widthMap, actionsWidth = 112) {
   if (!colgroupElement || !tableElement) {
     return
@@ -2661,6 +4267,16 @@ function getTagTone(value) {
 function formatCellValue(value, column) {
   if (value === null || value === undefined || value === '') {
     return '<span class="cell-text cell-empty">-</span>'
+  }
+
+  if (['imagen_url', 'ficha_tecnica_url'].includes(column.key)) {
+    const href = String(value || '').trim()
+    if (!href) {
+      return '<span class="cell-text cell-empty">-</span>'
+    }
+
+    const label = column.key === 'imagen_url' ? 'Ver imagen' : 'Ver ficha'
+    return `<a class="attachment-pill attachment-pill--link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`
   }
 
   if (['ficha_tecnica', 'fotos', 'ficha_tecnica_a_suministrar', 'archivo_guia'].includes(column.key)) {
@@ -2718,11 +4334,12 @@ function buildTableHead() {
   }
 
   const visibleColumns = getVisibleColumns()
+  const stickyMetaMap = getFrozenColumnMeta(visibleColumns, columnWidths, quotationFrozenColumnCount)
   renderColgroup(quotationsTable, logTableColgroup, visibleColumns, columnWidths)
   const headers = visibleColumns
     .map(
       (column) => `
-        <th>
+        <th${buildStickyCellAttributes([], stickyMetaMap.get(column.key), 'head')}>
           <button class="sort-button" type="button" data-sort-key="${column.key}">
             <span>${column.label}</span>
             <span class="sort-button__icon">${getSortIndicator(activeSort, column.key)}</span>
@@ -2742,7 +4359,7 @@ function buildTableHead() {
           .join('')
 
         return `
-          <th class="log-table__filter-cell">
+          <th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>
             ${wrapFilterControl(`
               <select class="column-filter" data-filter-key="${column.key}">
                 <option value="">Todos</option>
@@ -2755,7 +4372,7 @@ function buildTableHead() {
 
       if (column.type === 'date') {
         return `
-          <th class="log-table__filter-cell">
+          <th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>
             ${wrapFilterControl(`<input class="column-filter" data-filter-key="${column.key}" type="date" value="${currentValue}" />`)}
           </th>
         `
@@ -2763,14 +4380,14 @@ function buildTableHead() {
 
       if (column.type === 'number') {
         return `
-          <th class="log-table__filter-cell">
+          <th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>
             ${wrapFilterControl(`<input class="column-filter" data-filter-key="${column.key}" type="number" step="${column.step || 'any'}" value="${currentValue}" placeholder="Filtrar" />`)}
           </th>
         `
       }
 
       return `
-        <th class="log-table__filter-cell">
+        <th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>
           ${wrapFilterControl(`<input class="column-filter" data-filter-key="${column.key}" type="text" value="${currentValue}" placeholder="Buscar" />`)}
         </th>
       `
@@ -2798,26 +4415,40 @@ function getQuotationRequirementLinks(record) {
 
 function buildRow(record) {
   const permissions = getCurrentQuotationPermissions()
-  const cells = getVisibleColumns()
-    .map((column) => `<td>${formatCellValue(record[column.key], column)}</td>`)
+  const visibleColumns = getVisibleColumns()
+  const stickyMetaMap = getFrozenColumnMeta(visibleColumns, columnWidths, quotationFrozenColumnCount)
+  const cells = visibleColumns
+    .map((column) => `<td${buildStickyCellAttributes([], stickyMetaMap.get(column.key), 'body')}>${formatCellValue(record[column.key], column)}</td>`)
     .join('')
   const linkedRequirements = getQuotationRequirementLinks(record)
   const actions = []
 
-  if (permissions.show_eye_button && linkedRequirements.length) {
+  if (permissions.show_edit_button) {
     actions.push(`
-      <button class="table-action table-action--icon" type="button" data-action="view-requirements" data-id="${record[primaryKey] ?? ''}" title="Ver requerimientos vinculados">
+      <button class="table-action table-action--icon table-action--tone-edit" type="button" data-action="edit" data-id="${record[primaryKey] ?? ''}" title="${escapeHtml(getQuotationReadableActionLabel())}">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 5C6.5 5 2.2 8.4 1 12c1.2 3.6 5.5 7 11 7s9.8-3.4 11-7c-1.2-3.6-5.5-7-11-7zm0 11.2A4.2 4.2 0 1 1 12 7.8a4.2 4.2 0 0 1 0 8.4zm0-6.7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"></path>
+          <path d="M4 20h4.2l9.9-9.9-4.2-4.2L4 15.8V20zm12.8-13.6 1.8-1.8a1.5 1.5 0 0 1 2.1 0l.7.7a1.5 1.5 0 0 1 0 2.1L19.6 9l-2.8-2.8z"></path>
         </svg>
       </button>
     `)
   }
 
-  if (permissions.show_edit_button) {
+  if (permissions.show_edit_button && permissions.save_edits) {
     actions.push(`
-      <button class="table-action" type="button" data-action="edit" data-id="${record[primaryKey] ?? ''}">
-        ${getQuotationReadableActionLabel()}
+      <button class="table-action table-action--icon table-action--tone-danger" type="button" data-action="delete-quotation" data-id="${record[primaryKey] ?? ''}" title="Eliminar cotización">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 3a1 1 0 0 0-1 1v1H4v2h1l1 13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-13h1V5h-4V4a1 1 0 0 0-1-1H9zm1 2h4v1h-4V5zm-1 4h2v8H9V9zm4 0h2v8h-2V9z"></path>
+        </svg>
+      </button>
+    `)
+  }
+
+  if (permissions.show_eye_button && linkedRequirements.length) {
+    actions.push(`
+      <button class="table-action table-action--icon table-action--tone-view" type="button" data-action="view-requirements" data-id="${record[primaryKey] ?? ''}" title="Ver requerimientos vinculados">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5C6.5 5 2.2 8.4 1 12c1.2 3.6 5.5 7 11 7s9.8-3.4 11-7c-1.2-3.6-5.5-7-11-7zm0 11.2A4.2 4.2 0 1 1 12 7.8a4.2 4.2 0 0 1 0 8.4zm0-6.7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"></path>
+        </svg>
       </button>
     `)
   }
@@ -2907,6 +4538,10 @@ function renderColumnManager() {
     return
   }
 
+  if (columnFreezeCount) {
+    columnFreezeCount.value = String(quotationFrozenColumnCount)
+  }
+
   const visibleSet = new Set(visibleColumnKeys)
   columnManagerList.innerHTML = columns
     .filter((column) => !column.readonly)
@@ -2921,14 +4556,35 @@ function renderColumnManager() {
     .join('')
 }
 
+function buildFreezeControlMarkup(label, count, action) {
+  return `
+    <div class="column-manager__freeze">
+      <label class="column-manager__freeze-label" for="${action}">${escapeHtml(label)}</label>
+      <select class="column-manager__freeze-select" id="${action}" data-action="${action}">
+        <option value="0" ${count === 0 ? 'selected' : ''}>Ninguna</option>
+        <option value="1" ${count === 1 ? 'selected' : ''}>1 columna</option>
+        <option value="2" ${count === 2 ? 'selected' : ''}>2 columnas</option>
+        <option value="3" ${count === 3 ? 'selected' : ''}>3 columnas</option>
+      </select>
+    </div>
+  `
+}
+
 function renderCatalogManager() {
-  if (!catalogManagerPanel) {
+  const activePanel = getActiveCatalogPanel()
+  if (!activePanel) {
     return
   }
 
   if (!activeCatalogFieldKey) {
-    catalogManagerPanel.classList.add('is-hidden')
-    catalogManagerPanel.innerHTML = ''
+    if (catalogManagerPanel) {
+      catalogManagerPanel.classList.add('is-hidden')
+      catalogManagerPanel.innerHTML = ''
+    }
+    if (requirementCatalogManagerPanel) {
+      requirementCatalogManagerPanel.classList.add('is-hidden')
+      requirementCatalogManagerPanel.innerHTML = ''
+    }
     return
   }
 
@@ -2937,8 +4593,17 @@ function renderCatalogManager() {
   const selectedEntry = findCatalogEntry(activeCatalogFieldKey, editingCatalogOptionValue) || { value: editingCatalogOptionValue, email: '', phone: '' }
   const isContactCatalog = fieldDefinition.kind === 'contact'
 
-  catalogManagerPanel.classList.remove('is-hidden')
-  catalogManagerPanel.innerHTML = `
+  if (catalogManagerPanel && catalogManagerPanel !== activePanel) {
+    catalogManagerPanel.classList.add('is-hidden')
+    catalogManagerPanel.innerHTML = ''
+  }
+  if (requirementCatalogManagerPanel && requirementCatalogManagerPanel !== activePanel) {
+    requirementCatalogManagerPanel.classList.add('is-hidden')
+    requirementCatalogManagerPanel.innerHTML = ''
+  }
+
+  activePanel.classList.remove('is-hidden')
+  activePanel.innerHTML = `
     <div class="catalog-manager-panel__header">
       <div>
         <strong>Lista: ${escapeHtml(fieldDefinition.label)}</strong>
@@ -2977,7 +4642,8 @@ function renderCatalogManager() {
   `
 }
 
-function openCatalogManager(fieldKey) {
+function openCatalogManager(fieldKey, host = 'record') {
+  activeCatalogHost = host
   activeCatalogFieldKey = getManagedSelectFieldKey(fieldKey)
   editingCatalogOptionValue = ''
   renderCatalogManager()
@@ -2985,8 +4651,104 @@ function openCatalogManager(fieldKey) {
 
 function closeCatalogManager() {
   activeCatalogFieldKey = ''
+  activeCatalogHost = 'record'
   editingCatalogOptionValue = ''
   renderCatalogManager()
+}
+
+function captureFormState(formElement) {
+  if (!(formElement instanceof HTMLFormElement)) {
+    return null
+  }
+
+  const fieldStates = new Map()
+
+  Array.from(formElement.elements).forEach((element) => {
+    if (
+      !element ||
+      !(element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) ||
+      !element.name
+    ) {
+      return
+    }
+
+    if (element instanceof HTMLInputElement && (element.type === 'checkbox' || element.type === 'radio')) {
+      fieldStates.set(element.name, { kind: 'checked', value: element.checked })
+      return
+    }
+
+    fieldStates.set(element.name, { kind: 'value', value: element.value })
+  })
+
+  const activeElement =
+    document.activeElement instanceof HTMLInputElement ||
+    document.activeElement instanceof HTMLSelectElement ||
+    document.activeElement instanceof HTMLTextAreaElement
+      ? {
+          name: document.activeElement.name,
+          selectionStart: 'selectionStart' in document.activeElement ? document.activeElement.selectionStart : null,
+          selectionEnd: 'selectionEnd' in document.activeElement ? document.activeElement.selectionEnd : null,
+        }
+      : null
+
+  return { fieldStates, activeElement }
+}
+
+function restoreFormState(formElement, snapshot) {
+  if (!(formElement instanceof HTMLFormElement) || !snapshot?.fieldStates) {
+    return
+  }
+
+  snapshot.fieldStates.forEach((state, fieldName) => {
+    const field = formElement.elements[fieldName]
+    const fields = field instanceof RadioNodeList ? Array.from(field).filter(Boolean) : [field]
+
+    fields.forEach((element) => {
+      if (
+        !element ||
+        !(element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement)
+      ) {
+        return
+      }
+
+      if (state.kind === 'checked' && element instanceof HTMLInputElement && (element.type === 'checkbox' || element.type === 'radio')) {
+        element.checked = Boolean(state.value)
+        return
+      }
+
+      if (state.kind === 'value') {
+        element.value = state.value ?? ''
+      }
+    })
+  })
+
+  const activeFieldState = snapshot.activeElement
+  if (!activeFieldState?.name) {
+    return
+  }
+
+  const activeField = formElement.elements[activeFieldState.name]
+  const focusTarget =
+    activeField instanceof RadioNodeList
+      ? Array.from(activeField).find(Boolean)
+      : activeField
+
+  if (
+    focusTarget instanceof HTMLInputElement ||
+    focusTarget instanceof HTMLSelectElement ||
+    focusTarget instanceof HTMLTextAreaElement
+  ) {
+    focusTarget.focus({ preventScroll: true })
+    if (
+      typeof activeFieldState.selectionStart === 'number' &&
+      typeof activeFieldState.selectionEnd === 'number' &&
+      'setSelectionRange' in focusTarget
+    ) {
+      try {
+        focusTarget.setSelectionRange(activeFieldState.selectionStart, activeFieldState.selectionEnd)
+      } catch {}
+    }
+  }
 }
 
 function refreshManagedSelects() {
@@ -3024,13 +4786,14 @@ function refreshManagedSelects() {
 
 function applyLinkedContactFields(fieldKey, selectedValue) {
   const definition = managedSelectFieldDefinitions[fieldKey]
-  if (!definition || definition.kind !== 'contact' || !recordForm) {
+  const targetForm = fieldKey === 'requirement_solicitante' ? requirementEntryForm : recordForm
+  if (!definition || definition.kind !== 'contact' || !targetForm) {
     return
   }
 
-  const entry = findCatalogEntry(fieldKey, selectedValue)
-  const emailInput = recordForm.elements[definition.emailField]
-  const phoneInput = recordForm.elements[definition.phoneField]
+  const entry = findCatalogEntry(getManagedSelectFieldKey(fieldKey) || fieldKey, selectedValue)
+  const emailInput = targetForm.elements[definition.emailField]
+  const phoneInput = targetForm.elements[definition.phoneField]
 
   if (emailInput instanceof HTMLInputElement) {
     emailInput.value = entry?.email || ''
@@ -3041,6 +4804,72 @@ function applyLinkedContactFields(fieldKey, selectedValue) {
   }
 }
 
+function refreshRequirementRequesterManagedSelect() {
+  if (!(requirementRequesterInput instanceof HTMLSelectElement)) {
+    return
+  }
+
+  const currentValue = requirementRequesterInput.value
+  const managedFieldKey = getManagedSelectFieldKey('requirement_solicitante') || 'requirement_solicitante'
+  const options = getCatalogOptions(managedFieldKey)
+  requirementRequesterInput.innerHTML =
+    '<option value="">Seleccionar</option>' +
+    options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('')
+
+  if (currentValue && options.includes(currentValue)) {
+    requirementRequesterInput.value = currentValue
+  } else if (currentValue) {
+    const fallbackOption = document.createElement('option')
+    fallbackOption.value = currentValue
+    fallbackOption.textContent = currentValue
+    requirementRequesterInput.appendChild(fallbackOption)
+    requirementRequesterInput.value = currentValue
+  }
+}
+
+function refreshRequirementAreaManagedSelect() {
+  if (!(requirementAreaInput instanceof HTMLSelectElement)) {
+    return
+  }
+
+  const currentValue = requirementAreaInput.value
+  const managedFieldKey = getManagedSelectFieldKey('requirement_area') || 'requirement_area'
+  const baseEntries = getBaseCatalogEntries(managedFieldKey)
+  const storedEntries = getCatalogEntries(managedFieldKey)
+  const mergedEntries = new Map()
+  ;[...baseEntries, ...storedEntries].forEach((entry) => {
+    if (entry?.value) {
+      mergedEntries.set(entry.value, entry)
+    }
+  })
+  optionCatalogs[managedFieldKey] = [...mergedEntries.values()].sort((a, b) =>
+    a.value.localeCompare(b.value, 'es', { sensitivity: 'base' }),
+  )
+  persistSelectCatalogState()
+  const options = getCatalogOptions(managedFieldKey)
+  requirementAreaInput.innerHTML =
+    '<option value="">Seleccionar</option>' +
+    options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('')
+
+  if (currentValue && options.includes(currentValue)) {
+    requirementAreaInput.value = currentValue
+  } else if (currentValue) {
+    const fallbackOption = document.createElement('option')
+    fallbackOption.value = currentValue
+    fallbackOption.textContent = currentValue
+    requirementAreaInput.appendChild(fallbackOption)
+    requirementAreaInput.value = currentValue
+  }
+}
+
+function getActiveCatalogForm() {
+  return activeCatalogHost === 'requirement' ? requirementEntryForm : recordForm
+}
+
+function getActiveCatalogPanel() {
+  return activeCatalogHost === 'requirement' ? requirementCatalogManagerPanel : catalogManagerPanel
+}
+
 function saveCatalogOption(fieldKey, nextValue, previousValue = '', metadata = {}) {
   const normalizedValue = String(nextValue || '').trim()
   const normalizedPrevious = String(previousValue || '').trim()
@@ -3048,8 +4877,11 @@ function saveCatalogOption(fieldKey, nextValue, previousValue = '', metadata = {
     return false
   }
 
-  const fieldDefinition = managedSelectFieldDefinitions[fieldKey] || { kind: 'simple' }
-  let nextEntries = [...getCatalogEntries(fieldKey)]
+  const targetForm = getActiveCatalogForm()
+  const formSnapshot = captureFormState(targetForm)
+  const catalogFieldKey = getManagedSelectFieldKey(fieldKey) || fieldKey
+  const fieldDefinition = managedSelectFieldDefinitions[catalogFieldKey] || managedSelectFieldDefinitions[fieldKey] || { kind: 'simple' }
+  let nextEntries = [...getCatalogEntries(catalogFieldKey)]
 
   if (normalizedPrevious) {
     nextEntries = nextEntries.filter((entry) => entry.value !== normalizedPrevious)
@@ -3070,10 +4902,16 @@ function saveCatalogOption(fieldKey, nextValue, previousValue = '', metadata = {
     nextEntries = nextEntries.map((entry) => (entry.value === normalizedValue ? nextEntry : entry))
   }
 
-  optionCatalogs[fieldKey] = nextEntries.sort((a, b) => a.value.localeCompare(b.value, 'es', { sensitivity: 'base' }))
-  deletedCatalogOptions[fieldKey] = (deletedCatalogOptions[fieldKey] || []).filter((option) => option !== normalizedValue)
+  optionCatalogs[catalogFieldKey] = nextEntries.sort((a, b) => a.value.localeCompare(b.value, 'es', { sensitivity: 'base' }))
+  deletedCatalogOptions[catalogFieldKey] = (deletedCatalogOptions[catalogFieldKey] || []).filter((option) => option !== normalizedValue)
   persistSelectCatalogState()
   refreshManagedSelects()
+  refreshRequirementRequesterManagedSelect()
+  refreshRequirementAreaManagedSelect()
+  restoreFormState(targetForm, formSnapshot)
+  if (targetForm === requirementEntryForm) {
+    applyLinkedContactFields('requirement_solicitante', requirementRequesterInput?.value || '')
+  }
   renderCatalogManager()
   return true
 }
@@ -3084,12 +4922,21 @@ function deleteCatalogOption(fieldKey, optionValue) {
     return
   }
 
-  optionCatalogs[fieldKey] = getCatalogOptions(fieldKey).filter((option) => option !== normalizedValue)
-  const deletedValues = new Set(Array.isArray(deletedCatalogOptions[fieldKey]) ? deletedCatalogOptions[fieldKey] : [])
+  const targetForm = getActiveCatalogForm()
+  const formSnapshot = captureFormState(targetForm)
+  const catalogFieldKey = getManagedSelectFieldKey(fieldKey) || fieldKey
+  optionCatalogs[catalogFieldKey] = getCatalogEntries(catalogFieldKey).filter((entry) => entry.value !== normalizedValue)
+  const deletedValues = new Set(Array.isArray(deletedCatalogOptions[catalogFieldKey]) ? deletedCatalogOptions[catalogFieldKey] : [])
   deletedValues.add(normalizedValue)
-  deletedCatalogOptions[fieldKey] = [...deletedValues]
+  deletedCatalogOptions[catalogFieldKey] = [...deletedValues]
   persistSelectCatalogState()
   refreshManagedSelects()
+  refreshRequirementRequesterManagedSelect()
+  refreshRequirementAreaManagedSelect()
+  restoreFormState(targetForm, formSnapshot)
+  if (targetForm === requirementEntryForm) {
+    applyLinkedContactFields('requirement_solicitante', requirementRequesterInput?.value || '')
+  }
   renderCatalogManager()
 }
 
@@ -3155,6 +5002,7 @@ function buildFormFields() {
 function openModal(record = null) {
   const permissions = getCurrentQuotationPermissions()
   currentEditingId = record?.[primaryKey] ?? null
+  currentEditingRecord = record ? { ...record } : null
 
   if (currentEditingId && (!permissions.show_edit_button || !permissions.open_edit_modal)) {
     updateStatus('No tienes permiso para abrir esta cotización.', 'warning')
@@ -3204,6 +5052,11 @@ function openModal(record = null) {
   validateQuotationCode(recordForm.elements.cotizacion?.value || '')
   applyQuotationFormPermissions(record)
 
+  if (newRequirementFromQuotationButton) {
+    const canOpenNewRequirement = Boolean(currentEditingId && permissions.show_linked_new_requirement)
+    newRequirementFromQuotationButton.classList.toggle('is-hidden', !canOpenNewRequirement)
+  }
+
   recordModal.classList.remove('is-hidden')
   document.body.classList.add('menu-open')
 }
@@ -3213,7 +5066,32 @@ function closeModal() {
   document.body.classList.remove('menu-open')
   recordForm.reset()
   currentEditingId = null
+  currentEditingRecord = null
   closeCatalogManager()
+}
+
+function getRequirementContextFromQuotationForm() {
+  const payload = currentEditingRecord ? { ...currentEditingRecord } : {}
+  const fieldMap = {
+    cotizacion: 'cotizacion',
+    oc: 'oc',
+    descripcion: 'descripcion',
+    cliente: 'cliente',
+    unidad_minera: 'unidad_minera',
+    tipo_servicio: 'tipo_servicio',
+    solicitado_por: 'solicitado_por',
+    responsable_tecnico: 'responsable_tecnico',
+    responsable_economico: 'responsable_economico',
+  }
+
+  Object.entries(fieldMap).forEach(([targetKey, formKey]) => {
+    const input = recordForm?.elements?.[formKey]
+    if (input && typeof input.value !== 'undefined') {
+      payload[targetKey] = input.value || payload[targetKey] || ''
+    }
+  })
+
+  return payload
 }
 
 function collectFormData() {
@@ -3258,9 +5136,10 @@ function handleCatalogManagerAction(event) {
 
   const saveButton = event.target.closest('[data-action="save-catalog-option"]')
   if (saveButton) {
-    const input = catalogManagerPanel?.querySelector('[name="catalogOptionValue"]')
-    const emailInput = catalogManagerPanel?.querySelector('[name="catalogOptionEmail"]')
-    const phoneInput = catalogManagerPanel?.querySelector('[name="catalogOptionPhone"]')
+    const activePanel = getActiveCatalogPanel()
+    const input = activePanel?.querySelector('[name="catalogOptionValue"]')
+    const emailInput = activePanel?.querySelector('[name="catalogOptionEmail"]')
+    const phoneInput = activePanel?.querySelector('[name="catalogOptionPhone"]')
     const nextValue = input instanceof HTMLInputElement ? input.value : ''
     if (
       saveCatalogOption(activeCatalogFieldKey, nextValue, editingCatalogOptionValue, {
@@ -3285,6 +5164,330 @@ function handleCatalogManagerAction(event) {
   if (deleteButton) {
     deleteCatalogOption(activeCatalogFieldKey, deleteButton.dataset.catalogOption || '')
   }
+}
+
+function getExplorerTabHelpText(tabKey) {
+  switch (tabKey) {
+    case 'summary':
+      return activeExplorerMode === 'quotation-linked'
+        ? 'Muestra la tabla de requerimientos vinculados a esta cotización.'
+        : 'Muestra la tabla principal del requerimiento y sus items.'
+    case 'tracking':
+      return 'Registra y consulta eventos operativos de seguimiento. En cotización puedes referenciar un RQ específico.'
+    case 'evidence':
+      return 'Registra documentos, links o archivos digitales de sustento. En cotización puedes asociarlos a un RQ específico.'
+    case 'communications':
+      return 'Registra correos, llamadas o coordinaciones relevantes. En cotización puedes dejarlas ligadas a un RQ específico.'
+    case 'history':
+      return 'Consolida el historial completo del expediente con seguimientos y comunicaciones.'
+    default:
+      return ''
+  }
+}
+
+function buildExplorerRequirementScopePrefix(requirementCode = '') {
+  const normalized = String(requirementCode || '').trim()
+  return normalized ? `[RQ relacionado: ${normalized}]` : ''
+}
+
+function prependExplorerRequirementScope(text = '', requirementCode = '') {
+  const prefix = buildExplorerRequirementScopePrefix(requirementCode)
+  const normalizedText = String(text || '').trim()
+  if (!prefix) {
+    return normalizedText || null
+  }
+  if (!normalizedText) {
+    return prefix
+  }
+  if (normalizedText.startsWith(prefix)) {
+    return normalizedText
+  }
+  return `${prefix}\n${normalizedText}`
+}
+
+function appendExplorerRequirementReference(reference = '', requirementCode = '') {
+  const normalizedReference = String(reference || '').trim()
+  const normalizedCode = String(requirementCode || '').trim()
+  if (!normalizedCode) {
+    return normalizedReference || null
+  }
+
+  const marker = `RQ: ${normalizedCode}`
+  if (!normalizedReference) {
+    return marker
+  }
+  if (normalizedReference.includes(marker)) {
+    return normalizedReference
+  }
+  return `${normalizedReference} · ${marker}`
+}
+
+function inferExplorerMimeTypeFromName(fileName = '') {
+  const normalized = String(fileName || '').trim().toLowerCase()
+  if (!normalized) {
+    return ''
+  }
+
+  if (normalized.endsWith('.pdf')) return 'application/pdf'
+  if (normalized.endsWith('.png')) return 'image/png'
+  if (normalized.endsWith('.jpg') || normalized.endsWith('.jpeg')) return 'image/jpeg'
+  if (normalized.endsWith('.gif')) return 'image/gif'
+  if (normalized.endsWith('.webp')) return 'image/webp'
+  if (normalized.endsWith('.svg')) return 'image/svg+xml'
+  if (normalized.endsWith('.xls')) return 'application/vnd.ms-excel'
+  if (normalized.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  if (normalized.endsWith('.doc')) return 'application/msword'
+  if (normalized.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  if (normalized.endsWith('.txt')) return 'text/plain'
+  return ''
+}
+
+function resolveExplorerEvidenceKind(record = {}) {
+  const evidenceType = String(record.evidence_type || '').trim().toLowerCase()
+  if (evidenceType && evidenceType !== 'otro') {
+    return evidenceType
+  }
+
+  const detectedKind = String(record.metadata?.detected_kind || '').trim().toLowerCase()
+  const mimeType = String(record.mime_type || record.metadata?.mime_type || '').trim().toLowerCase()
+  const fileName = String(record.file_name || record.title || record.metadata?.file_name || '').trim().toLowerCase()
+  const directUrl = String(record.public_url || record.external_url || record.metadata?.public_url || record.metadata?.external_url || '').trim().toLowerCase()
+  const sourceType = String(record.source_type || record.metadata?.source_type || '').trim().toLowerCase()
+
+  if (detectedKind) {
+    return detectedKind
+  }
+  if (sourceType === 'link' || (/^https?:\/\//i.test(directUrl) && !fileName && !mimeType)) {
+    return 'link'
+  }
+  if (mimeType.includes('pdf') || fileName.endsWith('.pdf')) {
+    return 'pdf'
+  }
+  if (mimeType.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|svg)(\?|#|$)/i.test(fileName)) {
+    return 'foto'
+  }
+  if (mimeType.includes('spreadsheet') || /\.xlsx?(\?|#|$)/i.test(fileName)) {
+    return 'excel'
+  }
+  if (mimeType.includes('word') || /\.docx?(\?|#|$)/i.test(fileName)) {
+    return 'word'
+  }
+  if (fileName || directUrl) {
+    return 'archivo'
+  }
+  return evidenceType || 'otro'
+}
+
+function getExplorerEvidenceTextField(record = {}, fieldName = '') {
+  if (!fieldName) {
+    return ''
+  }
+
+  const directValue = record?.[fieldName]
+  if (directValue !== undefined && directValue !== null && String(directValue).trim()) {
+    return String(directValue).trim()
+  }
+
+  const metadataValue = record?.metadata?.[fieldName]
+  if (metadataValue !== undefined && metadataValue !== null && String(metadataValue).trim()) {
+    return String(metadataValue).trim()
+  }
+
+  return ''
+}
+
+function buildExplorerEvidenceDisplayTitle(record = {}) {
+  const rawTitle = String(record.title || '').trim()
+  const genericMatch = rawTitle.match(/^evidencia registrada\b(.*)$/i)
+  const titleSuffix = genericMatch ? String(genericMatch[1] || '').trim() : ''
+  const fileName = getExplorerEvidenceTextField(record, 'file_name')
+
+  if (rawTitle && !genericMatch) {
+    return rawTitle
+  }
+
+  if (fileName) {
+    return `${fileName}${titleSuffix ? ` ${titleSuffix}` : ''}`.trim()
+  }
+
+  const description = String(record.description || '').trim()
+  if (description) {
+    return description.length > 72 ? `${description.slice(0, 69).trimEnd()}...` : description
+  }
+
+  const evidenceKind = resolveExplorerEvidenceKind(record)
+  return `${toLabel(evidenceKind || 'evidencia')}${titleSuffix ? ` ${titleSuffix}` : ''}`.trim()
+}
+
+function deriveExplorerEvidenceTypeFromFile(file, preferredType = 'otro') {
+  const fileName = String(file?.name || '').trim().toLowerCase()
+  const mimeType = String(file?.type || inferExplorerMimeTypeFromName(fileName) || '').trim().toLowerCase()
+  const normalizedPreferredType = String(preferredType || '').trim().toLowerCase()
+
+  if (mimeType.includes('pdf') || fileName.endsWith('.pdf')) {
+    return 'pdf'
+  }
+  if (mimeType.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|svg)(\?|#|$)/i.test(fileName)) {
+    return 'foto'
+  }
+  if (mimeType.includes('spreadsheet') || /\.xlsx?(\?|#|$)/i.test(fileName)) {
+    return 'excel'
+  }
+  if (mimeType.includes('word') || /\.docx?(\?|#|$)/i.test(fileName)) {
+    return 'word'
+  }
+  if (normalizedPreferredType && normalizedPreferredType !== 'otro' && normalizedPreferredType !== 'link') {
+    return normalizedPreferredType
+  }
+  return 'otro'
+}
+
+function sanitizeExplorerStorageSegment(value = '', fallback = 'item') {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase()
+
+  return normalized || fallback
+}
+
+function buildExplorerStoragePath(context, file) {
+  const entitySegment = sanitizeExplorerStorageSegment(context?.entityType || 'expediente', 'expediente')
+  const codeSegment = sanitizeExplorerStorageSegment(context?.entityCode || `${context?.entityId || 'sin-codigo'}`, 'sin-codigo')
+  const dateSegment = new Date().toISOString().slice(0, 10)
+  const extensionMatch = String(file?.name || '').match(/(\.[a-zA-Z0-9]+)$/)
+  const extension = extensionMatch ? extensionMatch[1].toLowerCase() : ''
+  const fileSegment = sanitizeExplorerStorageSegment(String(file?.name || '').replace(/(\.[a-zA-Z0-9]+)$/g, ''), 'archivo')
+  const uniqueSegment = createLocalId('evidence-file').replace(/[^a-zA-Z0-9-]+/g, '')
+
+  return `${expedienteEvidencePathPrefix}/${entitySegment}/${codeSegment}/${dateSegment}/${fileSegment}-${uniqueSegment}${extension}`
+}
+
+async function uploadExplorerEvidenceFile(context, file) {
+  if (!supabaseClient?.storage?.from) {
+    throw new Error('Supabase Storage no está disponible para subir archivos.')
+  }
+
+  if (!expedienteEvidenceBucket) {
+    throw new Error('No se configuró el bucket de evidencias del expediente.')
+  }
+
+  const storagePath = buildExplorerStoragePath(context, file)
+  const mimeType = String(file?.type || inferExplorerMimeTypeFromName(file?.name) || 'application/octet-stream').trim()
+  const { error: uploadError } = await supabaseClient.storage
+    .from(expedienteEvidenceBucket)
+    .upload(storagePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: mimeType,
+    })
+
+  if (uploadError) {
+    throw new Error(uploadError.message || 'No se pudo subir el archivo al storage.')
+  }
+
+  let publicUrl = ''
+  try {
+    const { data } = supabaseClient.storage.from(expedienteEvidenceBucket).getPublicUrl(storagePath)
+    publicUrl = data?.publicUrl || ''
+  } catch {
+    publicUrl = ''
+  }
+
+  return {
+    bucket: expedienteEvidenceBucket,
+    storage_path: storagePath,
+    public_url: publicUrl || null,
+    external_url: null,
+    mime_type: mimeType || null,
+    file_name: String(file?.name || '').trim() || null,
+    size_bytes: Number(file?.size || 0) || null,
+  }
+}
+
+async function cleanupExplorerUploadedFile(uploadResult = {}) {
+  const bucket = String(uploadResult?.bucket || '').trim()
+  const storagePath = normalizeExplorerStoragePath(uploadResult?.storage_path || '')
+  if (!bucket || !storagePath || !supabaseClient?.storage?.from) {
+    return
+  }
+
+  try {
+    await supabaseClient.storage.from(bucket).remove([storagePath])
+  } catch {
+    // Si la limpieza falla, no bloqueamos la operación principal.
+  }
+}
+
+function buildExplorerFilePayload(file, uploadResult, options = {}) {
+  const fileName = String(file?.name || '').trim()
+  const mimeType = String(uploadResult?.mime_type || file?.type || inferExplorerMimeTypeFromName(fileName) || '').trim()
+  const evidenceKind = deriveExplorerEvidenceTypeFromFile(file, options.preferredEvidenceType)
+  const resolvedSourceType = options.sourceType || 'upload'
+
+  return {
+    evidence_type: evidenceKind,
+    source_type: resolvedSourceType,
+    file_name: uploadResult?.file_name || fileName || null,
+    mime_type: mimeType || null,
+    size_bytes: Number(uploadResult?.size_bytes || file?.size || 0) || null,
+    public_url: uploadResult?.public_url || null,
+    external_url: uploadResult?.external_url || null,
+    bucket: uploadResult?.bucket || null,
+    storage_path: uploadResult?.storage_path || null,
+    metadata: {
+      source_type: resolvedSourceType,
+      file_name: uploadResult?.file_name || fileName || null,
+      mime_type: mimeType || null,
+      size_bytes: Number(uploadResult?.size_bytes || file?.size || 0) || null,
+      detected_kind: evidenceKind,
+      original_name: fileName || null,
+      bucket: uploadResult?.bucket || null,
+      storage_path: uploadResult?.storage_path || null,
+      public_url: uploadResult?.public_url || null,
+    },
+  }
+}
+
+async function createExplorerAttachmentEvidence(context, file, title, description, requirementCode = '') {
+  if (!supabaseClient || !context || !file) {
+    return false
+  }
+
+  const uploadResult = await uploadExplorerEvidenceFile(context, file)
+  const filePayload = buildExplorerFilePayload(file, uploadResult, { sourceType: 'upload' })
+  const payload = {
+    entity_type: context.entityType,
+    entity_id: context.entityId,
+    entity_code: context.entityCode,
+    title: buildExplorerRequirementScopePrefix(requirementCode)
+      ? `${title} · ${requirementCode}`
+      : title,
+    description: prependExplorerRequirementScope(description, requirementCode),
+    evidence_type: filePayload.evidence_type,
+    source_type: filePayload.source_type,
+    external_url: filePayload.external_url,
+    public_url: filePayload.public_url,
+    file_name: filePayload.file_name,
+    mime_type: filePayload.mime_type,
+    size_bytes: filePayload.size_bytes,
+    bucket: filePayload.bucket,
+    storage_path: filePayload.storage_path,
+    metadata: filePayload.metadata,
+    uploaded_by: authSession?.user?.id || null,
+    updated_by: authSession?.user?.id || null,
+  }
+
+  const { error } = await supabaseClient.from('evidencias_relacionadas').insert(payload)
+  if (error) {
+    await cleanupExplorerUploadedFile(uploadResult)
+    throw error
+  }
+
+  return true
 }
 
 function parseQuotationCode(value) {
@@ -3366,7 +5569,11 @@ function getRequirementContextFromRecord(sourceRecord = {}) {
     fecha_rq: sourceRecord.fecha_rq ? String(sourceRecord.fecha_rq).slice(0, 10) : '',
     fecha_entrega: sourceRecord.fecha_entrega ? String(sourceRecord.fecha_entrega).slice(0, 10) : '',
     tipo_servicio: sourceRecord.tipo_servicio || '',
-    solicitante: sourceRecord.solicitante || sourceRecord.solicitado_por || sourceRecord.solicitado || '',
+    solicitante:
+      sourceRecord.responsable_tecnico ||
+      sourceRecord.responsable_economico ||
+      sourceRecord.solicitante ||
+      '',
     area: sourceRecord.area || '',
     estado: sourceRecord.estado || 'REGISTRADO',
   }
@@ -3488,6 +5695,8 @@ function openRequirementEntryModal(context = {}) {
   activeRequirementEntryContext = getRequirementContextFromRecord(context)
   requirementEntryTitle.textContent = 'Nuevo requerimiento'
   requirementEntryForm?.reset()
+  refreshRequirementRequesterManagedSelect()
+  refreshRequirementAreaManagedSelect()
 
   if (requirementQuotationInput) requirementQuotationInput.value = activeRequirementEntryContext.cotizacion_codigo || ''
   if (requirementCostCenterInput) requirementCostCenterInput.value = activeRequirementEntryContext.centro_costos || ''
@@ -3497,8 +5706,27 @@ function openRequirementEntryModal(context = {}) {
   if (requirementDateInput) requirementDateInput.value = activeRequirementEntryContext.fecha_rq || ''
   if (requirementDeliveryInput) requirementDeliveryInput.value = activeRequirementEntryContext.fecha_entrega || ''
   if (requirementServiceInput) requirementServiceInput.value = activeRequirementEntryContext.tipo_servicio || ''
-  if (requirementRequesterInput) requirementRequesterInput.value = activeRequirementEntryContext.solicitante || ''
-  if (requirementAreaInput) requirementAreaInput.value = activeRequirementEntryContext.area || ''
+  if (requirementRequesterInput instanceof HTMLSelectElement) {
+    const nextRequester = activeRequirementEntryContext.solicitante || ''
+    if (nextRequester && !Array.from(requirementRequesterInput.options).some((option) => option.value === nextRequester)) {
+      const fallbackOption = document.createElement('option')
+      fallbackOption.value = nextRequester
+      fallbackOption.textContent = nextRequester
+      requirementRequesterInput.appendChild(fallbackOption)
+    }
+    requirementRequesterInput.value = nextRequester
+  }
+  applyLinkedContactFields('requirement_solicitante', activeRequirementEntryContext.solicitante || '')
+  if (requirementAreaInput instanceof HTMLSelectElement) {
+    const nextArea = activeRequirementEntryContext.area || ''
+    if (nextArea && !Array.from(requirementAreaInput.options).some((option) => option.value === nextArea)) {
+      const fallbackOption = document.createElement('option')
+      fallbackOption.value = nextArea
+      fallbackOption.textContent = nextArea
+      requirementAreaInput.appendChild(fallbackOption)
+    }
+    requirementAreaInput.value = nextArea
+  }
   if (requirementStateInput) requirementStateInput.value = activeRequirementEntryContext.estado || 'REGISTRADO'
   if (requirementCodeInput) requirementCodeInput.value = getSuggestedRequirementCode(activeRequirementEntryContext)
 
@@ -3511,6 +5739,7 @@ function closeRequirementEntryModal() {
   requirementEntryModal?.classList.add('is-hidden')
   requirementEntryForm?.reset()
   activeRequirementEntryContext = null
+  closeCatalogManager()
   if (requirementCodeInput instanceof HTMLInputElement) {
     requirementCodeInput.dataset.duplicate = 'false'
     requirementCodeInput.setCustomValidity('')
@@ -3754,8 +5983,10 @@ function buildRequirementsRow(record) {
       <td class="actions-cell">
         ${
           permissions.show_detail_button
-            ? `<button class="table-action" type="button" data-action="requirement-detail" data-requirement-key="${rowKey}">
-                Detalle
+            ? `<button class="table-action table-action--icon table-action--tone-view" type="button" data-action="requirement-detail" data-requirement-key="${rowKey}" title="Ver detalle del requerimiento">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5C6.5 5 2.2 8.4 1 12c1.2 3.6 5.5 7 11 7s9.8-3.4 11-7c-1.2-3.6-5.5-7-11-7zm0 11.2A4.2 4.2 0 1 1 12 7.8a4.2 4.2 0 0 1 0 8.4zm0-6.7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"></path>
+                </svg>
               </button>`
             : '<span class="cell-text cell-empty">-</span>'
         }
@@ -4155,7 +6386,7 @@ function updateRequirementDetailsContext(summary = null) {
   }
 
   requirementsDetailContext.innerHTML = `
-    <div class="requirements-explorer__meta">
+    <div class="requirements-explorer__meta requirements-explorer__meta--compact requirements-detail-context__meta">
       <span><strong>Items finales:</strong> ${escapeHtml(summary.finalCount ?? 0)}</span>
       <span><strong>Items stage:</strong> ${escapeHtml(summary.stageCount ?? 0)}</span>
       <span><strong>Items locales:</strong> ${escapeHtml(summary.localCount ?? 0)}</span>
@@ -4215,9 +6446,23 @@ function resetExplorerExpedienteState() {
   explorerLegacyAttachmentRecords = []
   explorerTrackingComposerMode = ''
   explorerEvidenceComposerOpen = false
+  explorerExpedienteSnapshotRecord = null
+  explorerExpedienteSnapshotSource = ''
+  activeExpedienteContext = null
+  if (requirementsExplorerContent) {
+    requirementsExplorerContent.dataset.expedienteEntityType = ''
+    requirementsExplorerContent.dataset.expedienteEntityId = ''
+    requirementsExplorerContent.dataset.expedienteEntityCode = ''
+    requirementsExplorerContent.dataset.expedienteOriginMode = ''
+    requirementsExplorerContent.dataset.expedienteParentCode = ''
+  }
 }
 
 function getActiveExplorerEntityContext() {
+  if (activeExpedienteContext && activeExpedienteContext.sourceMode === activeExplorerMode) {
+    return activeExpedienteContext
+  }
+
   if (activeExplorerMode === 'quotation-linked' && quotationLinkedRecord) {
     const entityId = quotationLinkedRecord[primaryKey] ?? quotationLinkedRecord.id ?? null
     const entityCode = quotationLinkedRecord.cotizacion ?? quotationLinkedRecord.cotizacion_codigo ?? ''
@@ -4247,6 +6492,119 @@ function getActiveExplorerEntityContext() {
   }
 
   return null
+}
+
+function buildExpedienteContext(record, sourceMode) {
+  if (!record || !sourceMode) {
+    return null
+  }
+
+  if (sourceMode === 'quotation-linked') {
+    const entityId = record[primaryKey] ?? record.id ?? null
+    const entityCode = record.cotizacion ?? record.cotizacion_codigo ?? ''
+    if (!entityId || !entityCode) {
+      return null
+    }
+
+    return {
+      entityType: 'cotizacion',
+      entityId,
+      entityCode,
+      sourceMode,
+      sourceLabel: 'Cotización vinculada',
+      parentEntityType: '',
+      parentEntityId: null,
+      parentEntityCode: '',
+    }
+  }
+
+  if (sourceMode === 'rq-detail') {
+    const entityId = record.id ?? null
+    const entityCode = record.rq_codigo ?? ''
+    if (!entityId || !entityCode) {
+      return null
+    }
+
+    return {
+      entityType: 'requerimiento',
+      entityId,
+      entityCode,
+      sourceMode,
+      sourceLabel: 'Detalle de requerimiento',
+      parentEntityType: 'cotizacion',
+      parentEntityId: record.cotizacion_id ?? null,
+      parentEntityCode: record.cotizacion ?? record.cotizacion_codigo ?? '',
+    }
+  }
+
+  return null
+}
+
+function setExplorerExpedienteContext(context) {
+  activeExpedienteContext = context || null
+
+  if (!requirementsExplorerContent) {
+    return
+  }
+
+  requirementsExplorerContent.dataset.expedienteEntityType = context?.entityType || ''
+  requirementsExplorerContent.dataset.expedienteEntityId = context?.entityId ? String(context.entityId) : ''
+  requirementsExplorerContent.dataset.expedienteEntityCode = context?.entityCode || ''
+  requirementsExplorerContent.dataset.expedienteOriginMode = context?.sourceMode || ''
+  requirementsExplorerContent.dataset.expedienteParentCode = context?.parentEntityCode || ''
+}
+
+async function loadExplorerExpedienteSnapshot(context) {
+  explorerExpedienteSnapshotRecord = null
+  explorerExpedienteSnapshotSource = ''
+
+  if (!supabaseClient || !context || context.entityType !== 'cotizacion') {
+    return null
+  }
+
+  const cotizacionId = context.entityId
+  if (!cotizacionId) {
+    return null
+  }
+
+  try {
+    const mvpResult = await supabaseClient
+      .from('vw_expediente_cotizacion_mvp')
+      .select('*')
+      .eq('cotizacion_id', cotizacionId)
+      .maybeSingle()
+
+    if (mvpResult.error) {
+      throw mvpResult.error
+    }
+
+    if (mvpResult.data) {
+      explorerExpedienteSnapshotRecord = mvpResult.data
+      explorerExpedienteSnapshotSource = 'mvp'
+      return explorerExpedienteSnapshotRecord
+    }
+  } catch (error) {
+    console.warn('[Expediente] No se pudo leer vw_expediente_cotizacion_mvp, usando fallback base.', error)
+  }
+
+  try {
+    const baseResult = await supabaseClient
+      .from('vw_expediente_cotizacion_base')
+      .select('*')
+      .eq('cotizacion_id', cotizacionId)
+      .maybeSingle()
+
+    if (baseResult.error) {
+      throw baseResult.error
+    }
+
+    explorerExpedienteSnapshotRecord = baseResult.data || null
+    explorerExpedienteSnapshotSource = explorerExpedienteSnapshotRecord ? 'base' : ''
+    return explorerExpedienteSnapshotRecord
+  } catch (error) {
+    console.warn('[Expediente] No se pudo leer vw_expediente_cotizacion_base.', error)
+    return null
+  }
 }
 
 function buildExplorerContextKey(context) {
@@ -4380,7 +6738,6 @@ async function refreshExplorerExpedienteData(force = false) {
   explorerEvidenceState = 'loading'
   explorerTrackingError = ''
   explorerEvidenceError = ''
-
   if (!requirementsExplorerModal?.classList.contains('is-hidden')) {
     if (activeExplorerMode === 'quotation-linked') {
       renderQuotationLinkedExplorer()
@@ -4389,7 +6746,11 @@ async function refreshExplorerExpedienteData(force = false) {
     }
   }
 
-  await Promise.all([loadExplorerTrackingEvents(context), loadExplorerEvidenceRecords(context)])
+  await Promise.all([
+    loadExplorerExpedienteSnapshot(context),
+    loadExplorerTrackingEvents(context),
+    loadExplorerEvidenceRecords(context),
+  ])
 
   if (!requirementsExplorerModal?.classList.contains('is-hidden')) {
     if (activeExplorerMode === 'quotation-linked') {
@@ -4577,6 +6938,8 @@ function getLegacyRequirementAttachmentEvidence() {
     external_url: '',
     file_name: attachment.file_name || '',
     mime_type: attachment.mime_type || '',
+    bucket: attachment.bucket || '',
+    storage_path: attachment.storage_path || '',
     created_at: attachment.created_at || '',
     metadata: {
       originLabel: 'Tabla requerimiento_adjuntos',
@@ -4584,6 +6947,100 @@ function getLegacyRequirementAttachmentEvidence() {
       ...attachment.metadata,
     },
   }))
+}
+
+function normalizeExplorerStoragePath(value = '') {
+  return String(value || '').replace(/^\/+/, '').trim()
+}
+
+function resolveExplorerFileUrl(record = {}) {
+  const directUrl =
+    getExplorerEvidenceTextField(record, 'public_url') || getExplorerEvidenceTextField(record, 'external_url') || ''
+  if (directUrl) {
+    return directUrl
+  }
+
+  const bucket = getExplorerEvidenceTextField(record, 'bucket')
+  const storagePath = normalizeExplorerStoragePath(getExplorerEvidenceTextField(record, 'storage_path'))
+  if (!bucket || !storagePath || !supabaseClient?.storage?.from) {
+    return ''
+  }
+
+  try {
+    const { data } = supabaseClient.storage.from(bucket).getPublicUrl(storagePath)
+    return data?.publicUrl || ''
+  } catch {
+    return ''
+  }
+}
+
+function resolveExplorerFileName(record = {}, fallback = 'archivo') {
+  return (
+    getExplorerEvidenceTextField(record, 'file_name') ||
+    String(record.title || '').trim() ||
+    String(fallback || 'archivo').trim() ||
+    'archivo'
+  )
+}
+
+function buildExplorerFileActions(record = {}, labels = {}) {
+  const href = resolveExplorerFileUrl(record)
+  if (!href) {
+    return `<div class="expediente-evidence-card__meta"><span class="cell-text cell-empty">Sin archivo disponible</span></div>`
+  }
+
+  const fileName = resolveExplorerFileName(record)
+  const kind = resolveExplorerEvidenceKind(record)
+  const openLabel =
+    labels.open ||
+    (kind === 'pdf'
+      ? 'Ver PDF'
+      : kind === 'foto'
+        ? 'Ver imagen'
+        : kind === 'link'
+          ? 'Abrir enlace'
+          : 'Abrir archivo')
+  const downloadLabel =
+    labels.download ||
+    (kind === 'pdf'
+      ? 'Descargar PDF'
+      : kind === 'foto'
+        ? 'Descargar imagen'
+        : kind === 'link'
+          ? 'Abrir enlace'
+          : 'Descargar archivo')
+
+  return `
+    <div class="expediente-evidence-card__actions">
+      <a class="ghost-button ghost-button--soft expediente-evidence-card__link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(openLabel)}</a>
+      ${kind === 'link'
+        ? ''
+        : `<a class="ghost-button ghost-button--soft expediente-evidence-card__link" href="${escapeHtml(href)}" download="${escapeHtml(fileName)}">${escapeHtml(downloadLabel)}</a>`}
+    </div>
+  `
+}
+
+function buildExplorerReferenceMarkup(referenceValue = '') {
+  const reference = String(referenceValue || '').trim()
+  if (!reference) {
+    return ''
+  }
+
+  if (/^https?:\/\//i.test(reference)) {
+    return `
+      <div class="expediente-card__footer">
+        <span class="expediente-link-label">Referencia</span>
+        <a class="cell-text" href="${escapeHtml(reference)}" target="_blank" rel="noopener noreferrer">${escapeHtml(reference)}</a>
+      </div>
+    `
+  }
+
+  return `
+    <div class="expediente-card__footer">
+      <span class="expediente-link-label">Referencia</span>
+      <span class="cell-text">${escapeHtml(reference)}</span>
+    </div>
+  `
 }
 
 function getExplorerTabDefinitions() {
@@ -4604,15 +7061,43 @@ function buildExplorerTabs() {
       ${tabs
         .map((tab) => {
           const isActive = explorerActiveTab === tab.key
+          const helpText = getExplorerTabHelpText(tab.key)
           return `
             <button
               class="expediente-tab ${isActive ? 'is-active' : ''}"
               type="button"
               data-action="switch-explorer-tab"
               data-explorer-tab="${tab.key}"
+              title="${escapeHtml(helpText)}"
             >
               <span>${escapeHtml(tab.label)}</span>
-              ${tab.count ? `<small>${escapeHtml(String(tab.count))}</small>` : ''}
+              <small>${escapeHtml(String(tab.count || 0))}</small>
+            </button>
+          `
+        })
+        .join('')}
+    </nav>
+  `
+}
+
+function buildExplorerTabsInline() {
+  const tabs = getExplorerTabDefinitions()
+  return `
+    <nav class="expediente-tabs expediente-tabs--inline" aria-label="Secciones del expediente">
+      ${tabs
+        .map((tab) => {
+          const isActive = explorerActiveTab === tab.key
+          const helpText = getExplorerTabHelpText(tab.key)
+          return `
+            <button
+              class="expediente-tab expediente-tab--inline ${isActive ? 'is-active' : ''}"
+              type="button"
+              data-action="switch-explorer-tab"
+              data-explorer-tab="${tab.key}"
+              title="${escapeHtml(helpText)}"
+            >
+              <span>${escapeHtml(tab.label)}</span>
+              <small>${escapeHtml(String(tab.count || 0))}</small>
             </button>
           `
         })
@@ -4678,6 +7163,38 @@ function getTrackingEventOptions() {
   ]
 }
 
+function getQuotationLinkedRequirementReferenceOptions() {
+  if (activeExplorerMode !== 'quotation-linked') {
+    return []
+  }
+
+  return quotationLinkedRequirements
+    .map((record) => ({
+      value: String(record.rq_codigo || '').trim(),
+      label: `${String(record.rq_codigo || '').trim()}${record.descripcion_cotizacion ? ` · ${String(record.descripcion_cotizacion).trim()}` : ''}`,
+    }))
+    .filter((option) => option.value)
+}
+
+function buildRequirementReferenceSelectMarkup(modeLabel = 'acción') {
+  const options = getQuotationLinkedRequirementReferenceOptions()
+  if (!options.length) {
+    return ''
+  }
+
+  return `
+    <label class="field field--wide">
+      <span>RQ relacionado</span>
+      <select name="related_requirement_code" title="Si eliges un requerimiento, ${escapeHtml(modeLabel)} quedará referenciada a ese RQ dentro de esta cotización.">
+        <option value="">Aplicar a toda la cotización</option>
+        ${options
+          .map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+          .join('')}
+      </select>
+    </label>
+  `
+}
+
 function buildTrackingComposer(mode = 'tracking') {
   if (!canManageExplorerExpediente()) {
     return ''
@@ -4725,6 +7242,11 @@ function buildTrackingComposer(mode = 'tracking') {
                 <span>Referencia</span>
                 <input name="communication_ref" type="text" placeholder="Asunto del correo, link, código o nota corta" />
               </label>
+              ${buildRequirementReferenceSelectMarkup('esta comunicación')}
+              <label class="field field--wide">
+                <span>Archivo adjunto</span>
+                <input name="attachment_file" type="file" title="Puedes adjuntar un archivo digital para dejar sustento de esta comunicación." />
+              </label>
               <label class="field field--full">
                 <span>Comentario</span>
                 <textarea name="comment" rows="4" placeholder="Resume qué se comunicó y su impacto operativo."></textarea>
@@ -4748,6 +7270,11 @@ function buildTrackingComposer(mode = 'tracking') {
               <label class="field">
                 <span>Estado nuevo</span>
                 <input name="status_after" type="text" placeholder="Opcional" />
+              </label>
+              ${buildRequirementReferenceSelectMarkup('este seguimiento')}
+              <label class="field field--wide">
+                <span>Archivo adjunto</span>
+                <input name="attachment_file" type="file" title="Puedes adjuntar un archivo digital como sustento de este seguimiento." />
               </label>
               <label class="field field--full">
                 <span>Comentario</span>
@@ -4812,6 +7339,11 @@ function buildEvidenceComposer() {
           <span>Nombre de archivo</span>
           <input name="file_name" type="text" placeholder="Opcional si aún no subes archivo" />
         </label>
+        ${buildRequirementReferenceSelectMarkup('esta evidencia')}
+        <label class="field field--wide">
+          <span>Archivo digital</span>
+          <input name="attachment_file" type="file" title="Puedes subir un archivo digital para registrarlo como evidencia." />
+        </label>
         <label class="field field--full">
           <span>Descripción</span>
           <textarea name="description" rows="4" placeholder="Describe qué evidencia es y por qué respalda el caso."></textarea>
@@ -4825,10 +7357,13 @@ function buildEvidenceComposer() {
   `
 }
 
-function buildExpedienteSectionHeader(titleText, metaText = '', actionMarkup = '') {
+function buildExpedienteSectionHeader(titleText, metaText = '', actionMarkup = '', noteText = '') {
   return `
     <div class="expediente-section__header">
-      <strong>${escapeHtml(titleText)}</strong>
+      <div class="expediente-section__header-copy">
+        <strong>${escapeHtml(titleText)}</strong>
+        ${noteText ? `<p class="expediente-section__note">${escapeHtml(noteText)}</p>` : ''}
+      </div>
       <div class="expediente-section__actions">
         ${metaText ? `<span>${escapeHtml(metaText)}</span>` : ''}
         ${actionMarkup}
@@ -4853,13 +7388,18 @@ async function saveExplorerTrackingEvent(formElement, mode = 'tracking') {
   const isCommunication = mode === 'communication'
   const title = String(formData.get('title') || '').trim()
   const comment = String(formData.get('comment') || '').trim()
+  const relatedRequirementCode = String(formData.get('related_requirement_code') || '').trim()
+  const attachmentFile = formData.get('attachment_file')
+  const selectedFile = attachmentFile instanceof File && attachmentFile.size ? attachmentFile : null
   const payload = {
     entity_type: context.entityType,
     entity_id: context.entityId,
     entity_code: context.entityCode,
     event_type: isCommunication ? 'comunicacion' : String(formData.get('event_type') || 'comentario').trim(),
-    title: title || (isCommunication ? 'Comunicación registrada' : 'Seguimiento registrado'),
-    comment: comment || null,
+    title: buildExplorerRequirementScopePrefix(relatedRequirementCode)
+      ? `${title || (isCommunication ? 'Comunicación registrada' : 'Seguimiento registrado')} · ${relatedRequirementCode}`
+      : title || (isCommunication ? 'Comunicación registrada' : 'Seguimiento registrado'),
+    comment: prependExplorerRequirementScope(comment, relatedRequirementCode),
     created_by: authSession?.user?.id || null,
     updated_by: authSession?.user?.id || null,
   }
@@ -4867,7 +7407,7 @@ async function saveExplorerTrackingEvent(formElement, mode = 'tracking') {
   if (isCommunication) {
     payload.channel = String(formData.get('channel') || 'email').trim() || 'email'
     payload.communication_subject = title || null
-    payload.communication_ref = String(formData.get('communication_ref') || '').trim() || null
+    payload.communication_ref = appendExplorerRequirementReference(String(formData.get('communication_ref') || '').trim(), relatedRequirementCode)
     payload.communication_from = String(formData.get('communication_from') || '').trim() || null
     payload.communication_to = String(formData.get('communication_to') || '').trim() || null
   } else {
@@ -4899,6 +7439,28 @@ async function saveExplorerTrackingEvent(formElement, mode = 'tracking') {
     result: data,
   })
 
+  if (selectedFile) {
+    try {
+      await createExplorerAttachmentEvidence(
+        context,
+        selectedFile,
+        isCommunication ? 'Adjunto de comunicación' : 'Adjunto de seguimiento',
+        comment || title || (isCommunication ? 'Archivo relacionado a comunicación' : 'Archivo relacionado a seguimiento'),
+        relatedRequirementCode,
+      )
+    } catch (attachmentError) {
+      console.error('[Expediente] Error al guardar adjunto complementario', {
+        context,
+        mode,
+        attachmentError,
+      })
+      setExplorerNotice(`Se guardó el ${isCommunication ? 'registro de comunicación' : 'seguimiento'}, pero falló el adjunto: ${attachmentError.message}`)
+      await refreshExplorerExpedienteData(true)
+      explorerTrackingComposerMode = ''
+      return true
+    }
+  }
+
   explorerTrackingComposerMode = ''
   setExplorerNotice(isCommunication ? 'Comunicación registrada en el expediente.' : 'Seguimiento registrado en el expediente.')
   await refreshExplorerExpedienteData(true)
@@ -4918,21 +7480,63 @@ async function saveExplorerEvidenceRecord(formElement) {
   }
 
   const formData = new FormData(formElement)
+  const relatedRequirementCode = String(formData.get('related_requirement_code') || '').trim()
+  const attachmentFile = formData.get('attachment_file')
+  const selectedFile = attachmentFile instanceof File && attachmentFile.size ? attachmentFile : null
+  const selectedEvidenceType = String(formData.get('evidence_type') || 'otro').trim() || 'otro'
+  const selectedSourceType = String(formData.get('source_type') || 'manual').trim() || 'manual'
+  const providedTitle = String(formData.get('title') || '').trim()
+  let uploadResult = null
+  if (selectedFile) {
+    try {
+      uploadResult = await uploadExplorerEvidenceFile(context, selectedFile)
+    } catch (fileError) {
+      setExplorerNotice(fileError.message || 'No se pudo subir el archivo adjunto.')
+      return false
+    }
+  }
+
+  const filePayload = selectedFile
+    ? buildExplorerFilePayload(selectedFile, uploadResult, {
+        sourceType: 'upload',
+        preferredEvidenceType: selectedEvidenceType,
+      })
+    : null
+  const defaultTitle = providedTitle || (selectedFile ? selectedFile.name : selectedSourceType === 'link' ? 'Enlace registrado' : 'Evidencia registrada')
   const payload = {
     entity_type: context.entityType,
     entity_id: context.entityId,
     entity_code: context.entityCode,
-    evidence_type: String(formData.get('evidence_type') || 'otro').trim() || 'otro',
-    source_type: String(formData.get('source_type') || 'manual').trim() || 'manual',
-    title: String(formData.get('title') || '').trim() || 'Evidencia registrada',
-    description: String(formData.get('description') || '').trim() || null,
-    external_url: String(formData.get('external_url') || '').trim() || null,
-    file_name: String(formData.get('file_name') || '').trim() || null,
+    evidence_type: selectedFile ? filePayload.evidence_type : selectedEvidenceType,
+    source_type: selectedFile ? 'upload' : selectedSourceType,
+    title: buildExplorerRequirementScopePrefix(relatedRequirementCode)
+      ? `${defaultTitle} · ${relatedRequirementCode}`
+      : defaultTitle,
+    description: prependExplorerRequirementScope(String(formData.get('description') || '').trim(), relatedRequirementCode),
+    external_url: selectedFile ? filePayload.external_url : String(formData.get('external_url') || '').trim() || null,
+    public_url: selectedFile ? filePayload.public_url : String(formData.get('public_url') || '').trim() || null,
+    file_name: selectedFile ? filePayload.file_name : String(formData.get('file_name') || '').trim() || null,
+    mime_type: selectedFile ? filePayload.mime_type : String(formData.get('mime_type') || '').trim() || null,
+    size_bytes: selectedFile ? filePayload.size_bytes : null,
+    bucket: selectedFile ? filePayload.bucket : String(formData.get('bucket') || '').trim() || null,
+    storage_path: selectedFile ? filePayload.storage_path : String(formData.get('storage_path') || '').trim() || null,
+    metadata: selectedFile
+      ? {
+          ...(filePayload.metadata || {}),
+          originLabel: 'Formulario de evidencias',
+          evidence_type: filePayload.evidence_type,
+        }
+      : {
+          originLabel: 'Formulario de evidencias',
+          source_type: selectedSourceType,
+          file_name: String(formData.get('file_name') || '').trim() || null,
+          mime_type: String(formData.get('mime_type') || '').trim() || null,
+        },
     uploaded_by: authSession?.user?.id || null,
     updated_by: authSession?.user?.id || null,
   }
 
-  if (payload.source_type === 'link' && !payload.external_url) {
+  if (!selectedFile && payload.source_type === 'link' && !payload.external_url) {
     setExplorerNotice('Si el modo es Link, ingresa una URL o referencia válida.')
     return false
   }
@@ -4944,6 +7548,7 @@ async function saveExplorerEvidenceRecord(formElement) {
 
   const { data, error } = await supabaseClient.from('evidencias_relacionadas').insert(payload).select('*')
   if (error) {
+    await cleanupExplorerUploadedFile(uploadResult)
     console.error('[Expediente] Error al guardar evidencia', {
       context,
       payload,
@@ -4997,7 +7602,7 @@ function buildExplorerEventCards(eventRecords, emptyTitle, emptyBody) {
   return `
     <div class="expediente-feed">
       ${eventRecords
-        .map((eventRecord) => {
+        .map((eventRecord, index) => {
           const metaParts = [
             formatDateTime(eventRecord.created_at) || 'Sin fecha',
             formatExplorerActor(eventRecord.created_by),
@@ -5016,22 +7621,26 @@ function buildExplorerEventCards(eventRecords, emptyTitle, emptyBody) {
               ? `<div class="expediente-card__status">${escapeHtml(eventRecord.status_before || 'Sin estado')} <span>→</span> ${escapeHtml(eventRecord.status_after || 'Sin cambio')}</div>`
               : ''
 
-          const referenceMarkup = eventRecord.communication_ref
-            ? `<div class="expediente-card__footer"><span class="expediente-link-label">Referencia</span><span class="cell-text">${escapeHtml(eventRecord.communication_ref)}</span></div>`
-            : ''
+          const referenceMarkup = buildExplorerReferenceMarkup(eventRecord.communication_ref)
 
           return `
-            <article class="expediente-card">
-              <div class="expediente-card__meta">${escapeHtml(metaParts.join(' · '))}</div>
-              <div class="expediente-card__header">
-                <strong>${escapeHtml(eventRecord.title || toLabel(eventRecord.event_type) || 'Evento')}</strong>
+            <details class="expediente-card"${index === 0 ? ' open' : ''}>
+              <summary class="expediente-card__summary">
+                <div class="expediente-card__summary-copy">
+                  <div class="expediente-card__meta">${escapeHtml(metaParts.join(' · '))}</div>
+                  <div class="expediente-card__header">
+                    <strong>${escapeHtml(eventRecord.title || toLabel(eventRecord.event_type) || 'Evento')}</strong>
+                  </div>
+                </div>
                 <span class="tag tag--${getTagTone(eventRecord.status_after || eventRecord.event_type)}">${escapeHtml(toLabel(eventRecord.event_type || 'evento'))}</span>
+              </summary>
+              <div class="expediente-card__detail">
+                ${statusSummary}
+                ${eventRecord.comment ? `<p class="expediente-card__body">${escapeHtml(eventRecord.comment)}</p>` : ''}
+                ${communicationParts.length ? `<div class="expediente-card__footer">${communicationParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : ''}
+                ${referenceMarkup}
               </div>
-              ${statusSummary}
-              ${eventRecord.comment ? `<p class="expediente-card__body">${escapeHtml(eventRecord.comment)}</p>` : ''}
-              ${communicationParts.length ? `<div class="expediente-card__footer">${communicationParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : ''}
-              ${referenceMarkup}
-            </article>
+            </details>
           `
         })
         .join('')}
@@ -5047,32 +7656,84 @@ function buildEvidenceCards(evidenceRecords, emptyTitle, emptyBody, originLabel 
   return `
     <div class="expediente-evidence-list">
       ${evidenceRecords
-        .map((evidenceRecord) => {
-          const evidenceType = toLabel(evidenceRecord.evidence_type || 'otro')
+        .map((evidenceRecord, index) => {
+          const evidenceKind = resolveExplorerEvidenceKind(evidenceRecord)
+          const evidenceType = toLabel(evidenceKind || evidenceRecord.evidence_type || 'otro')
+          const sourceLabel = toLabel(originLabel || getExplorerEvidenceTextField(evidenceRecord, 'source_type') || 'manual')
+          const fileName = resolveExplorerFileName(evidenceRecord, '')
+          const mimeType = getExplorerEvidenceTextField(evidenceRecord, 'mime_type')
+          const bucket = getExplorerEvidenceTextField(evidenceRecord, 'bucket')
+          const storagePath = normalizeExplorerStoragePath(getExplorerEvidenceTextField(evidenceRecord, 'storage_path'))
+          const externalUrl = getExplorerEvidenceTextField(evidenceRecord, 'external_url')
+          const publicUrl = getExplorerEvidenceTextField(evidenceRecord, 'public_url')
+          const description = String(evidenceRecord.description || '').trim()
+          const displayTitle = buildExplorerEvidenceDisplayTitle(evidenceRecord)
           const metaParts = [
-            originLabel || evidenceRecord.source_type ? toLabel(originLabel || evidenceRecord.source_type) : '',
-            evidenceRecord.file_name || '',
-            evidenceRecord.mime_type || '',
+            sourceLabel,
+            fileName,
+            mimeType,
             evidenceRecord.created_at ? formatDateTime(evidenceRecord.created_at) : '',
           ].filter(Boolean)
-          const href = evidenceRecord.public_url || evidenceRecord.external_url || ''
+          const href = resolveExplorerFileUrl(evidenceRecord)
+          const openLabel = evidenceKind === 'pdf'
+            ? 'Ver PDF'
+            : evidenceKind === 'foto'
+              ? 'Ver imagen'
+              : evidenceKind === 'link'
+                ? 'Abrir enlace'
+                : 'Abrir archivo'
+          const downloadLabel = evidenceKind === 'pdf'
+            ? 'Descargar PDF'
+            : evidenceKind === 'foto'
+              ? 'Descargar imagen'
+              : evidenceKind === 'link'
+                ? 'Abrir enlace'
+                : 'Descargar archivo'
+          const detailRows = [
+            description
+              ? `<div class="expediente-card__footer"><span class="expediente-link-label">Comentario</span><span class="cell-text">${escapeHtml(description)}</span></div>`
+              : '',
+            fileName
+              ? `<div class="expediente-card__footer"><span class="expediente-link-label">Archivo</span><span class="cell-text">${escapeHtml(fileName)}</span></div>`
+              : '',
+            mimeType
+              ? `<div class="expediente-card__footer"><span class="expediente-link-label">Tipo MIME</span><span class="cell-text">${escapeHtml(mimeType)}</span></div>`
+              : '',
+            sourceLabel
+              ? `<div class="expediente-card__footer"><span class="expediente-link-label">Fuente</span><span class="cell-text">${escapeHtml(sourceLabel)}</span></div>`
+              : '',
+            externalUrl && externalUrl !== href
+              ? `<div class="expediente-card__footer"><span class="expediente-link-label">Enlace externo</span><a class="cell-text" href="${escapeHtml(externalUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(externalUrl)}</a></div>`
+              : '',
+            publicUrl && publicUrl !== href
+              ? `<div class="expediente-card__footer"><span class="expediente-link-label">URL pública</span><a class="cell-text" href="${escapeHtml(publicUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(publicUrl)}</a></div>`
+              : '',
+            bucket
+              ? `<div class="expediente-card__footer"><span class="expediente-link-label">Bucket</span><span class="cell-text">${escapeHtml(bucket)}</span></div>`
+              : '',
+            storagePath
+              ? `<div class="expediente-card__footer"><span class="expediente-link-label">Ruta</span><span class="cell-text">${escapeHtml(storagePath)}</span></div>`
+              : '',
+          ]
+            .filter(Boolean)
+            .join('')
 
           return `
-            <article class="expediente-evidence-card">
-              <div class="expediente-evidence-card__head">
-                <strong>${escapeHtml(evidenceRecord.title || evidenceRecord.file_name || 'Evidencia')}</strong>
+            <details class="expediente-evidence-card"${index === 0 ? ' open' : ''}>
+              <summary class="expediente-evidence-card__summary">
+                <div class="expediente-evidence-card__summary-copy">
+                  <div class="expediente-evidence-card__head">
+                    <strong>${escapeHtml(displayTitle || 'Evidencia')}</strong>
+                  </div>
+                  ${metaParts.length ? `<div class="expediente-evidence-card__meta">${escapeHtml(metaParts.join(' · '))}</div>` : ''}
+                </div>
                 <span class="rq-chip">${escapeHtml(evidenceType)}</span>
+              </summary>
+              <div class="expediente-evidence-card__detail">
+                ${detailRows || `<div class="expediente-evidence-card__meta"><span class="cell-text cell-empty">Sin detalle adicional registrado</span></div>`}
+                ${href ? buildExplorerFileActions(evidenceRecord, { open: openLabel, download: downloadLabel }) : `<div class="expediente-evidence-card__meta"><span class="cell-text cell-empty">${escapeHtml(fileName || 'Sin archivo disponible')}</span></div>`}
               </div>
-              ${evidenceRecord.description ? `<p class="expediente-evidence-card__body">${escapeHtml(evidenceRecord.description)}</p>` : ''}
-              ${metaParts.length ? `<div class="expediente-evidence-card__meta">${escapeHtml(metaParts.join(' · '))}</div>` : ''}
-              ${
-                href
-                  ? `<a class="ghost-button ghost-button--soft expediente-evidence-card__link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">Abrir evidencia</a>`
-                  : evidenceRecord.file_name
-                    ? `<div class="expediente-evidence-card__meta">${escapeHtml(evidenceRecord.file_name)}</div>`
-                    : ''
-              }
-            </article>
+            </details>
           `
         })
         .join('')}
@@ -5093,12 +7754,12 @@ function buildQuotationExpedientePanel() {
 
     const records = explorerTrackingEvents.filter((eventRecord) => eventRecord.event_type !== 'comunicacion')
     const actionMarkup = canManageExplorerExpediente()
-      ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-tracking-composer">Registrar seguimiento</button>`
+      ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-tracking-composer" title="Registra un seguimiento operativo. En esta vista puedes referenciarlo a un requerimiento específico.">Registrar seguimiento</button>`
       : ''
     return `
       <div class="requirements-explorer__panel-wrap requirements-explorer__panel-wrap--stacked">
         <section class="expediente-section">
-          ${buildExpedienteSectionHeader('Seguimiento operativo', `${records.length} evento(s)`, actionMarkup)}
+          ${buildExpedienteSectionHeader('Seguimiento operativo', `${records.length} evento(s)`, actionMarkup, 'Aquí se muestran solo eventos de seguimiento; las comunicaciones van en su pestaña propia.')}
           ${explorerTrackingComposerMode === 'tracking' ? buildTrackingComposer('tracking') : ''}
           ${buildExplorerEventCards(records, 'Sin seguimiento todavía', 'Esta cotización aún no tiene eventos de seguimiento registrados.')}
         </section>
@@ -5114,12 +7775,12 @@ function buildQuotationExpedientePanel() {
 
     const records = explorerTrackingEvents.filter((eventRecord) => eventRecord.event_type === 'comunicacion')
     const actionMarkup = canManageExplorerExpediente()
-      ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-communication-composer">Registrar comunicación</button>`
+      ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-communication-composer" title="Registra correos, llamadas o coordinaciones. En esta vista puedes asociarlas a un requerimiento específico.">Registrar comunicación</button>`
       : ''
     return `
       <div class="requirements-explorer__panel-wrap requirements-explorer__panel-wrap--stacked">
         <section class="expediente-section">
-          ${buildExpedienteSectionHeader('Comunicaciones relacionadas', `${records.length} registro(s)`, actionMarkup)}
+          ${buildExpedienteSectionHeader('Comunicaciones relacionadas', `${records.length} registro(s)`, actionMarkup, 'Aquí se registran correos, llamadas, reuniones y otras comunicaciones relevantes del expediente.')}
           ${explorerTrackingComposerMode === 'communication' ? buildTrackingComposer('communication') : ''}
           ${buildExplorerEventCards(records, 'Sin comunicaciones registradas', 'Aquí aparecerán correos, reuniones o comunicaciones relevantes de la cotización.')}
         </section>
@@ -5133,7 +7794,14 @@ function buildQuotationExpedientePanel() {
       return `<div class="requirements-explorer__panel-wrap">${stateMarkup}</div>`
     }
 
-    return `<div class="requirements-explorer__panel-wrap">${buildExplorerEventCards(explorerTrackingEvents, 'Sin historial disponible', 'Todavía no hay eventos suficientes para construir el historial de esta cotización.')}</div>`
+    return `
+      <div class="requirements-explorer__panel-wrap requirements-explorer__panel-wrap--stacked">
+        <section class="expediente-section">
+          ${buildExpedienteSectionHeader('Historial completo', `${explorerTrackingEvents.length} registro(s)`, '', 'Incluye todos los seguimientos y también las comunicaciones registradas en el expediente.')}
+          ${buildExplorerEventCards(explorerTrackingEvents, 'Sin historial disponible', 'Todavía no hay eventos suficientes para construir el historial de esta cotización.')}
+        </section>
+      </div>
+    `
   }
 
   const stateMarkup = buildExplorerLoadState('Evidencias', explorerEvidenceState, explorerEvidenceError)
@@ -5142,31 +7810,27 @@ function buildQuotationExpedientePanel() {
   }
 
   const actionMarkup = canManageExplorerExpediente()
-    ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-evidence-composer">Registrar evidencia</button>`
+    ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-evidence-composer" title="Registra documentos, links o archivos digitales. En esta vista puedes asociarlos a un requerimiento específico.">Registrar evidencia</button>`
     : ''
-  return `
-    <div class="requirements-explorer__panel-wrap requirements-explorer__panel-wrap--stacked">
-      <section class="expediente-section">
-        ${buildExpedienteSectionHeader('Evidencias del expediente', `${explorerEvidenceRecords.length} registro(s)`, actionMarkup)}
-        ${explorerEvidenceComposerOpen ? buildEvidenceComposer() : ''}
-        ${buildEvidenceCards(explorerEvidenceRecords, 'Sin evidencias nuevas', 'Aún no se registraron documentos o sustentos nuevos para esta cotización.')}
-      </section>
-    </div>
+    return `
+      <div class="requirements-explorer__panel-wrap requirements-explorer__panel-wrap--stacked">
+        <section class="expediente-section">
+          ${buildExpedienteSectionHeader('Evidencias del expediente', `${explorerEvidenceRecords.length} registro(s)`, actionMarkup, 'Aquí se muestran las evidencias nuevas registradas en esta fase del expediente.')}
+          ${explorerEvidenceComposerOpen ? buildEvidenceComposer() : ''}
+          ${buildEvidenceCards(explorerEvidenceRecords, 'Sin evidencias nuevas', 'Aún no se registraron documentos o sustentos nuevos para esta cotización.')}
+        </section>
+      </div>
   `
 }
 
 function buildRequirementExpedientePanel() {
   if (explorerActiveTab === 'summary') {
-    const pickerMarkup = buildRequirementResourcePicker()
     return `
-      <div class="requirements-explorer__workspace ${requirementModalResourcePickerOpen ? 'requirements-explorer__workspace--with-sidebar' : ''}">
-        <div class="requirements-explorer__main">
-          ${buildRequirementModalColumnManager()}
-          <div class="requirements-explorer__table-wrap">
-            ${buildRequirementModalTable()}
-          </div>
+      <div class="requirements-explorer__main">
+        ${buildRequirementModalColumnManager()}
+        <div class="requirements-explorer__table-wrap">
+          ${buildRequirementModalTable()}
         </div>
-        ${pickerMarkup}
       </div>
     `
   }
@@ -5179,12 +7843,12 @@ function buildRequirementExpedientePanel() {
 
     const records = explorerTrackingEvents.filter((eventRecord) => eventRecord.event_type !== 'comunicacion')
     const actionMarkup = canManageExplorerExpediente()
-      ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-tracking-composer">Registrar seguimiento</button>`
+      ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-tracking-composer" title="Registra un seguimiento operativo para este requerimiento.">Registrar seguimiento</button>`
       : ''
     return `
       <div class="requirements-explorer__panel-wrap requirements-explorer__panel-wrap--stacked">
         <section class="expediente-section">
-          ${buildExpedienteSectionHeader('Seguimiento operativo', `${records.length} evento(s)`, actionMarkup)}
+          ${buildExpedienteSectionHeader('Seguimiento operativo', `${records.length} evento(s)`, actionMarkup, 'Aquí se muestran solo eventos de seguimiento; las comunicaciones van en su pestaña propia.')}
           ${explorerTrackingComposerMode === 'tracking' ? buildTrackingComposer('tracking') : ''}
           ${buildExplorerEventCards(records, 'Sin seguimiento todavía', 'Este requerimiento aún no tiene eventos de seguimiento registrados.')}
         </section>
@@ -5200,12 +7864,12 @@ function buildRequirementExpedientePanel() {
 
     const records = explorerTrackingEvents.filter((eventRecord) => eventRecord.event_type === 'comunicacion')
     const actionMarkup = canManageExplorerExpediente()
-      ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-communication-composer">Registrar comunicación</button>`
+      ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-communication-composer" title="Registra una comunicación relacionada directamente a este requerimiento.">Registrar comunicación</button>`
       : ''
     return `
       <div class="requirements-explorer__panel-wrap requirements-explorer__panel-wrap--stacked">
         <section class="expediente-section">
-          ${buildExpedienteSectionHeader('Comunicaciones relacionadas', `${records.length} registro(s)`, actionMarkup)}
+          ${buildExpedienteSectionHeader('Comunicaciones relacionadas', `${records.length} registro(s)`, actionMarkup, 'Aquí se registran correos, llamadas, reuniones y otras comunicaciones relevantes del expediente.')}
           ${explorerTrackingComposerMode === 'communication' ? buildTrackingComposer('communication') : ''}
           ${buildExplorerEventCards(records, 'Sin comunicaciones registradas', 'Aquí aparecerán correos o comunicaciones relevantes asociadas a este requerimiento.')}
         </section>
@@ -5219,7 +7883,14 @@ function buildRequirementExpedientePanel() {
       return `<div class="requirements-explorer__panel-wrap">${stateMarkup}</div>`
     }
 
-    return `<div class="requirements-explorer__panel-wrap">${buildExplorerEventCards(explorerTrackingEvents, 'Sin historial disponible', 'Todavía no hay eventos suficientes para construir el historial de este requerimiento.')}</div>`
+    return `
+      <div class="requirements-explorer__panel-wrap requirements-explorer__panel-wrap--stacked">
+        <section class="expediente-section">
+          ${buildExpedienteSectionHeader('Historial completo', `${explorerTrackingEvents.length} registro(s)`, '', 'Incluye todos los seguimientos y también las comunicaciones registradas en el expediente.')}
+          ${buildExplorerEventCards(explorerTrackingEvents, 'Sin historial disponible', 'Todavía no hay eventos suficientes para construir el historial de este requerimiento.')}
+        </section>
+      </div>
+    `
   }
 
   const stateMarkup = buildExplorerLoadState('Evidencias', explorerEvidenceState, explorerEvidenceError)
@@ -5235,18 +7906,18 @@ function buildRequirementExpedientePanel() {
     'Legacy',
   )
   const actionMarkup = canManageExplorerExpediente()
-    ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-evidence-composer">Registrar evidencia</button>`
+    ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-evidence-composer" title="Registra una evidencia o archivo digital directamente para este requerimiento.">Registrar evidencia</button>`
     : ''
 
   return `
     <div class="requirements-explorer__panel-wrap requirements-explorer__panel-wrap--stacked">
       <section class="expediente-section">
-        ${buildExpedienteSectionHeader('Evidencias del expediente', `${explorerEvidenceRecords.length} registro(s)`, actionMarkup)}
+        ${buildExpedienteSectionHeader('Evidencias del expediente', `${explorerEvidenceRecords.length} registro(s)`, actionMarkup, 'Aquí se muestran las evidencias nuevas registradas en esta fase del expediente.')}
         ${explorerEvidenceComposerOpen ? buildEvidenceComposer() : ''}
         ${newEvidenceMarkup}
       </section>
       <section class="expediente-section">
-        ${buildExpedienteSectionHeader('Adjuntos heredados', `${legacyEvidence.length} registro(s)`)}
+        ${buildExpedienteSectionHeader('Adjuntos heredados', `${legacyEvidence.length} registro(s)`, '', 'Estos documentos vienen de la estructura legacy y se muestran para conservar trazabilidad sin migración agresiva.')}
         ${legacyMarkup}
       </section>
     </div>
@@ -5437,6 +8108,7 @@ function buildQuotationLinkedColumnManager() {
         <strong>Columnas de requerimientos vinculados</strong>
         <button class="column-manager__reset" type="button" data-action="reset-linked-columns">Restablecer</button>
       </div>
+      ${buildFreezeControlMarkup('Inmovilizar', quotationLinkedFrozenColumnCount, 'set-linked-frozen-columns')}
       <div class="column-manager__list">${options}</div>
     </div>
   `
@@ -5511,6 +8183,119 @@ function exportQuotationLinkedCsv() {
   downloadTextFile(`${quotationLinkedRecord.cotizacion || quotationLinkedRecord.cotizacion_codigo || 'requerimientos-vinculados'}.csv`, csvLines.join('\n'), 'text/csv;charset=utf-8')
 }
 
+function buildQuotationLinkedSnapshotHtml() {
+  if (!quotationLinkedRecord) {
+    return ''
+  }
+
+  const exportColumns = getVisibleQuotationLinkedColumns()
+  const exportRows = getSortedQuotationLinkedRequirements(getFilteredQuotationLinkedRequirements())
+  const summaryCards = [
+    ['Cotización', quotationLinkedRecord.cotizacion || quotationLinkedRecord.cotizacion_codigo || '-'],
+    ['Centro de costo', quotationLinkedRecord.oc || quotationLinkedRecord.centro_costos || '-'],
+    ['Cliente', quotationLinkedRecord.cliente || '-'],
+    ['Unidad', quotationLinkedRecord.unidad_minera || quotationLinkedRecord.unidad || '-'],
+    ['Tipo de servicio', quotationLinkedRecord.tipo_servicio || '-'],
+    ['Solicitante', quotationLinkedRecord.solicitado_por || quotationLinkedRecord.solicitado || '-'],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="card">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value || '-')}</strong>
+        </article>
+      `,
+    )
+    .join('')
+
+  const headers = exportColumns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join('')
+  const rows = exportRows.length
+    ? exportRows
+        .map(
+          (record) => `
+            <tr>
+              ${exportColumns
+                .map((column) => {
+                  const rawValue = column.key === 'revision_estado' ? getRequirementRevisionState(record) : record[column.key]
+                  const normalized = rawValue === null || rawValue === undefined || rawValue === '' ? '-' : String(rawValue)
+                  return `<td>${escapeHtml(normalized)}</td>`
+                })
+                .join('')}
+            </tr>
+          `,
+        )
+        .join('')
+    : `<tr><td colspan="${Math.max(exportColumns.length, 1)}">No hay requerimientos vinculados para exportar.</td></tr>`
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>${escapeHtml(quotationLinkedRecord.cotizacion || quotationLinkedRecord.cotizacion_codigo || 'Requerimientos vinculados')}</title>
+<style>
+body{font-family:Inter,Arial,sans-serif;background:#f5f7fb;color:#1f2940;padding:28px}
+.hero{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:20px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:#edf3ff;color:#466cb8;font-size:12px;font-weight:700}
+h1{margin:12px 0 0;font-size:28px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.card{padding:14px 16px;border-radius:18px;background:#fff;border:1px solid #dde4fb}
+.card span{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8491b0;margin-bottom:6px}
+.card strong{font-size:14px}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dde4fb}
+th,td{padding:8px 10px;border-bottom:1px solid #eef2ff;text-align:left;font-size:12px;vertical-align:top}
+th{background:#f2f5ff;color:#7c89ab;font-weight:800}
+</style>
+</head>
+<body>
+  <section class="hero">
+    <div>
+      <div class="chips">
+        <span class="chip">${escapeHtml(`${exportRows.length} requerimiento(s)`)}</span>
+        <span class="chip">${escapeHtml(quotationLinkedRecord.status_cot || quotationLinkedRecord.estado || 'Sin estado')}</span>
+      </div>
+      <h1>${escapeHtml(quotationLinkedRecord.cotizacion || quotationLinkedRecord.cotizacion_codigo || 'Requerimientos vinculados')}</h1>
+    </div>
+  </section>
+  <section class="grid">${summaryCards}</section>
+  <table>
+    <thead><tr>${headers}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</body>
+</html>`
+}
+
+function downloadQuotationLinkedSnapshotHtml() {
+  if (!quotationLinkedRecord) {
+    return
+  }
+
+  downloadTextFile(
+    `${quotationLinkedRecord.cotizacion || quotationLinkedRecord.cotizacion_codigo || 'requerimientos-vinculados'}.html`,
+    buildQuotationLinkedSnapshotHtml(),
+    'text/html;charset=utf-8',
+  )
+}
+
+function printQuotationLinkedSnapshot() {
+  const snapshot = buildQuotationLinkedSnapshotHtml()
+  if (!snapshot || typeof window === 'undefined') {
+    return
+  }
+
+  const printWindow = window.open('', '_blank', 'width=1280,height=900')
+  if (!printWindow) {
+    return
+  }
+
+  printWindow.document.open()
+  printWindow.document.write(snapshot)
+  printWindow.document.close()
+  printWindow.focus()
+  printWindow.print()
+}
+
 async function shareQuotationLinkedLink() {
   if (!quotationLinkedRecord || typeof window === 'undefined') {
     return
@@ -5531,14 +8316,27 @@ async function shareQuotationLinkedLink() {
 function buildQuotationLinkedTable() {
   const permissions = getCurrentQuotationPermissions()
   const visibleColumns = getVisibleQuotationLinkedColumns()
+  const actionsWidth = 112
+  const fittedWidths = getFittedColumnWidths(
+    visibleColumns,
+    quotationLinkedColumnWidths,
+    getQuotationLinkedTargetTableWidth(),
+    actionsWidth,
+  )
+  const stickyMetaMap = getFrozenColumnMeta(visibleColumns, fittedWidths, quotationLinkedFrozenColumnCount)
+  const colgroup = visibleColumns
+    .map((column) => `<col style="width:${getColumnWidth(column, fittedWidths)}px">`)
+    .join('')
+  const totalWidth = visibleColumns.reduce((sum, column) => sum + getColumnWidth(column, fittedWidths), actionsWidth)
   const headers = visibleColumns
     .map(
       (column) => `
-        <th>
+        <th${buildStickyCellAttributes([], stickyMetaMap.get(column.key), 'head')}>
           <button class="sort-button" type="button" data-linked-sort-key="${column.key}">
             <span>${column.label}</span>
             <span class="sort-button__icon">${getSortIndicator(quotationLinkedSort, column.key)}</span>
           </button>
+          <span class="column-resize-handle" data-resize-table="quotation-linked" data-resize-key="${column.key}" aria-hidden="true"></span>
         </th>
       `,
     )
@@ -5553,7 +8351,7 @@ function buildQuotationLinkedTable() {
           .map((value) => `<option value="${value}" ${currentValue === value ? 'selected' : ''}>${value}</option>`)
           .join('')
 
-        return `<th class="log-table__filter-cell">${wrapFilterControl(`
+        return `<th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>${wrapFilterControl(`
           <select class="column-filter" data-linked-filter-key="${column.key}">
             <option value="">Todos</option>
             ${options}
@@ -5566,7 +8364,7 @@ function buildQuotationLinkedTable() {
           .map((value) => `<option value="${value}" ${currentValue === value ? 'selected' : ''}>${value}</option>`)
           .join('')
 
-        return `<th class="log-table__filter-cell">${wrapFilterControl(`
+        return `<th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>${wrapFilterControl(`
           <select class="column-filter" data-linked-filter-key="${column.key}">
             <option value="">Todos</option>
             ${options}
@@ -5575,14 +8373,14 @@ function buildQuotationLinkedTable() {
       }
 
       if (column.type === 'date') {
-        return `<th class="log-table__filter-cell">${wrapFilterControl(`<input class="column-filter" data-linked-filter-key="${column.key}" type="date" value="${currentValue}" />`)}</th>`
+        return `<th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>${wrapFilterControl(`<input class="column-filter" data-linked-filter-key="${column.key}" type="date" value="${currentValue}" />`)}</th>`
       }
 
       if (column.type === 'number') {
-        return `<th class="log-table__filter-cell">${wrapFilterControl(`<input class="column-filter" data-linked-filter-key="${column.key}" type="number" step="any" value="${currentValue}" placeholder="Filtrar" />`)}</th>`
+        return `<th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>${wrapFilterControl(`<input class="column-filter" data-linked-filter-key="${column.key}" type="number" step="any" value="${currentValue}" placeholder="Filtrar" />`)}</th>`
       }
 
-      return `<th class="log-table__filter-cell">${wrapFilterControl(`<input class="column-filter" data-linked-filter-key="${column.key}" type="text" value="${currentValue}" placeholder="Buscar" />`)}</th>`
+      return `<th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>${wrapFilterControl(`<input class="column-filter" data-linked-filter-key="${column.key}" type="text" value="${currentValue}" placeholder="Buscar" />`)}</th>`
     })
     .join('')
 
@@ -5601,21 +8399,23 @@ function buildQuotationLinkedTable() {
 
                   const value = record[column.key]
                   if (column.key === 'estado') {
-                    return `<td><em class="tag tag--${getTagTone(value)}">${escapeHtml(value || '-')}</em></td>`
+                    return `<td${buildStickyCellAttributes([], stickyMetaMap.get(column.key), 'body')}><em class="tag tag--${getTagTone(value)}">${escapeHtml(value || '-')}</em></td>`
                   }
 
                   if (value === null || value === undefined || value === '') {
-                    return `<td><span class="cell-text cell-empty">-</span></td>`
+                    return `<td${buildStickyCellAttributes([], stickyMetaMap.get(column.key), 'body')}><span class="cell-text cell-empty">-</span></td>`
                   }
 
-                  return `<td>${formatCellValue(value, column)}</td>`
+                  return `<td${buildStickyCellAttributes([], stickyMetaMap.get(column.key), 'body')}>${formatCellValue(value, column)}</td>`
                 })
                 .join('')}
               <td class="actions-cell">
                 ${
                   permissions.show_linked_detail_button
-                    ? `<button class="table-action" type="button" data-action="open-requirement-detail" data-requirement-key="${rowKey}">
-                        Detalle
+                    ? `<button class="table-action table-action--icon table-action--tone-view" type="button" data-action="open-requirement-detail" data-requirement-key="${rowKey}" title="Ver detalle del requerimiento">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M12 5C6.5 5 2.2 8.4 1 12c1.2 3.6 5.5 7 11 7s9.8-3.4 11-7c-1.2-3.6-5.5-7-11-7zm0 11.2A4.2 4.2 0 1 1 12 7.8a4.2 4.2 0 0 1 0 8.4zm0-6.7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"></path>
+                        </svg>
                       </button>`
                     : '<span class="cell-text cell-empty">-</span>'
                 }
@@ -5631,7 +8431,8 @@ function buildQuotationLinkedTable() {
     <div class="requirements-explorer__table-wrap">
       <div class="log-table-shell">
         <div class="log-table-scroll log-table-scroll--explorer">
-          <table class="log-table log-table--requirements">
+          <table class="log-table log-table--requirements" style="width:100%;min-width:${totalWidth}px">
+            <colgroup>${colgroup}<col style="width:${actionsWidth}px"></colgroup>
             <thead>
               <tr>${headers}<th>ACCIONES</th></tr>
               <tr class="log-table__filters-row">${filterCells}<th class="log-table__filter-cell">
@@ -5651,64 +8452,115 @@ function renderQuotationLinkedExplorer() {
     return
   }
 
-  const permissions = getCurrentQuotationPermissions()
-  const quotationCode = quotationLinkedRecord.cotizacion ?? quotationLinkedRecord.cotizacion_codigo ?? 'Sin cotización'
-  const costCenter = quotationLinkedRecord.oc ?? quotationLinkedRecord.centro_costos ?? 'Sin centro de costo'
-  const filtered = getFilteredQuotationLinkedRequirements()
-  const pendingCount = quotationLinkedRequirements.filter((record) => String(record.estado || '').toLowerCase().includes('pendiente')).length
-  const alertCount = quotationLinkedRequirements.filter((record) => getRequirementAlerts(record).length > 0).length
-  const quotationSummaryMarkup = `
-    <section class="rq-summary rq-summary--quotation">
-      <div class="rq-summary__hero">
-        <div>
-          <p class="rq-summary__eyebrow">Cotización seleccionada</p>
-          <h4 class="rq-summary__title">${escapeHtml(quotationCode)}</h4>
+  try {
+    const permissions = getCurrentQuotationPermissions()
+    const expedienteRecord = explorerExpedienteSnapshotRecord || quotationLinkedRecord
+    const quotationCode = expedienteRecord?.cotizacion ?? quotationLinkedRecord.cotizacion ?? quotationLinkedRecord.cotizacion_codigo ?? 'Sin cotización'
+    const costCenter = expedienteRecord?.oc ?? quotationLinkedRecord.oc ?? quotationLinkedRecord.centro_costos ?? 'Sin centro de costo'
+    const expedienteEstado = expedienteRecord?.estado_visible || quotationLinkedRecord.status_cot || quotationLinkedRecord.estado || 'Sin estado'
+    const expedienteSourceLabel =
+      explorerExpedienteSnapshotSource === 'mvp'
+        ? 'Fuente MVP'
+        : explorerExpedienteSnapshotSource === 'base'
+          ? 'Fuente base'
+          : 'Fuente cotización'
+    const requerimientosCount = Number(expedienteRecord?.requerimientos_count ?? quotationLinkedRequirements.length ?? 0)
+    const trackingCount = Number(expedienteRecord?.tracking_count ?? explorerTrackingEvents.length ?? 0)
+    const evidenciasCount = Number(expedienteRecord?.evidencias_count ?? explorerEvidenceRecords.length ?? 0)
+    const matchSource = expedienteRecord?.match_source || 'sin_requerimiento'
+    const cabeceraIncompleta = Boolean(expedienteRecord?.cabecera_incompleta)
+    const filtered = getFilteredQuotationLinkedRequirements()
+    const pendingCount = quotationLinkedRequirements.filter((record) => String(record.estado || '').toLowerCase().includes('pendiente')).length
+    const alertCount = quotationLinkedRequirements.filter((record) => getRequirementAlerts(record).length > 0).length
+    const quotationSummaryMarkup = `
+      <section class="rq-summary rq-summary--quotation">
+        <div class="rq-summary__hero">
+          <div>
+            <p class="rq-summary__eyebrow">Cotización seleccionada</p>
+            <h4 class="rq-summary__title">${escapeHtml(quotationCode)}</h4>
+          </div>
+          <div class="rq-summary__chips">
+            <span class="rq-chip rq-chip--accent">${escapeHtml(`${requerimientosCount} requerimiento(s)`)}</span>
+            <span class="rq-chip">${escapeHtml(costCenter || 'Sin centro de costo')}</span>
+            <span class="rq-chip">${escapeHtml(expedienteEstado)}</span>
+            <span class="rq-chip">${escapeHtml(expedienteSourceLabel)}</span>
+            <span class="rq-chip">${escapeHtml(matchSource)}</span>
+            <span class="rq-chip ${alertCount ? 'rq-chip--warning' : 'rq-chip--ok'}">${escapeHtml(alertCount ? `${alertCount} con alertas` : 'Sin alertas')}</span>
+            <span class="rq-chip">${escapeHtml(`${trackingCount} eventos`)}</span>
+            <span class="rq-chip">${escapeHtml(`${evidenciasCount} evidencias`)}</span>
+            <span class="rq-chip">${escapeHtml(`${pendingCount} pendientes`)}</span>
+            ${cabeceraIncompleta ? '<span class="rq-chip rq-chip--warning">Cabecera incompleta</span>' : ''}
+            <button class="rq-close-inline" type="button" data-action="close-explorer" aria-label="Cerrar vista relacionada">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z"></path>
+              </svg>
+            </button>
+          </div>
         </div>
-        <div class="rq-summary__chips">
-          <span class="rq-chip rq-chip--accent">${escapeHtml(`${quotationLinkedRequirements.length} requerimiento(s)`)}</span>
-          <span class="rq-chip">${escapeHtml(costCenter || 'Sin centro de costo')}</span>
-          <span class="rq-chip">${escapeHtml(quotationLinkedRecord.status_cot || quotationLinkedRecord.estado || 'Sin estado')}</span>
-          <span class="rq-chip ${alertCount ? 'rq-chip--warning' : 'rq-chip--ok'}">${escapeHtml(alertCount ? `${alertCount} con alertas` : 'Sin alertas')}</span>
-          <span class="rq-chip">${escapeHtml(`${pendingCount} pendientes`)}</span>
-          <button class="rq-close-inline" type="button" data-action="close-explorer" aria-label="Cerrar vista relacionada">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z"></path>
-            </svg>
-          </button>
+        <div class="rq-summary__layout rq-summary__layout--quotation">
+          <div class="rq-summary__grid rq-summary__grid--quotation-top">
+            <article class="rq-summary__card"><span>Centro de costo</span><strong>${escapeHtml(costCenter || '-')}</strong></article>
+            <article class="rq-summary__card rq-summary__card--span-quotation-description"><span>Descripción</span><strong>${escapeHtml(expedienteRecord?.descripcion || quotationLinkedRecord.descripcion || '-')}</strong></article>
+          </div>
+          <div class="rq-summary__grid rq-summary__grid--quotation-bottom">
+            <article class="rq-summary__card"><span>Cliente</span><strong>${escapeHtml(expedienteRecord?.cliente || quotationLinkedRecord.cliente || '-')}</strong></article>
+            <article class="rq-summary__card"><span>Unidad</span><strong>${escapeHtml(expedienteRecord?.unidad_minera || quotationLinkedRecord.unidad_minera || quotationLinkedRecord.unidad || '-')}</strong></article>
+            <article class="rq-summary__card"><span>Tipo de servicio</span><strong>${escapeHtml(expedienteRecord?.tipo_servicio || quotationLinkedRecord.tipo_servicio || '-')}</strong></article>
+            <article class="rq-summary__card"><span>Solicitante</span><strong>${escapeHtml(quotationLinkedRecord.solicitado_por || quotationLinkedRecord.solicitado || '-')}</strong></article>
+          </div>
         </div>
-      </div>
-      <div class="rq-summary__grid">
-        <article class="rq-summary__card"><span>Centro de costo</span><strong>${escapeHtml(costCenter || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Cliente</span><strong>${escapeHtml(quotationLinkedRecord.cliente || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Unidad</span><strong>${escapeHtml(quotationLinkedRecord.unidad_minera || quotationLinkedRecord.unidad || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Descripción</span><strong>${escapeHtml(quotationLinkedRecord.descripcion || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Tipo de servicio</span><strong>${escapeHtml(quotationLinkedRecord.tipo_servicio || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Solicitante</span><strong>${escapeHtml(quotationLinkedRecord.solicitado_por || quotationLinkedRecord.solicitado || '-')}</strong></article>
-      </div>
-    </section>
-  `
+      </section>
+    `
 
-  const resourceNotice = requirementsExplorerContent.dataset.resourceNotice
-    ? `<div class="sync-status" data-tone="info">${escapeHtml(requirementsExplorerContent.dataset.resourceNotice)}</div>`
-    : ''
+    const resourceNotice = requirementsExplorerContent.dataset.resourceNotice
+      ? `<div class="sync-status" data-tone="info">${escapeHtml(requirementsExplorerContent.dataset.resourceNotice)}</div>`
+      : ''
+    const linkedActionsMenu = buildToolbarMenu(
+      [
+        permissions.show_linked_export_excel_button ? { action: 'download-linked-html', label: 'Descargar HTML' } : null,
+        permissions.show_linked_export_excel_button ? { action: 'export-linked-excel', label: 'Exportar Excel' } : null,
+        permissions.show_linked_export_excel_button ? { action: 'export-linked-pdf', label: 'Exportar PDF' } : null,
+        permissions.show_linked_export_excel_button ? { action: 'print-linked', label: 'Imprimir' } : null,
+        permissions.show_linked_share_button ? { action: 'share-linked', label: 'Compartir' } : null,
+      ],
+      'Acciones',
+    )
+    const inlineTabs = buildExplorerTabsInline()
 
-  requirementsExplorerContent.innerHTML = `
-    <div class="requirements-explorer requirements-explorer--quotation-linked">
-      <div class="requirements-explorer__meta requirements-explorer__meta--compact">${quotationSummaryMarkup}</div>
-      <div class="requirements-explorer__toolbar">
-        <div class="requirements-explorer__toolbar-group">
-          ${permissions.show_linked_new_requirement ? '<button class="ghost-button ghost-button--accent" type="button" data-action="new-linked-requirement">Nuevo requerimiento</button>' : ''}
-          ${permissions.show_linked_columns_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="toggle-linked-columns">Columnas</button>' : ''}
-          ${permissions.show_linked_export_excel_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="export-linked-excel">Exportar Excel</button>' : ''}
-          ${permissions.show_linked_share_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="share-linked">Compartir</button>' : ''}
+    requirementsExplorerContent.innerHTML = `
+      <div class="requirements-explorer requirements-explorer--quotation-linked">
+        <div class="requirements-explorer__meta requirements-explorer__meta--compact">${quotationSummaryMarkup}</div>
+        <div class="requirements-explorer__toolbar">
+          <div class="requirements-explorer__toolbar-line requirements-explorer__toolbar-line--linked">
+            <div class="requirements-explorer__toolbar-group requirements-explorer__toolbar-actions">
+              ${permissions.show_linked_new_requirement ? '<button class="ghost-button ghost-button--accent" type="button" data-action="new-linked-requirement">Nuevo requerimiento</button>' : ''}
+              ${permissions.show_linked_columns_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="toggle-linked-columns">Columnas</button>' : ''}
+              ${linkedActionsMenu}
+            </div>
+            <div class="requirements-explorer__toolbar-tabs">
+              ${inlineTabs}
+            </div>
+          </div>
         </div>
-        <p class="requirements-explorer__toolbar-note">Mostrando ${filtered.length} de ${quotationLinkedRequirements.length} requerimientos vinculados a esta cotización.</p>
+        ${resourceNotice}
+        ${buildQuotationExpedientePanel()}
       </div>
-      ${buildExplorerTabs()}
-      ${resourceNotice}
-      ${buildQuotationExpedientePanel()}
-    </div>
-  `
+    `
+  } catch (error) {
+    console.error('Error renderQuotationLinkedExplorer:', error)
+    if (requirementsExplorerModal) {
+      requirementsExplorerModal.classList.remove('is-resource-picker-open')
+    }
+    if (requirementsExplorerSidePanel) {
+      requirementsExplorerSidePanel.innerHTML = ''
+      requirementsExplorerSidePanel.classList.add('is-hidden')
+    }
+    requirementsExplorerContent.innerHTML = `
+      <div class="requirements-explorer requirements-explorer--quotation-linked">
+        <div class="sync-status" data-tone="danger">No se pudo cargar la vista de requerimientos vinculados. Cierra esta ventana y vuelve a intentarlo.</div>
+      </div>
+    `
+  }
 }
 
 function getVisibleRequirementModalColumns() {
@@ -5734,6 +8586,7 @@ function buildRequirementModalColumnManager() {
         <strong>Columnas del detalle</strong>
         <button class="column-manager__reset" type="button" data-action="reset-modal-columns">Restablecer</button>
       </div>
+      ${buildFreezeControlMarkup('Inmovilizar', requirementModalFrozenColumnCount, 'set-modal-frozen-columns')}
       <div class="column-manager__list">${options}</div>
     </div>
   `
@@ -5782,11 +8635,18 @@ function getSortedRequirementModalRecords(recordsToSort) {
 }
 
 function buildRequirementModalTable() {
+  const permissions = getCurrentModulePermissions('details')
   const visibleColumns = getVisibleRequirementModalColumns()
+  const stickyMetaMap = getFrozenColumnMeta(visibleColumns, requirementDetailsColumnWidths, requirementModalFrozenColumnCount)
+  const actionsWidth = 112
+  const colgroup = visibleColumns
+    .map((column) => `<col style="width:${getColumnWidth(column, requirementDetailsColumnWidths)}px">`)
+    .join('')
+  const totalWidth = visibleColumns.reduce((sum, column) => sum + getColumnWidth(column, requirementDetailsColumnWidths), actionsWidth)
   const headers = visibleColumns
     .map(
       (column) => `
-        <th>
+        <th${buildStickyCellAttributes([], stickyMetaMap.get(column.key), 'head')}>
           <button class="sort-button" type="button" data-modal-detail-sort-key="${column.key}">
             <span>${column.label}</span>
             <span class="sort-button__icon">${getSortIndicator(requirementModalSort, column.key)}</span>
@@ -5806,7 +8666,7 @@ function buildRequirementModalTable() {
           .join('')
 
         return `
-          <th class="log-table__filter-cell">
+          <th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>
             ${wrapFilterControl(`
               <select class="column-filter" data-modal-detail-filter-key="${column.key}">
                 <option value="">Todos</option>
@@ -5819,7 +8679,7 @@ function buildRequirementModalTable() {
 
       if (column.type === 'date') {
         return `
-          <th class="log-table__filter-cell">
+          <th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>
             ${wrapFilterControl(`<input class="column-filter" data-modal-detail-filter-key="${column.key}" type="date" value="${currentValue}" />`)}
           </th>
         `
@@ -5827,14 +8687,14 @@ function buildRequirementModalTable() {
 
       if (column.type === 'number') {
         return `
-          <th class="log-table__filter-cell">
+          <th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>
             ${wrapFilterControl(`<input class="column-filter" data-modal-detail-filter-key="${column.key}" type="number" step="any" value="${currentValue}" placeholder="Filtrar" />`)}
           </th>
         `
       }
 
       return `
-        <th class="log-table__filter-cell">
+        <th${buildStickyCellAttributes(['log-table__filter-cell'], stickyMetaMap.get(column.key), 'filter')}>
           ${wrapFilterControl(`<input class="column-filter" data-modal-detail-filter-key="${column.key}" type="text" value="${currentValue}" placeholder="Buscar" />`)}
         </th>
       `
@@ -5847,20 +8707,48 @@ function buildRequirementModalTable() {
         .map(
           (item) => `
             <tr>
-              ${visibleColumns.map((column) => `<td>${formatCellValue(item[column.key], column)}</td>`).join('')}
+              ${visibleColumns
+                .map((column) => {
+                  const editable = permissions.show_add_resource_button && isRequirementModalInlineEditable(item, column.key)
+                  return `
+                    <td${buildStickyCellAttributes([editable ? 'is-inline-editable-cell' : ''].filter(Boolean), stickyMetaMap.get(column.key), 'body')} data-modal-row-id="${escapeHtml(item.local_item_id || '')}" data-modal-column-key="${column.key}">
+                      ${editable ? buildRequirementInlineEditor(item, column) : formatCellValue(item[column.key], column)}
+                    </td>
+                  `
+                })
+                .join('')}
+              <td class="actions-cell">
+                ${
+                  permissions.show_add_resource_button
+                    ? `
+                      <button class="table-action table-action--icon table-action--tone-edit" type="button" data-action="${isLocalRequirementItem(item) ? 'edit-modal-item' : 'edit-modal-item-blocked'}" data-local-item-id="${item.local_item_id || ''}" title="${isLocalRequirementItem(item) ? 'Editar item local' : 'Solo puedes editar recursos locales agregados desde el catálogo'}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M4 20h4.2l9.9-9.9-4.2-4.2L4 15.8V20zm12.8-13.6 1.8-1.8a1.5 1.5 0 0 1 2.1 0l.7.7a1.5 1.5 0 0 1 0 2.1L19.6 9l-2.8-2.8z"></path>
+                        </svg>
+                      </button>
+                      <button class="table-action table-action--icon table-action--tone-danger" type="button" data-action="${isLocalRequirementItem(item) ? 'delete-modal-item' : 'delete-modal-item-blocked'}" data-local-item-id="${item.local_item_id || ''}" title="${isLocalRequirementItem(item) ? 'Eliminar item local' : 'Solo puedes eliminar recursos locales agregados desde el catálogo'}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M9 3a1 1 0 0 0-1 1v1H4v2h1l1 13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-13h1V5h-4V4a1 1 0 0 0-1-1H9zm1 2h4v1h-4V5zm-1 4h2v8H9V9zm4 0h2v8h-2V9z"></path>
+                        </svg>
+                      </button>
+                    `
+                    : '<span class="cell-text cell-empty">-</span>'
+                }
+              </td>
             </tr>
           `,
         )
         .join('')
-    : `<tr><td class="empty-table" colspan="${Math.max(visibleColumns.length, 1)}">No se encontraron items para los filtros actuales.</td></tr>`
+    : `<tr><td class="empty-table" colspan="${Math.max(visibleColumns.length + 1, 1)}">No se encontraron items para los filtros actuales.</td></tr>`
 
   return `
     <div class="log-table-shell">
       <div class="log-table-scroll log-table-scroll--explorer">
-        <table class="log-table log-table--modal-detail">
+        <table class="log-table log-table--modal-detail" style="width:${totalWidth}px">
+          <colgroup>${colgroup}<col style="width:${actionsWidth}px"></colgroup>
           <thead>
-            <tr>${headers}</tr>
-            <tr class="log-table__filters-row">${filterCells}</tr>
+            <tr>${headers}<th>ACCIONES</th></tr>
+            <tr class="log-table__filters-row">${filterCells}<th class="log-table__filter-cell">${wrapFilterControl('<button class="table-action table-action--clear" type="button" data-action="clear-modal-filters">Limpiar</button>')}</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
@@ -5874,46 +8762,111 @@ function openRequirementsExplorer(html, titleText, eyebrowText = 'Trazabilidad')
     return
   }
 
+  requirementModalInlineEdit = null
   requirementsExplorerTitle.textContent = titleText
   requirementsExplorerEyebrow.textContent = eyebrowText
   requirementsExplorerContent.innerHTML = html
   requirementsExplorerModal.classList.toggle('is-rq-detail', eyebrowText === '')
+  requirementsExplorerModal.classList.remove('is-resource-picker-open')
+  if (requirementsExplorerSidePanel) {
+    requirementsExplorerSidePanel.innerHTML = ''
+    requirementsExplorerSidePanel.classList.add('is-hidden')
+  }
   requirementsExplorerModal.classList.remove('is-hidden')
   document.body.classList.add('menu-open')
 }
 
-function renderRequirementModalExplorer() {
-  const permissions = getCurrentModulePermissions('details')
-  const resourceNotice = requirementsExplorerContent.dataset.resourceNotice
-    ? `<div class="sync-status" data-tone="info">${escapeHtml(requirementsExplorerContent.dataset.resourceNotice)}</div>`
-    : ''
+function renderRequirementResourceSidePanel() {
+  if (!requirementsExplorerModal || !requirementsExplorerSidePanel) {
+    return
+  }
 
-  requirementsExplorerContent.innerHTML = `
-    <div class="requirements-explorer requirements-explorer--detail">
-      <div class="requirements-explorer__meta requirements-explorer__meta--compact">${requirementsExplorerContent.dataset.summaryMarkup || ''}</div>
-      <div class="requirements-explorer__toolbar">
-        <div class="requirements-explorer__toolbar-group">
-          ${permissions.show_new_requirement_button ? '<button class="ghost-button ghost-button--accent" type="button" data-action="new-modal-requirement">Nuevo requerimiento</button>' : ''}
-          ${permissions.show_add_resource_button ? `<button class="ghost-button ghost-button--accent" type="button" data-action="add-existing-resource">${requirementModalResourcePickerOpen ? 'Ocultar catálogo' : 'Agregar recurso'}</button>` : ''}
-          ${permissions.show_columns_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="toggle-modal-columns">Columnas</button>' : ''}
-          ${permissions.show_download_html_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="download-rq-html">Descargar HTML</button>' : ''}
-          ${permissions.show_export_excel_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="export-rq-excel">Exportar Excel</button>' : ''}
-          ${permissions.show_export_pdf_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="export-rq-pdf">Exportar PDF</button>' : ''}
-          ${permissions.show_print_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="print-rq">Imprimir</button>' : ''}
-          ${permissions.show_share_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="share-rq">Compartir</button>' : ''}
+  const shouldShowPanel = activeExplorerMode === 'rq-detail' && explorerActiveTab === 'summary' && requirementModalResourcePickerOpen
+  requirementsExplorerModal.classList.toggle('is-resource-picker-open', shouldShowPanel)
+  requirementsExplorerSidePanel.classList.toggle('is-hidden', !shouldShowPanel)
+  requirementsExplorerSidePanel.innerHTML = shouldShowPanel ? buildRequirementResourcePicker() : ''
+}
+
+function renderRequirementModalExplorer() {
+  try {
+    const permissions = getCurrentModulePermissions('details')
+    const resourceNotice = requirementsExplorerContent.dataset.resourceNotice
+      ? `<div class="sync-status" data-tone="info">${escapeHtml(requirementsExplorerContent.dataset.resourceNotice)}</div>`
+      : ''
+    const detailActionsMenu = buildToolbarMenu(
+      [
+        permissions.show_download_html_button ? { action: 'download-rq-html', label: 'Descargar HTML' } : null,
+        permissions.show_export_excel_button ? { action: 'export-rq-excel', label: 'Exportar Excel' } : null,
+        permissions.show_export_pdf_button ? { action: 'export-rq-pdf', label: 'Exportar PDF' } : null,
+        permissions.show_print_button ? { action: 'print-rq', label: 'Imprimir' } : null,
+        permissions.show_share_button ? { action: 'share-rq', label: 'Compartir' } : null,
+      ],
+      'Acciones',
+    )
+    const inlineTabs = buildExplorerTabsInline()
+
+    requirementsExplorerContent.innerHTML = `
+      <div class="requirements-explorer requirements-explorer--detail">
+        <div class="requirements-explorer__meta requirements-explorer__meta--compact">${requirementsExplorerContent.dataset.summaryMarkup || ''}</div>
+        <div class="requirements-explorer__detail-layout">
+          <div class="requirements-explorer__detail-main">
+            <div class="requirements-explorer__toolbar">
+              <div class="requirements-explorer__toolbar-line requirements-explorer__toolbar-line--linked">
+                <div class="requirements-explorer__toolbar-group requirements-explorer__toolbar-actions">
+                  ${permissions.show_add_resource_button ? `<button class="ghost-button ghost-button--accent" type="button" data-action="add-existing-resource">${requirementModalResourcePickerOpen ? 'Ocultar catálogo' : 'Agregar recurso'}</button>` : ''}
+                  ${permissions.show_add_resource_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="save-rq-resources">Guardar recursos</button>' : ''}
+                  ${permissions.show_columns_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="toggle-modal-columns">Columnas</button>' : ''}
+                  ${detailActionsMenu}
+                </div>
+                <div class="requirements-explorer__toolbar-tabs">
+                  ${inlineTabs}
+                </div>
+              </div>
+            </div>
+            ${resourceNotice}
+            ${buildRequirementExpedientePanel()}
+          </div>
         </div>
-        <p class="requirements-explorer__toolbar-note">Vista bloqueada al RQ seleccionado. Los filtros y acciones solo afectan este requerimiento.</p>
       </div>
-      ${buildExplorerTabs()}
-      ${resourceNotice}
-      ${buildRequirementExpedientePanel()}
-    </div>
-  `
+    `
+    renderRequirementResourceSidePanel()
+  } catch (error) {
+    console.error('Error renderRequirementModalExplorer:', error)
+    requirementModalResourcePickerOpen = false
+    if (requirementsExplorerModal) {
+      requirementsExplorerModal.classList.remove('is-resource-picker-open')
+    }
+    if (requirementsExplorerSidePanel) {
+      requirementsExplorerSidePanel.innerHTML = ''
+      requirementsExplorerSidePanel.classList.add('is-hidden')
+    }
+    if (requirementsExplorerContent) {
+      requirementsExplorerContent.innerHTML = `
+        <div class="requirements-explorer requirements-explorer--detail">
+          <div class="sync-status" data-tone="danger">No se pudo cargar el detalle del requerimiento. Cierra esta ventana y vuelve a intentarlo.</div>
+        </div>
+      `
+    }
+  }
 }
 
 function beginColumnResize(tableName, columnKey, startX) {
-  const columnsList = tableName === 'requirements' ? requirementsColumns : getVisibleColumns()
-  const widthMap = tableName === 'requirements' ? requirementsColumnWidths : columnWidths
+  const columnsList =
+    tableName === 'requirements'
+      ? requirementsColumns
+      : tableName === 'requirements-detail'
+        ? requirementDetailsColumns
+        : tableName === 'quotation-linked'
+          ? getVisibleQuotationLinkedColumns()
+          : getVisibleColumns()
+  const widthMap =
+    tableName === 'requirements'
+      ? requirementsColumnWidths
+      : tableName === 'requirements-detail'
+        ? requirementDetailsColumnWidths
+        : tableName === 'quotation-linked'
+          ? quotationLinkedColumnWidths
+          : columnWidths
   const column = columnsList.find((item) => item.key === columnKey)
   if (!column) {
     return
@@ -5946,6 +8899,10 @@ function handleColumnResizeMove(event) {
     requirementDetailsColumnWidths = { ...requirementDetailsColumnWidths, [activeResize.columnKey]: nextWidth }
     persistStoredMap(requirementDetailsWidthStorageKey, requirementDetailsColumnWidths)
     renderColgroup(requirementsDetailTable, requirementsDetailColgroup, requirementDetailsColumns, requirementDetailsColumnWidths, 0)
+  } else if (activeResize.tableName === 'quotation-linked') {
+    quotationLinkedColumnWidths = { ...quotationLinkedColumnWidths, [activeResize.columnKey]: nextWidth }
+    persistStoredMap(quotationLinkedWidthStorageKey, quotationLinkedColumnWidths)
+    renderQuotationLinkedExplorer()
   } else {
     columnWidths = { ...columnWidths, [activeResize.columnKey]: nextWidth }
     persistStoredMap(quotationWidthStorageKey, columnWidths)
@@ -5969,10 +8926,16 @@ function closeRequirementsExplorer() {
 
   requirementsExplorerModal.classList.add('is-hidden')
   requirementsExplorerModal.classList.remove('is-rq-detail')
+  requirementsExplorerModal.classList.remove('is-resource-picker-open')
   if (requirementsExplorerContent) {
     requirementsExplorerContent.dataset.summaryMarkup = ''
     requirementsExplorerContent.dataset.resourceNotice = ''
   }
+  if (requirementsExplorerSidePanel) {
+    requirementsExplorerSidePanel.innerHTML = ''
+    requirementsExplorerSidePanel.classList.add('is-hidden')
+  }
+  requirementModalInlineEdit = null
   activeRequirementRecord = null
   quotationLinkedRecord = null
   activeExplorerMode = ''
@@ -5985,6 +8948,41 @@ function closeRequirementsExplorer() {
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
   }
   document.body.classList.remove('menu-open')
+}
+
+function setExplorerFormSavingState(formElement, isSaving) {
+  if (!(formElement instanceof HTMLFormElement)) {
+    return () => {}
+  }
+
+  const fields = [...formElement.querySelectorAll('button, input, select, textarea')]
+  const submitButton = formElement.querySelector('[type="submit"]')
+  const originalLabel =
+    submitButton instanceof HTMLButtonElement ? submitButton.textContent : ''
+
+  fields.forEach((field) => {
+    field.dataset.wasDisabled = field.disabled ? 'true' : 'false'
+    field.disabled = Boolean(isSaving)
+  })
+
+  if (submitButton instanceof HTMLButtonElement) {
+    submitButton.textContent = isSaving ? 'Guardando...' : originalLabel || 'Guardar'
+  }
+
+  formElement.classList.toggle('is-saving', isSaving)
+
+  return () => {
+    fields.forEach((field) => {
+      if (field.dataset.wasDisabled !== 'true') {
+        field.disabled = false
+      }
+      delete field.dataset.wasDisabled
+    })
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.textContent = originalLabel || 'Guardar'
+    }
+    formElement.classList.remove('is-saving')
+  }
 }
 
 function setRequirementDeepLink(requirementRecord) {
@@ -6005,6 +9003,18 @@ function readRequirementDeepLink() {
   return match ? decodeURIComponent(match[1]) : ''
 }
 
+function consumeRequirementDeepLink() {
+  const requirementKey = readRequirementDeepLink()
+  if (
+    requirementKey &&
+    typeof window !== 'undefined' &&
+    /^#rq=/.test(window.location.hash || '')
+  ) {
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+  }
+  return requirementKey
+}
+
 async function tryOpenRequirementFromDeepLink() {
   const requirementKey = pendingDeepLinkRequirementKey || readRequirementDeepLink()
   if (!requirementKey || !requirementsRecords.length || !requirementDetailsRecords.length) {
@@ -6017,8 +9027,11 @@ async function tryOpenRequirementFromDeepLink() {
   }
 
   pendingDeepLinkRequirementKey = ''
+  if (typeof window !== 'undefined' && /^#rq=/.test(window.location.hash || '')) {
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+  }
   setActiveView('requirements-log')
-  await openRequirementDetail(requirementRecord)
+  await openRequirementDetail(requirementRecord, { preserveDeepLink: false })
 }
 
 function downloadTextFile(filename, content, mimeType = 'text/plain;charset=utf-8') {
@@ -6217,16 +9230,19 @@ function openRequirementListModal(quotationRecord) {
   quotationLinkedVisibleColumnKeys = loadColumnKeys(quotationLinkedVisibilityStorageKey, requirementsColumns)
   quotationLinkedColumnManagerOpen = false
   resetExplorerExpedienteState()
+  setExplorerExpedienteContext(buildExpedienteContext(quotationRecord, 'quotation-linked'))
   requirementsExplorerContent.dataset.resourceNotice = ''
   openRequirementsExplorer('', 'Requerimientos vinculados', 'Vista relacionada')
   renderQuotationLinkedExplorer()
   void refreshExplorerExpedienteData(true)
 }
 
-async function openRequirementDetail(requirementRecord) {
+async function openRequirementDetail(requirementRecord, options = {}) {
   if (!requirementRecord) {
     return
   }
+
+  const { preserveDeepLink = false } = options
 
   selectedRequirementKey = getRequirementRecordKey(requirementRecord)
   activeExplorerMode = 'rq-detail'
@@ -6247,72 +9263,12 @@ async function openRequirementDetail(requirementRecord) {
   requirementModalResourcePickerOpen = false
   requirementModalResourceSearch = ''
   resetExplorerExpedienteState()
-  const alerts = getRequirementAlerts(requirementRecord)
-  const statusTone = getTagTone(requirementRecord.estado)
-  const attachmentCount = countRequirementAttachments(linkedItems)
-  const localItemsCount = linkedItems.filter((item) => item.fuente === 'LOCAL').length
-  const summaryMarkup = `
-    <section class="rq-summary">
-      <div class="rq-summary__hero">
-        <div>
-          <p class="rq-summary__eyebrow">Requerimiento seleccionado</p>
-          <h4 class="rq-summary__title">${escapeHtml(requirementRecord.rq_codigo || 'Sin RQ')}</h4>
-        </div>
-        <div class="rq-summary__chips">
-          <span class="tag tag--${statusTone}">${escapeHtml(requirementRecord.estado || 'Sin estado')}</span>
-          <span class="rq-chip rq-chip--accent">${escapeHtml(`${requirementRecord.cantidad_items ?? linkedItems.length ?? 0} items`)}</span>
-          <span class="rq-chip ${alerts.length ? 'rq-chip--warning' : 'rq-chip--ok'}">${escapeHtml(alerts.length ? `${alerts.length} alerta(s)` : 'Sin alertas')}</span>
-          <span class="rq-chip">${escapeHtml(`${attachmentCount} adjuntos`)}</span>
-          <span class="rq-chip">${escapeHtml(`${localItemsCount} locales`)}</span>
-          <button class="rq-close-inline" type="button" data-action="close-explorer" aria-label="Cerrar detalle">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z"></path>
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div class="rq-summary__grid">
-        <article class="rq-summary__card">
-          <span>Cotización</span>
-          <strong>${escapeHtml(requirementRecord.cotizacion_codigo || '-')}</strong>
-        </article>
-        <article class="rq-summary__card">
-          <span>Centro de costo</span>
-          <strong>${escapeHtml(requirementRecord.centro_costos || '-')}</strong>
-        </article>
-        <article class="rq-summary__card">
-          <span>Cliente</span>
-          <strong>${escapeHtml(requirementRecord.cliente || '-')}</strong>
-        </article>
-        <article class="rq-summary__card">
-          <span>Unidad</span>
-          <strong>${escapeHtml(requirementRecord.unidad || '-')}</strong>
-        </article>
-        <article class="rq-summary__card">
-          <span>Tipo de servicio</span>
-          <strong>${escapeHtml(requirementRecord.tipo_servicio || '-')}</strong>
-        </article>
-        <article class="rq-summary__card">
-          <span>Fecha RQ</span>
-          <strong>${escapeHtml(formatDate(requirementRecord.fecha_rq) || '-')}</strong>
-        </article>
-        <article class="rq-summary__card">
-          <span>Descripción cotización</span>
-          <strong>${escapeHtml(requirementRecord.descripcion_cotizacion || '-')}</strong>
-        </article>
-        <article class="rq-summary__card">
-          <span>Solicitante</span>
-          <strong>${escapeHtml(requirementRecord.solicitante || '-')}</strong>
-        </article>
-        <article class="rq-summary__card">
-          <span>Área</span>
-          <strong>${escapeHtml(requirementRecord.area || '-')}</strong>
-        </article>
-      </div>
-    </section>
-  `
+  setExplorerExpedienteContext(buildExpedienteContext(requirementRecord, 'rq-detail'))
+  const summaryMarkup = buildRequirementSummaryMarkup(requirementRecord, linkedItems)
   requirementsExplorerContent.dataset.summaryMarkup = summaryMarkup
-  setRequirementDeepLink(requirementRecord)
+  if (preserveDeepLink) {
+    setRequirementDeepLink(requirementRecord)
+  }
   requirementsExplorerContent.dataset.resourceNotice = ''
   openRequirementsExplorer('', requirementRecord.rq_codigo || 'Detalle de requerimiento', '')
   renderRequirementModalExplorer()
@@ -6449,6 +9405,47 @@ async function saveRecord(payload) {
   await loadRecords()
 }
 
+async function deleteQuotationRecord(recordId) {
+  const permissions = getCurrentQuotationPermissions()
+  if (!permissions.show_edit_button || !permissions.save_edits) {
+    updateStatus('No tienes permiso para eliminar cotizaciones.', 'warning')
+    return
+  }
+
+  const record = records.find((item) => String(item[primaryKey]) === String(recordId))
+  if (!record) {
+    updateStatus('No se encontró la cotización que intentas eliminar.', 'warning')
+    return
+  }
+
+  const confirmed = await openConfirmDialog({
+    eyebrow: 'Confirmar eliminación',
+    title: 'Eliminar cotización',
+    message: `¿Deseas eliminar la cotización ${record.cotizacion || 'seleccionada'}? Esta acción no se puede deshacer.`,
+    confirmLabel: 'Eliminar',
+    cancelLabel: 'Cancelar',
+  })
+  if (!confirmed) {
+    return
+  }
+
+  if (!supabaseClient) {
+    records = records.filter((item) => String(item[primaryKey]) !== String(recordId))
+    renderTable()
+    updateStatus('Cotización eliminada en modo local.', 'warning')
+    return
+  }
+
+  updateStatus('Eliminando cotización en Supabase...', 'info')
+  const { error } = await supabaseClient.from(config.table).delete().eq(primaryKey, recordId)
+  if (error) {
+    updateStatus(`No se pudo eliminar la cotización: ${error.message}`, 'danger')
+    return
+  }
+
+  await loadRecords()
+}
+
 async function loadRequirementsRecords() {
   const permissions = getCurrentModulePermissions('requirements')
   if (!permissions.access) {
@@ -6542,6 +9539,8 @@ async function saveResourceRecord(payload) {
     return
   }
 
+  const wasEditing = Boolean(editingResourceId)
+
   if (editingResourceId) {
     resourcesRecords = resourcesRecords.map((record) => (record.id === editingResourceId ? payload : record))
   } else {
@@ -6550,9 +9549,9 @@ async function saveResourceRecord(payload) {
 
   await persistResourcesCatalog()
   renderResourcesTable()
-  fillResourcesForm()
+  closeResourcesModal()
   updateResourcesStatus(
-    editingResourceId ? 'Recurso actualizado en el catálogo local.' : 'Recurso agregado al catálogo local.',
+    wasEditing ? 'Recurso actualizado en el catálogo local.' : 'Recurso agregado al catálogo local.',
     'success',
   )
 }
@@ -6564,11 +9563,28 @@ async function deleteResourceRecord(resourceId) {
     return
   }
 
+  const resource = resourcesRecords.find((record) => record.id === resourceId)
+  if (!resource) {
+    updateResourcesStatus('No se encontró el recurso que intentas eliminar.', 'warning')
+    return
+  }
+
+  const confirmed = await openConfirmDialog({
+    eyebrow: 'Confirmar eliminación',
+    title: 'Eliminar recurso del catálogo',
+    message: `¿Deseas eliminar el recurso ${resource.descripcion || 'seleccionado'}? Esta acción no se puede deshacer.`,
+    confirmLabel: 'Eliminar',
+    cancelLabel: 'Cancelar',
+  })
+  if (!confirmed) {
+    return
+  }
+
   resourcesRecords = resourcesRecords.filter((record) => record.id !== resourceId)
   await persistResourcesCatalog()
   renderResourcesTable()
   if (editingResourceId === resourceId) {
-    fillResourcesForm()
+    closeResourcesModal()
   }
   updateResourcesStatus('Recurso eliminado del catálogo local.', 'warning')
 }
@@ -6587,73 +9603,162 @@ async function attachResourceToActiveRequirement(resourceId) {
     return
   }
 
-  const nextItem = buildRequirementItemFromResource(activeRequirementRecord, resource, requirementModalItems)
-  customRequirementItems = [...customRequirementItems, nextItem]
-  await persistCustomRequirementItems()
-
-  requirementDetailsRecords = mergeRequirementDetailRecords(requirementDetailsRecords, [nextItem])
-  requirementModalItems = [...requirementModalItems, nextItem]
-  requirementModalColumns = getRequirementDetailsColumns(requirementModalItems, true)
-
-  const requirementIndex = requirementsRecords.findIndex(
-    (record) => getRequirementRecordKey(record) === getRequirementRecordKey(activeRequirementRecord),
+  const nextItem = recalculateRequirementItemDerivedFields(
+    buildRequirementItemFromResource(activeRequirementRecord, resource, requirementModalItems),
   )
+  const previousItems = [...customRequirementItems]
 
-  if (requirementIndex >= 0) {
-    const currentRequirement = requirementsRecords[requirementIndex]
-    const nextQuantity = Number(currentRequirement.cantidad_items ?? 0) + 1
-    const nextRequirement = { ...currentRequirement, cantidad_items: nextQuantity }
-    requirementsRecords = requirementsRecords.map((record, index) => (index === requirementIndex ? nextRequirement : record))
-    activeRequirementRecord = nextRequirement
-    renderRequirementsTable()
+  try {
+    customRequirementItems = [...customRequirementItems, nextItem]
+    await syncRequirementLocalItemsState(`Se agregó "${resource.descripcion}" al requerimiento ${activeRequirementRecord.rq_codigo}.`)
+    await persistCustomRequirementItems()
+  } catch (error) {
+    console.error('Error attachResourceToActiveRequirement:', error)
+    customRequirementItems = previousItems
+    await syncRequirementLocalItemsState('No se pudo agregar el recurso al requerimiento. Intenta nuevamente.')
+  }
+}
+
+async function persistRequirementLocalItemsNotice() {
+  if (!activeRequirementRecord) {
+    requirementsExplorerContent.dataset.resourceNotice = 'No hay un requerimiento activo para guardar.'
+    renderRequirementModalExplorer()
+    return
   }
 
-  renderRequirementDetailsTable()
-  updateRequirementDetailsContext({
-    finalCount: requirementDetailsRecords.filter((item) => item.fuente === 'FINAL').length,
-    stageCount: requirementDetailsRecords.filter((item) => item.fuente === 'STAGE').length,
-    localCount: requirementDetailsRecords.filter((item) => item.fuente === 'LOCAL').length,
-    totalCount: requirementDetailsRecords.length,
-    uniqueRqCount: new Set(requirementDetailsRecords.map((item) => item.rq_codigo).filter(Boolean)).size,
-  })
-  requirementsExplorerContent.dataset.resourceNotice = `Se agregó "${resource.descripcion}" al requerimiento ${activeRequirementRecord.rq_codigo}.`
-  const alerts = getRequirementAlerts(activeRequirementRecord)
-  const attachmentCount = countRequirementAttachments(requirementModalItems)
-  const localItemsCount = requirementModalItems.filter((item) => item.fuente === 'LOCAL').length
-  requirementsExplorerContent.dataset.summaryMarkup = `
-    <section class="rq-summary">
-      <div class="rq-summary__hero">
-        <div>
-          <p class="rq-summary__eyebrow">Requerimiento seleccionado</p>
-          <h4 class="rq-summary__title">${escapeHtml(activeRequirementRecord.rq_codigo || 'Sin RQ')}</h4>
-        </div>
-        <div class="rq-summary__chips">
-          <span class="tag tag--${getTagTone(activeRequirementRecord.estado)}">${escapeHtml(activeRequirementRecord.estado || 'Sin estado')}</span>
-          <span class="rq-chip rq-chip--accent">${escapeHtml(`${activeRequirementRecord.cantidad_items ?? requirementModalItems.length} items`)}</span>
-          <span class="rq-chip ${alerts.length ? 'rq-chip--warning' : 'rq-chip--ok'}">${escapeHtml(alerts.length ? `${alerts.length} alerta(s)` : 'Sin alertas')}</span>
-          <span class="rq-chip">${escapeHtml(`${attachmentCount} adjuntos`)}</span>
-          <span class="rq-chip">${escapeHtml(`${localItemsCount} locales`)}</span>
-          <button class="rq-close-inline" type="button" data-action="close-explorer" aria-label="Cerrar detalle">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z"></path>
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div class="rq-summary__grid">
-        <article class="rq-summary__card"><span>Cotización</span><strong>${escapeHtml(activeRequirementRecord.cotizacion_codigo || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Centro de costo</span><strong>${escapeHtml(activeRequirementRecord.centro_costos || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Cliente</span><strong>${escapeHtml(activeRequirementRecord.cliente || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Unidad</span><strong>${escapeHtml(activeRequirementRecord.unidad || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Tipo de servicio</span><strong>${escapeHtml(activeRequirementRecord.tipo_servicio || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Fecha RQ</span><strong>${escapeHtml(formatDate(activeRequirementRecord.fecha_rq) || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Descripción cotización</span><strong>${escapeHtml(activeRequirementRecord.descripcion_cotizacion || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Solicitante</span><strong>${escapeHtml(activeRequirementRecord.solicitante || '-')}</strong></article>
-        <article class="rq-summary__card"><span>Área</span><strong>${escapeHtml(activeRequirementRecord.area || '-')}</strong></article>
-      </div>
-    </section>
-  `
+  await persistCustomRequirementItems()
+  await syncRequirementLocalItemsState(`Los recursos locales del requerimiento ${activeRequirementRecord.rq_codigo} quedaron registrados.`)
+}
+
+function openRequirementModalInlineEdit(localItemId, columnKey) {
+  if (!localItemId || !getRequirementInlineEditableColumnsConfig()[columnKey]) {
+    return
+  }
+  const viewportState = captureRequirementsExplorerViewportState()
+  requirementModalInlineEdit = { localItemId, columnKey }
   renderRequirementModalExplorer()
+  restoreRequirementsExplorerViewportState(viewportState, {
+    focusSelector: `[data-inline-editor="true"][data-local-item-id="${CSS.escape(localItemId)}"][data-column-key="${columnKey}"]`,
+    selectInput: true,
+  })
+}
+
+function closeRequirementModalInlineEdit() {
+  if (!requirementModalInlineEdit) {
+    return
+  }
+  const viewportState = captureRequirementsExplorerViewportState()
+  requirementModalInlineEdit = null
+  renderRequirementModalExplorer()
+  restoreRequirementsExplorerViewportState(viewportState)
+}
+
+async function saveRequirementModalInlineEdit(input) {
+  if (
+    !requirementModalInlineEdit ||
+    (!(input instanceof HTMLInputElement) && !(input instanceof HTMLSelectElement))
+  ) {
+    return
+  }
+
+  const { localItemId, columnKey } = requirementModalInlineEdit
+  const targetItem = customRequirementItems.find((item) => item.local_item_id === localItemId)
+  const column = requirementDetailsColumnDefinitions.find((item) => item.key === columnKey)
+  if (!targetItem || !column) {
+    closeRequirementModalInlineEdit()
+    return
+  }
+
+  const nextValue = parseRequirementItemEditValue(column, input.value)
+  if (columnKey === 'cant_rq') {
+    const numericValue = Number(nextValue)
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      requirementsExplorerContent.dataset.resourceNotice = 'Ingresa una cantidad válida mayor a cero.'
+      closeRequirementModalInlineEdit()
+      return
+    }
+  }
+
+  customRequirementItems = customRequirementItems.map((item) => {
+    if (item.local_item_id !== localItemId) {
+      return item
+    }
+    return recalculateRequirementItemDerivedFields({
+      ...item,
+      [columnKey]: nextValue,
+    })
+  })
+
+  const viewportState = captureRequirementsExplorerViewportState()
+  requirementModalInlineEdit = null
+  await persistCustomRequirementItems()
+  await syncRequirementLocalItemsState(`Se actualizó ${column.label.toLowerCase()} del recurso local.`)
+  restoreRequirementsExplorerViewportState(viewportState)
+}
+
+async function editRequirementLocalItem(localItemId) {
+  const targetItem = customRequirementItems.find((item) => item.local_item_id === localItemId)
+  if (!targetItem) {
+    requirementsExplorerContent.dataset.resourceNotice = 'No se encontró el item local que intentas editar.'
+    renderRequirementModalExplorer()
+    return
+  }
+
+  const nextValues = await openQuickEditDialog({
+    eyebrow: 'Editar recurso',
+    title: 'Actualizar item del requerimiento',
+    record: targetItem,
+  })
+
+  if (!nextValues) {
+    return
+  }
+
+  const nextQuantity = Number(nextValues.cant_rq)
+  if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) {
+    requirementsExplorerContent.dataset.resourceNotice = 'Ingresa una cantidad válida mayor a cero.'
+    renderRequirementModalExplorer()
+    return
+  }
+
+  customRequirementItems = customRequirementItems.map((item) =>
+    item.local_item_id === localItemId
+      ? recalculateRequirementItemDerivedFields({
+          ...item,
+          ...nextValues,
+          local_item_id: item.local_item_id,
+          cant_rq: nextQuantity,
+          descripcion: String(nextValues.descripcion || '').trim() || item.descripcion,
+        })
+      : item,
+  )
+
+  await persistCustomRequirementItems()
+  await syncRequirementLocalItemsState('Se actualizó el recurso local del requerimiento.')
+}
+
+async function deleteRequirementLocalItem(localItemId) {
+  const targetItem = customRequirementItems.find((item) => item.local_item_id === localItemId)
+  if (!targetItem) {
+    requirementsExplorerContent.dataset.resourceNotice = 'No se encontró el item local que intentas eliminar.'
+    renderRequirementModalExplorer()
+    return
+  }
+
+  const confirmed = await openConfirmDialog({
+    eyebrow: 'Confirmar eliminación',
+    title: 'Eliminar recurso del requerimiento',
+    message: `¿Deseas eliminar "${targetItem.descripcion || 'este recurso'}" del requerimiento seleccionado?`,
+    confirmLabel: 'Eliminar',
+    cancelLabel: 'Cancelar',
+  })
+  if (!confirmed) {
+    return
+  }
+
+  customRequirementItems = customRequirementItems.filter((item) => item.local_item_id !== localItemId)
+  await persistCustomRequirementItems()
+  await syncRequirementLocalItemsState('Se eliminó el recurso local del requerimiento.')
 }
 
 navItems.forEach((item) => {
@@ -6685,6 +9790,12 @@ tableBody?.addEventListener('click', (event) => {
     if (record) {
       openRequirementListModal(record)
     }
+    return
+  }
+
+  const deleteButton = event.target.closest('[data-action="delete-quotation"]')
+  if (deleteButton) {
+    deleteQuotationRecord(deleteButton.dataset.id)
     return
   }
 
@@ -6720,12 +9831,19 @@ authForm?.addEventListener('submit', async (event) => {
 
   const email = String(authEmailInput?.value || '').trim()
   const password = String(authPasswordInput?.value || '')
+  const passwordConfirm = String(authConfirmPasswordInput?.value || '')
   const fullName = String(authNameInput?.value || '').trim()
 
-  if (!email || (authMode !== 'reset' && !password) || (authMode === 'register' && !fullName)) {
+  if (
+    (!email && authMode !== 'update-password') ||
+    ((authMode === 'login' || authMode === 'register' || authMode === 'update-password') && !password) ||
+    (authMode === 'register' && !fullName)
+  ) {
     updateAuthStatus(
       authMode === 'reset'
         ? 'Ingresa tu correo para enviarte el enlace.'
+        : authMode === 'update-password'
+          ? 'Ingresa y confirma tu nueva contraseña.'
         : authMode === 'register'
           ? 'Completa tu nombre, correo y contraseña.'
           : 'Ingresa tu correo y contraseña.',
@@ -6734,7 +9852,55 @@ authForm?.addEventListener('submit', async (event) => {
     return
   }
 
+  if (authMode === 'update-password') {
+    if (!authSession?.user) {
+      updateAuthStatus('El enlace de recuperación no es válido o expiró. Solicita uno nuevo desde "Recuperar clave".', 'danger')
+      return
+    }
+    if (password.length < 8) {
+      updateAuthStatus('La nueva contraseña debe tener al menos 8 caracteres.', 'danger')
+      return
+    }
+    if (password !== passwordConfirm) {
+      updateAuthStatus('La confirmación no coincide con la nueva contraseña.', 'danger')
+      return
+    }
+
+    updateAuthStatus('Actualizando contraseña...', 'info')
+    const { error } = await supabaseClient.auth.updateUser({
+      password,
+    })
+
+    if (error) {
+      updateAuthStatus(`No se pudo actualizar la contraseña: ${error.message}`, 'danger')
+      return
+    }
+
+    if (authPasswordInput) {
+      authPasswordInput.value = ''
+    }
+    if (authConfirmPasswordInput) {
+      authConfirmPasswordInput.value = ''
+    }
+
+    await supabaseClient.auth.signOut()
+    exitPasswordRecoveryMode()
+    applyAuthMode('login')
+    if (authEmailInput) {
+      authEmailInput.disabled = false
+      authEmailInput.readOnly = false
+      authEmailInput.value = ''
+    }
+    showAuthShell('Contraseña actualizada correctamente. Ahora inicia sesión con tu nueva clave.', 'success')
+    return
+  }
+
   if (authMode === 'login') {
+    exitPasswordRecoveryMode()
+    if (authEmailInput) {
+      authEmailInput.disabled = false
+      authEmailInput.readOnly = false
+    }
     updateAuthStatus('Validando credenciales...', 'info')
 
     const { error } = await supabaseClient.auth.signInWithPassword({
@@ -6755,7 +9921,7 @@ authForm?.addEventListener('submit', async (event) => {
   if (authMode === 'register') {
     updateAuthStatus('Registrando cuenta y dejándola pendiente de aprobación...', 'info')
 
-    const redirectTo = `${window.location.origin}${window.location.pathname}`
+    const redirectTo = getAuthRedirectBaseUrl()
     const { error } = await supabaseClient.auth.signUp({
       email,
       password,
@@ -6782,7 +9948,7 @@ authForm?.addEventListener('submit', async (event) => {
   }
 
   updateAuthStatus('Enviando enlace de recuperación...', 'info')
-  const redirectTo = `${window.location.origin}${window.location.pathname}`
+  const redirectTo = buildResetPasswordRedirectUrl()
   const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
     redirectTo,
   })
@@ -6799,8 +9965,11 @@ authResetButton?.addEventListener('click', () => {
   if (authForm) {
     authForm.reset()
   }
-  if (authEmailInput && !authEmailInput.value) {
-    authEmailInput.value = 'edwin.qm@outlook.com'
+  if (authEmailInput && !authEmailInput.value && authMode !== 'update-password') {
+    authEmailInput.value = primarySuperAdminEmail
+  }
+  if (authMode === 'update-password' && authSession?.user?.email) {
+    authEmailInput.value = authSession.user.email
   }
   applyAuthMode(authMode)
   updateAuthStatus('')
@@ -6812,6 +9981,13 @@ authTabs?.addEventListener('click', (event) => {
     return
   }
 
+  if (tabButton.dataset.authMode !== 'update-password') {
+    exitPasswordRecoveryMode()
+    if (authEmailInput) {
+      authEmailInput.disabled = false
+      authEmailInput.readOnly = false
+    }
+  }
   applyAuthMode(tabButton.dataset.authMode)
 })
 
@@ -6821,7 +9997,7 @@ authGoogleButton?.addEventListener('click', async () => {
     return
   }
 
-  const redirectTo = `${window.location.origin}${window.location.pathname}`
+  const redirectTo = getAuthRedirectBaseUrl()
   updateAuthStatus('Redirigiendo a Google...', 'info')
 
   const { error } = await supabaseClient.auth.signInWithOAuth({
@@ -6867,13 +10043,36 @@ resourcesRefreshButton?.addEventListener('click', async () => {
   await loadResourcesCatalog()
 })
 
+resourcesNewButton?.addEventListener('click', () => {
+  openResourcesModal()
+})
+
+closeResourcesModalButton?.addEventListener('click', closeResourcesModal)
+confirmDialogCancelButton?.addEventListener('click', () => closeConfirmDialog(false))
+confirmDialogAcceptButton?.addEventListener('click', () => closeConfirmDialog(true))
+confirmDialogBackdrop?.addEventListener('click', () => closeConfirmDialog(false))
+quickEditDialogCancelButton?.addEventListener('click', () => closeQuickEditDialog(null))
+quickEditDialogBackdrop?.addEventListener('click', () => closeQuickEditDialog(null))
+
+quickEditDialogForm?.addEventListener('submit', (event) => {
+  event.preventDefault()
+  const payload = {}
+  getRequirementItemEditColumnDefinitions().forEach((column) => {
+    const input = quickEditDialogFields?.querySelector(`[data-quick-edit-key="${column.key}"]`)
+    if (!(input instanceof HTMLInputElement) && !(input instanceof HTMLTextAreaElement)) {
+      return
+    }
+    payload[column.key] = parseRequirementItemEditValue(column, input.value)
+  })
+  closeQuickEditDialog(payload)
+})
+
 adminButton?.addEventListener('click', async () => {
-  if (currentUserProfile?.role !== 'admin') {
+  if (!canManageAdminModule(currentUserProfile)) {
     return
   }
 
   setActiveView('admin')
-  await loadAdminUsers()
 })
 
 adminUsersRefreshButton?.addEventListener('click', async () => {
@@ -6882,7 +10081,7 @@ adminUsersRefreshButton?.addEventListener('click', async () => {
 
 resourcesForm?.addEventListener('submit', async (event) => {
   event.preventDefault()
-  await saveResourceRecord(collectResourceFormData())
+  await saveResourceRecord(await collectResourceFormData())
 })
 
 resourcesFormReset?.addEventListener('click', () => {
@@ -6890,8 +10089,76 @@ resourcesFormReset?.addEventListener('click', () => {
   updateResourcesStatus('Formulario de recursos reiniciado.', 'info')
 })
 
+resourcesForm?.addEventListener('change', (event) => {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement)) {
+    return
+  }
+
+  if (
+    target.name === 'imagen_file' ||
+    target.name === 'ficha_tecnica_file' ||
+    target.name === 'imagen_url' ||
+    target.name === 'ficha_tecnica_url'
+  ) {
+    refreshResourceFileHints()
+  }
+})
+
+resourcesForm?.addEventListener('input', (event) => {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement)) {
+    return
+  }
+
+  if (target.name === 'imagen_url' || target.name === 'ficha_tecnica_url') {
+    refreshResourceFileHints()
+  }
+})
+
 resourcesSearch?.addEventListener('input', () => {
   resourcesSearchTerm = resourcesSearch.value
+  renderWithPreservedFocus(resourcesSearch, () => renderResourcesTable())
+})
+
+resourcesTableHead?.addEventListener('input', (event) => {
+  const input = event.target.closest('[data-resource-filter-key]')
+  if (!input) {
+    return
+  }
+
+  resourcesActiveFilters[input.dataset.resourceFilterKey] = input.value
+  renderWithPreservedFocus(input, () => renderResourcesTable())
+})
+
+resourcesTableHead?.addEventListener('change', (event) => {
+  const input = event.target.closest('[data-resource-filter-key]')
+  if (!input) {
+    return
+  }
+
+  resourcesActiveFilters[input.dataset.resourceFilterKey] = input.value
+  renderResourcesTable()
+})
+
+resourcesTableHead?.addEventListener('click', (event) => {
+  const clearButton = event.target.closest('#clearResourcesFiltersButton')
+  if (clearButton) {
+    resourcesActiveFilters = {}
+    buildResourcesHead()
+    renderResourcesTable()
+    return
+  }
+
+  const sortButton = event.target.closest('[data-resource-sort-key]')
+  if (!sortButton) {
+    return
+  }
+
+  const sortKey = sortButton.dataset.resourceSortKey
+  resourcesSort =
+    resourcesSort.key === sortKey ? { key: sortKey, direction: resourcesSort.direction === 'asc' ? 'desc' : 'asc' } : { key: sortKey, direction: 'asc' }
+  buildResourcesHead()
   renderResourcesTable()
 })
 
@@ -6905,7 +10172,7 @@ resourcesTableBody?.addEventListener('click', async (event) => {
     }
     const resource = resourcesRecords.find((record) => record.id === editButton.dataset.resourceId)
     if (resource) {
-      fillResourcesForm(resource)
+      openResourcesModal(resource)
       setActiveView('resources')
       updateResourcesStatus(`Editando recurso ${resource.descripcion}.`, 'info')
     }
@@ -6944,7 +10211,7 @@ adminUsersTableHead?.addEventListener('input', (event) => {
   }
 
   adminUsersFilters[filterInput.dataset.adminFilter] = String(filterInput.value || '').trim().toLowerCase()
-  renderAdminUsersTable()
+  renderWithPreservedFocus(filterInput, () => renderAdminUsersTable())
 })
 
 adminUsersTableHead?.addEventListener('change', (event) => {
@@ -7033,7 +10300,6 @@ adminPermissionsForm?.addEventListener('submit', async (event) => {
 
 closeAdminPermissionsButton?.addEventListener('click', closeAdminPermissionsModal)
 cancelAdminPermissionsButton?.addEventListener('click', closeAdminPermissionsModal)
-adminPermissionsBackdrop?.addEventListener('click', closeAdminPermissionsModal)
 
 newRequirementButton?.addEventListener('click', () => {
   const permissions = getCurrentModulePermissions('requirements')
@@ -7052,7 +10318,7 @@ requirementsTableHead?.addEventListener('input', (event) => {
   }
 
   requirementsActiveFilters[input.dataset.requirementsFilterKey] = input.value
-  renderRequirementsTable()
+  renderWithPreservedFocus(input, () => renderRequirementsTable())
 })
 
 requirementsTableHead?.addEventListener('change', (event) => {
@@ -7097,7 +10363,7 @@ requirementsDetailTableHead?.addEventListener('input', (event) => {
 
   requirementDetailsActiveFilters[input.dataset.detailFilterKey] = input.value
   requirementDetailsPage = 1
-  renderRequirementDetailsTable()
+  renderWithPreservedFocus(input, () => renderRequirementDetailsTable())
 })
 
 requirementsDetailTableHead?.addEventListener('change', (event) => {
@@ -7218,7 +10484,7 @@ tableHead?.addEventListener('input', (event) => {
   }
 
   activeFilters[input.dataset.filterKey] = input.value
-  renderTable()
+  renderWithPreservedFocus(input, () => renderTable())
 })
 
 tableHead?.addEventListener('change', (event) => {
@@ -7277,6 +10543,17 @@ requirementsTableHead?.addEventListener('pointerdown', (event) => {
   beginColumnResize('requirements', handle.dataset.resizeKey, event.clientX)
 })
 
+requirementsExplorerContent?.addEventListener('pointerdown', (event) => {
+  const handle = event.target.closest('[data-resize-table="quotation-linked"]')
+  if (!handle) {
+    return
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+  beginColumnResize('quotation-linked', handle.dataset.resizeKey, event.clientX)
+})
+
 requirementsDetailTableHead?.addEventListener('pointerdown', (event) => {
   const handle = event.target.closest('[data-resize-table="requirements-detail"]')
   if (!handle) {
@@ -7290,20 +10567,54 @@ requirementsDetailTableHead?.addEventListener('pointerdown', (event) => {
 
 resetColumnsButton?.addEventListener('click', () => {
   visibleColumnKeys = getDefaultVisibleColumnKeys(columns)
+  quotationFrozenColumnCount = 0
   persistVisibleColumnKeys()
+  persistStoredCount(quotationFrozenColumnsStorageKey, quotationFrozenColumnCount)
   renderColumnManager()
+  buildTableHead()
+  renderTable()
+})
+
+columnFreezeCount?.addEventListener('change', (event) => {
+  const nextValue = Number(event.target.value || 0)
+  quotationFrozenColumnCount = Math.max(0, Math.min(3, nextValue))
+  persistStoredCount(quotationFrozenColumnsStorageKey, quotationFrozenColumnCount)
   buildTableHead()
   renderTable()
 })
 
 closeModalButton?.addEventListener('click', closeModal)
 cancelModalButton?.addEventListener('click', closeModal)
-modalBackdrop?.addEventListener('click', closeModal)
+newRequirementFromQuotationButton?.addEventListener('click', () => {
+  const permissions = getCurrentQuotationPermissions()
+  if (!currentEditingId || !permissions.show_linked_new_requirement) {
+    updateStatus('No tienes permiso para crear un requerimiento desde esta cotización.', 'warning')
+    return
+  }
+
+  const requirementContext = getRequirementContextFromQuotationForm()
+  closeModal()
+  openRequirementEntryModal(requirementContext)
+})
 closeRequirementEntryButton?.addEventListener('click', closeRequirementEntryModal)
 cancelRequirementEntryButton?.addEventListener('click', closeRequirementEntryModal)
-requirementEntryBackdrop?.addEventListener('click', closeRequirementEntryModal)
 closeRequirementsExplorerButton?.addEventListener('click', closeRequirementsExplorer)
-requirementsExplorerBackdrop?.addEventListener('click', closeRequirementsExplorer)
+requirementRequesterManageButton?.addEventListener('click', () => {
+  openCatalogManager('requirement_solicitante', 'requirement')
+})
+requirementAreaManageButton?.addEventListener('click', () => {
+  openCatalogManager('requirement_area', 'requirement')
+})
+requirementCatalogManagerPanel?.addEventListener('click', handleCatalogManagerAction)
+requirementEntryForm?.addEventListener('change', (event) => {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLSelectElement) && !(target instanceof HTMLTextAreaElement)) {
+    return
+  }
+  if (target.name === 'solicitante') {
+    applyLinkedContactFields('requirement_solicitante', target.value)
+  }
+})
 
 requirementEntryForm?.addEventListener('submit', async (event) => {
   event.preventDefault()
@@ -7441,16 +10752,6 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
     return
   }
 
-  const newModalRequirementButton = event.target.closest('[data-action="new-modal-requirement"]')
-  if (newModalRequirementButton) {
-    if (!detailsPermissions.show_new_requirement_button) {
-      updateRequirementDetailsStatus('No tienes permiso para crear requerimientos desde este detalle.', 'warning')
-      return
-    }
-    openRequirementEntryModal(activeRequirementRecord || {})
-    return
-  }
-
   const toggleLinkedColumnsButton = event.target.closest('[data-action="toggle-linked-columns"]')
   if (toggleLinkedColumnsButton) {
     if (!quotationPermissions.show_linked_columns_button) {
@@ -7477,7 +10778,9 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
   const resetModalColumnsButton = event.target.closest('[data-action="reset-modal-columns"]')
   if (resetModalColumnsButton) {
     requirementModalVisibleColumnKeys = getDefaultVisibleColumnKeys(requirementModalColumns)
+    requirementModalFrozenColumnCount = 0
     persistRequirementModalVisibleColumnKeys()
+    persistStoredCount(requirementModalFrozenColumnsStorageKey, requirementModalFrozenColumnCount)
     renderRequirementModalExplorer()
     return
   }
@@ -7485,7 +10788,11 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
   const resetLinkedColumnsButton = event.target.closest('[data-action="reset-linked-columns"]')
   if (resetLinkedColumnsButton) {
     quotationLinkedVisibleColumnKeys = getDefaultVisibleColumnKeys(requirementsColumns)
+    quotationLinkedFrozenColumnCount = 0
+    quotationLinkedColumnWidths = {}
     persistStoredMap(quotationLinkedVisibilityStorageKey, quotationLinkedVisibleColumnKeys)
+    persistStoredCount(quotationLinkedFrozenColumnsStorageKey, quotationLinkedFrozenColumnCount)
+    persistStoredMap(quotationLinkedWidthStorageKey, quotationLinkedColumnWidths)
     renderQuotationLinkedExplorer()
     return
   }
@@ -7554,12 +10861,55 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
     return
   }
 
+  const saveRequirementResourcesButton = event.target.closest('[data-action="save-rq-resources"]')
+  if (saveRequirementResourcesButton) {
+    if (!detailsPermissions.show_add_resource_button) {
+      return
+    }
+    void persistRequirementLocalItemsNotice()
+    return
+  }
+
+  const clearModalFiltersButton = event.target.closest('[data-action="clear-modal-filters"]')
+  if (clearModalFiltersButton) {
+    requirementModalFilters = {}
+    renderRequirementModalExplorer()
+    return
+  }
+
   const exportLinkedButton = event.target.closest('[data-action="export-linked-excel"]')
   if (exportLinkedButton) {
     if (!quotationPermissions.show_linked_export_excel_button) {
       return
     }
     exportQuotationLinkedCsv()
+    return
+  }
+
+  const downloadLinkedHtmlButton = event.target.closest('[data-action="download-linked-html"]')
+  if (downloadLinkedHtmlButton) {
+    if (!quotationPermissions.show_linked_export_excel_button) {
+      return
+    }
+    downloadQuotationLinkedSnapshotHtml()
+    return
+  }
+
+  const exportLinkedPdfButton = event.target.closest('[data-action="export-linked-pdf"]')
+  if (exportLinkedPdfButton) {
+    if (!quotationPermissions.show_linked_export_excel_button) {
+      return
+    }
+    printQuotationLinkedSnapshot()
+    return
+  }
+
+  const printLinkedButton = event.target.closest('[data-action="print-linked"]')
+  if (printLinkedButton) {
+    if (!quotationPermissions.show_linked_export_excel_button) {
+      return
+    }
+    printQuotationLinkedSnapshot()
     return
   }
 
@@ -7578,6 +10928,52 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
       return
     }
     void attachResourceToActiveRequirement(attachResourceButton.dataset.resourceId)
+    return
+  }
+
+  const openInlineModalCellButton = event.target.closest('[data-action="open-inline-modal-cell"]')
+  if (openInlineModalCellButton) {
+    if (!detailsPermissions.show_add_resource_button) {
+      return
+    }
+    openRequirementModalInlineEdit(
+      openInlineModalCellButton.dataset.localItemId,
+      openInlineModalCellButton.dataset.columnKey,
+    )
+    return
+  }
+
+  const editModalItemButton = event.target.closest('[data-action="edit-modal-item"]')
+  if (editModalItemButton) {
+    if (!detailsPermissions.show_add_resource_button) {
+      return
+    }
+    void editRequirementLocalItem(editModalItemButton.dataset.localItemId)
+    return
+  }
+
+  const deleteModalItemButton = event.target.closest('[data-action="delete-modal-item"]')
+  if (deleteModalItemButton) {
+    if (!detailsPermissions.show_add_resource_button) {
+      return
+    }
+    void deleteRequirementLocalItem(deleteModalItemButton.dataset.localItemId)
+    return
+  }
+
+  const blockedEditModalItemButton = event.target.closest('[data-action="edit-modal-item-blocked"]')
+  if (blockedEditModalItemButton) {
+    requirementsExplorerContent.dataset.resourceNotice =
+      'Solo puedes editar recursos locales agregados desde el catálogo en este requerimiento.'
+    renderRequirementModalExplorer()
+    return
+  }
+
+  const blockedDeleteModalItemButton = event.target.closest('[data-action="delete-modal-item-blocked"]')
+  if (blockedDeleteModalItemButton) {
+    requirementsExplorerContent.dataset.resourceNotice =
+      'Solo puedes eliminar recursos locales agregados desde el catálogo en este requerimiento.'
+    renderRequirementModalExplorer()
     return
   }
 
@@ -7607,6 +11003,25 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
   renderQuotationLinkedExplorer()
 })
 
+requirementsExplorerContent?.addEventListener('dblclick', (event) => {
+  const detailsPermissions = getCurrentModulePermissions('details')
+  if (!detailsPermissions.show_add_resource_button) {
+    return
+  }
+
+  const editor = event.target.closest('[data-inline-editor="true"]')
+  if (editor) {
+    return
+  }
+
+  const cell = event.target.closest('.is-inline-editable-cell')
+  if (!cell) {
+    return
+  }
+
+  openRequirementModalInlineEdit(cell.dataset.modalRowId, cell.dataset.modalColumnKey)
+})
+
 requirementsExplorerContent?.addEventListener('submit', (event) => {
   const form = event.target.closest('form')
   if (!form) {
@@ -7624,17 +11039,24 @@ requirementsExplorerContent?.addEventListener('submit', (event) => {
   event.preventDefault()
 
   ;(async () => {
-    if (form.matches('[data-action="submit-tracking-event"]')) {
-      await saveExplorerTrackingEvent(form, 'tracking')
-    } else if (form.matches('[data-action="submit-communication-event"]')) {
-      await saveExplorerTrackingEvent(form, 'communication')
-    } else if (form.matches('[data-action="submit-evidence-record"]')) {
-      await saveExplorerEvidenceRecord(form)
+    const restoreFormState = setExplorerFormSavingState(form, true)
+    let didSave = false
+
+    try {
+      if (form.matches('[data-action="submit-tracking-event"]')) {
+        didSave = await saveExplorerTrackingEvent(form, 'tracking')
+      } else if (form.matches('[data-action="submit-communication-event"]')) {
+        didSave = await saveExplorerTrackingEvent(form, 'communication')
+      } else if (form.matches('[data-action="submit-evidence-record"]')) {
+        didSave = await saveExplorerEvidenceRecord(form)
+      }
+    } finally {
+      restoreFormState()
     }
 
-    if (activeExplorerMode === 'quotation-linked') {
+    if (didSave && activeExplorerMode === 'quotation-linked') {
       renderQuotationLinkedExplorer()
-    } else if (activeExplorerMode === 'rq-detail') {
+    } else if (didSave && activeExplorerMode === 'rq-detail') {
       renderRequirementModalExplorer()
     }
   })()
@@ -7644,14 +11066,19 @@ requirementsExplorerContent?.addEventListener('input', (event) => {
   const pickerSearch = event.target.closest('[data-resource-picker-search="true"]')
   if (pickerSearch) {
     requirementModalResourceSearch = pickerSearch.value
-    renderRequirementModalExplorer()
+    renderWithPreservedFocus(pickerSearch, () => renderRequirementModalExplorer())
+    return
+  }
+
+  const inlineEditor = event.target.closest('[data-inline-editor="true"]')
+  if (inlineEditor) {
     return
   }
 
   const input = event.target.closest('[data-modal-detail-filter-key]')
   if (input) {
     requirementModalFilters[input.dataset.modalDetailFilterKey] = input.value
-    renderRequirementModalExplorer()
+    renderWithPreservedFocus(input, () => renderRequirementModalExplorer())
     return
   }
 
@@ -7661,10 +11088,45 @@ requirementsExplorerContent?.addEventListener('input', (event) => {
   }
 
   quotationLinkedFilters[linkedInput.dataset.linkedFilterKey] = linkedInput.value
-  renderQuotationLinkedExplorer()
+  renderWithPreservedFocus(linkedInput, () => renderQuotationLinkedExplorer())
+})
+
+requirementsExplorerSidePanel?.addEventListener('click', (event) => {
+  const detailsPermissions = getCurrentModulePermissions('details')
+  const attachResourceButton = event.target.closest('[data-action="attach-resource"]')
+  if (!attachResourceButton) {
+    return
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  if (!detailsPermissions.show_add_resource_button) {
+    return
+  }
+
+  void attachResourceToActiveRequirement(attachResourceButton.dataset.resourceId)
+})
+
+requirementsExplorerSidePanel?.addEventListener('input', (event) => {
+  const pickerSearch = event.target.closest('[data-resource-picker-search="true"]')
+  if (!pickerSearch) {
+    return
+  }
+
+  requirementModalResourceSearch = pickerSearch.value
+  renderWithPreservedFocus(pickerSearch, () => renderRequirementModalExplorer())
 })
 
 requirementsExplorerContent?.addEventListener('change', (event) => {
+  const modalFrozenColumnsControl = event.target.closest('[data-action="set-modal-frozen-columns"]')
+  if (modalFrozenColumnsControl) {
+    requirementModalFrozenColumnCount = Math.max(0, Math.min(3, Number(modalFrozenColumnsControl.value || 0)))
+    persistStoredCount(requirementModalFrozenColumnsStorageKey, requirementModalFrozenColumnCount)
+    renderRequirementModalExplorer()
+    return
+  }
+
   const columnToggle = event.target.closest('[data-modal-column-key]')
   if (columnToggle) {
     const key = columnToggle.dataset.modalColumnKey
@@ -7691,6 +11153,14 @@ requirementsExplorerContent?.addEventListener('change', (event) => {
     return
   }
 
+  const inlineEditor = event.target.closest('[data-inline-editor="true"]')
+  if (inlineEditor) {
+    if (inlineEditor instanceof HTMLSelectElement) {
+      void saveRequirementModalInlineEdit(inlineEditor)
+    }
+    return
+  }
+
   const linkedColumnToggle = event.target.closest('[data-linked-column-key]')
   if (linkedColumnToggle) {
     const key = linkedColumnToggle.dataset.linkedColumnKey
@@ -7710,6 +11180,14 @@ requirementsExplorerContent?.addEventListener('change', (event) => {
     return
   }
 
+  const linkedFrozenColumnsControl = event.target.closest('[data-action="set-linked-frozen-columns"]')
+  if (linkedFrozenColumnsControl) {
+    quotationLinkedFrozenColumnCount = Math.max(0, Math.min(3, Number(linkedFrozenColumnsControl.value || 0)))
+    persistStoredCount(quotationLinkedFrozenColumnsStorageKey, quotationLinkedFrozenColumnCount)
+    renderQuotationLinkedExplorer()
+    return
+  }
+
   const linkedInput = event.target.closest('[data-linked-filter-key]')
   if (!linkedInput) {
     return
@@ -7717,6 +11195,44 @@ requirementsExplorerContent?.addEventListener('change', (event) => {
 
   quotationLinkedFilters[linkedInput.dataset.linkedFilterKey] = linkedInput.value
   renderQuotationLinkedExplorer()
+})
+
+requirementsExplorerContent?.addEventListener(
+  'blur',
+  (event) => {
+    const inlineEditor = event.target.closest('[data-inline-editor="true"]')
+    if (!(inlineEditor instanceof HTMLInputElement) && !(inlineEditor instanceof HTMLSelectElement)) {
+      return
+    }
+    if (!requirementModalInlineEdit) {
+      return
+    }
+    window.setTimeout(() => {
+      if (document.activeElement === inlineEditor) {
+        return
+      }
+      void saveRequirementModalInlineEdit(inlineEditor)
+    }, 0)
+  },
+  true,
+)
+
+requirementsExplorerContent?.addEventListener('keydown', (event) => {
+  const inlineEditor = event.target.closest('[data-inline-editor="true"]')
+  if (!(inlineEditor instanceof HTMLInputElement) && !(inlineEditor instanceof HTMLSelectElement)) {
+    return
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeRequirementModalInlineEdit()
+    return
+  }
+
+  if (event.key === 'Enter' && inlineEditor instanceof HTMLInputElement) {
+    event.preventDefault()
+    void saveRequirementModalInlineEdit(inlineEditor)
+  }
 })
 
 document.addEventListener('pointermove', handleColumnResizeMove)
