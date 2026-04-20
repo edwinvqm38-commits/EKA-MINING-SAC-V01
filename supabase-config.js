@@ -12,4 +12,6 @@ window.SUPABASE_CONFIG = {
   requirementsSource: 'requerimientos_log',
   requirementDetailsSource: 'vw_requerimiento_items_detalle',
   requirementDetailsStageSource: '',
+  expedienteEvidenceBucket: 'requerimientos',
+  expedienteEvidencePathPrefix: 'expediente',
 }
