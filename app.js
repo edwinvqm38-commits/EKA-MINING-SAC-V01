@@ -13043,7 +13043,8 @@ async function attachResourceToActiveRequirement(resourceId) {
     return
   }
 
-  const resource = resourcesRecords.find((record) => record.id === resourceId)
+  const normalizedResourceId = String(resourceId ?? '').trim()
+  const resource = resourcesRecords.find((record) => String(record.id ?? '').trim() === normalizedResourceId)
   if (!resource) {
     requirementsExplorerContent.dataset.resourceNotice = 'No se encontró el recurso seleccionado en el catálogo.'
     renderRequirementModalExplorer()
