@@ -156,6 +156,12 @@ const quickEditDialogEyebrow = document.getElementById('quickEditDialogEyebrow')
 const quickEditDialogTitle = document.getElementById('quickEditDialogTitle')
 const quickEditDialogFields = document.getElementById('quickEditDialogFields')
 const quickEditDialogCancelButton = document.getElementById('quickEditDialogCancelButton')
+const requirementAttachmentViewerModal = document.getElementById('requirementAttachmentViewerModal')
+const requirementAttachmentViewerBackdrop = document.getElementById('requirementAttachmentViewerBackdrop')
+const requirementAttachmentViewerTitle = document.getElementById('requirementAttachmentViewerTitle')
+const requirementAttachmentViewerEyebrow = document.getElementById('requirementAttachmentViewerEyebrow')
+const requirementAttachmentViewerContent = document.getElementById('requirementAttachmentViewerContent')
+const closeRequirementAttachmentViewerButton = document.getElementById('closeRequirementAttachmentViewerButton')
 
 const viewTitles = {
   dashboard: 'Dashboard',
@@ -233,6 +239,8 @@ let requirementModalFrozenColumnCount = loadStoredCount(requirementModalFrozenCo
 let requirementModalColumnManagerOpen = false
 let requirementModalResourcePickerOpen = false
 let requirementModalResourceSearch = ''
+const requirementAttachmentViewerRegistry = new Map()
+let activeRequirementAttachmentViewerId = ''
 let activeRequirementRecord = null
 let activeExpedienteContext = null
 let quotationLinkedRecord = null
@@ -605,10 +613,12 @@ const requirementDetailsColumnDefinitions = [
   { key: 'tipo', label: 'TIPO', type: 'text', tag: true },
   { key: 'tipo_flag', label: 'TIPO FLAG', type: 'text' },
   { key: 'codigo', label: 'CODIGO', type: 'text' },
+  { key: 'codigo_fabricante', label: 'CÓDIGO FAB.', type: 'text' },
   { key: 'descripcion', label: 'DESCRIPCIÓN', type: 'text' },
   { key: 'ficha_tecnica', label: 'FICHA TECNICA', type: 'text' },
   { key: 'observacion', label: 'OBSERVACIÓN', type: 'text' },
   { key: 'fotos', label: 'FOTOS', type: 'text' },
+  { key: 'proveedor', label: 'PROVEEDOR', type: 'text' },
   { key: 'und', label: 'UND', type: 'text' },
   { key: 'cant_rq', label: 'CANT RQ', type: 'number' },
   { key: 'ajuste', label: 'AJUSTE', type: 'number' },
@@ -2304,7 +2314,6 @@ async function updateAdminUserRole(userId, role) {
 }
 
 async function loadSecureDatasets() {
-  closeRequirementsExplorer()
   pendingDeepLinkRequirementTarget = consumeRequirementDeepLink()
   if (pendingDeepLinkRequirementTarget?.id || pendingDeepLinkRequirementTarget?.code || pendingDeepLinkRequirementTarget?.key) {
     startRequirementDeepLinkProgress(10, 'Iniciando apertura del enlace')
@@ -2407,7 +2416,6 @@ async function initializeAuth() {
 
   if (!supabaseClient?.auth) {
     setAppBootstrapResolved()
-    closeRequirementsExplorer()
     pendingDeepLinkRequirementTarget = consumeRequirementDeepLink()
     if (pendingDeepLinkRequirementTarget?.id || pendingDeepLinkRequirementTarget?.code || pendingDeepLinkRequirementTarget?.key) {
       startRequirementDeepLinkProgress(10, 'Iniciando apertura del enlace')
@@ -2547,6 +2555,32 @@ function persistRequirementModalVisibleColumnKeys() {
   }
 
   window.localStorage.setItem(requirementModalVisibilityStorageKey, JSON.stringify(requirementModalVisibleColumnKeys))
+}
+
+function syncRequirementModalVisibleColumnKeys(nextColumns = requirementModalColumns, options = {}) {
+  const { persist = false, reason = 'system-refresh' } = options
+  const normalizedColumns = Array.isArray(nextColumns) ? nextColumns : []
+  const allowed = new Set(normalizedColumns.map((column) => column.key))
+  const currentVisible = requirementModalVisibleColumnKeys.filter((key) => allowed.has(key))
+  const currentVisibleSet = new Set(currentVisible)
+  const appendedKeys = normalizedColumns.map((column) => column.key).filter((key) => !currentVisibleSet.has(key))
+  const nextVisible = currentVisible.length || appendedKeys.length ? [...currentVisible, ...appendedKeys] : getDefaultVisibleColumnKeys(normalizedColumns)
+
+  requirementModalVisibleColumnKeys = nextVisible
+
+  if (persist) {
+    console.info('[rq-columns] persist visible columns', { reason, keys: requirementModalVisibleColumnKeys })
+    persistRequirementModalVisibleColumnKeys()
+    return
+  }
+
+  if (appendedKeys.length) {
+    console.info('[rq-columns] auto-preserving visible columns without persisting hidden state', {
+      reason,
+      appendedKeys,
+      keys: requirementModalVisibleColumnKeys,
+    })
+  }
 }
 
 function loadStoredMap(storageKey) {
@@ -3816,9 +3850,58 @@ function countRequirementAttachments(items = []) {
   )
 }
 
+function normalizeRequirementViewerAttachments(value, kind = 'document') {
+  const rawEntries = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+      ? value.url || value.public_url || value.file_url || value.image_url
+        ? [value]
+        : Object.values(value)
+      : String(value ?? '').trim()
+        ? [value]
+        : []
+
+  return rawEntries
+    .map((entry) => {
+      if (entry && typeof entry === 'object') {
+        const url = String(entry.url || entry.public_url || entry.file_url || entry.image_url || '').trim()
+        if (!url) {
+          return null
+        }
+        return {
+          url,
+          file_name: String(entry.file_name || entry.name || '').trim(),
+          mime_type: String(entry.mime_type || '').trim(),
+          kind,
+        }
+      }
+
+      const url = String(entry || '').trim()
+      if (!url) {
+        return null
+      }
+
+      return {
+        url,
+        file_name: '',
+        mime_type: '',
+        kind,
+      }
+    })
+    .filter(Boolean)
+}
+
+function registerRequirementAttachmentViewer(attachments = []) {
+  const viewerId = createLocalId('rq-attachments')
+  requirementAttachmentViewerRegistry.set(viewerId, attachments)
+  return viewerId
+}
+
 function buildRequirementItemFromResource(requirementRecord, resourceRecord, existingItems = []) {
   const maxItem = existingItems.reduce((max, item) => Math.max(max, Number(item.item) || 0), 0)
   const today = new Date().toISOString().slice(0, 10)
+  const technicalAttachments = getResourceAttachmentCollection(resourceRecord, 'ficha_tecnica').map((attachment) => ({ ...attachment }))
+  const imageAttachments = getResourceAttachmentCollection(resourceRecord, 'imagen').map((attachment) => ({ ...attachment }))
   return {
     local_item_id: createLocalId('rq-resource'),
     fuente: 'LOCAL',
@@ -3835,10 +3918,11 @@ function buildRequirementItemFromResource(requirementRecord, resourceRecord, exi
     tipo: resourceRecord.categoria,
     tipo_flag: '',
     codigo: resourceRecord.codigo,
+    codigo_fabricante: resourceRecord.codigo_fabricante || '',
     descripcion: resourceRecord.descripcion,
-    ficha_tecnica: [],
+    ficha_tecnica: technicalAttachments,
     observacion: resourceRecord.observacion,
-    fotos: [],
+    fotos: imageAttachments,
     und: resourceRecord.unidad,
     cant_rq: 1,
     ajuste: null,
@@ -3943,6 +4027,7 @@ function buildRequirementSummaryMarkup(requirementRecord = activeRequirementReco
 }
 
 async function syncRequirementLocalItemsState(noticeMessage = '') {
+  const preserveViewport = activeExplorerMode === 'rq-detail'
   const nonLocalDetailItems = requirementDetailsRecords.filter((item) => String(item.fuente || '').toUpperCase() !== 'LOCAL')
   requirementDetailsRecords = mergeRequirementDetailRecords(nonLocalDetailItems, customRequirementItems)
 
@@ -3950,6 +4035,7 @@ async function syncRequirementLocalItemsState(noticeMessage = '') {
   const nonLocalModalItems = requirementModalItems.filter((item) => String(item.fuente || '').toUpperCase() !== 'LOCAL')
   requirementModalItems = mergeRequirementDetailRecords(nonLocalModalItems, activeLocalItems)
   requirementModalColumns = getRequirementDetailsColumns(requirementModalItems, true)
+  syncRequirementModalVisibleColumnKeys(requirementModalColumns, { reason: 'syncRequirementLocalItemsState' })
 
   if (activeRequirementRecord) {
     const updatedCount = requirementModalItems.length
@@ -3977,7 +4063,11 @@ async function syncRequirementLocalItemsState(noticeMessage = '') {
 
   requirementsExplorerContent.dataset.summaryMarkup = buildRequirementSummaryMarkup(activeRequirementRecord, requirementModalItems)
   requirementsExplorerContent.dataset.resourceNotice = noticeMessage
-  renderRequirementModalExplorer()
+  if (preserveViewport) {
+    renderRequirementModalExplorerPreservingViewport()
+  } else {
+    renderRequirementModalExplorer()
+  }
 }
 
 function getFilteredModalResources() {
@@ -4010,6 +4100,10 @@ function normalizeResourceSearchTerm(value) {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, ' ')
+}
+
+function normalizeTextForSearch(value) {
+  return normalizeResourceSearchTerm(value)
 }
 
 function datasetKeyToAttributeName(key) {
@@ -4129,6 +4223,17 @@ function restoreRequirementsExplorerViewportState(state = {}, options = {}) {
   })
 }
 
+function renderRequirementModalExplorerPreservingViewport(options = {}) {
+  if (activeExplorerMode !== 'rq-detail') {
+    renderRequirementModalExplorer()
+    return
+  }
+
+  const viewportState = captureRequirementsExplorerViewportState()
+  renderRequirementModalExplorer()
+  restoreRequirementsExplorerViewportState(viewportState, options)
+}
+
 function buildResourcePreviewFallback(resource) {
   const category = normalizeResourceSearchTerm(resource?.categoria)
   if (category.includes('equipo')) {
@@ -4169,6 +4274,17 @@ function buildResourcePreviewMarkup(resource) {
   return buildResourcePreviewFallback(resource)
 }
 
+function getResourceRecordIdentity(resource = {}) {
+  return String(
+    resource?.id ??
+      resource?.resource_id ??
+      resource?.recurso_id ??
+      resource?.codigo ??
+      resource?.codigo_fabricante ??
+      '',
+  ).trim()
+}
+
 function buildRequirementResourcePicker() {
   if (!requirementModalResourcePickerOpen) {
     return ''
@@ -4178,8 +4294,9 @@ function buildRequirementResourcePicker() {
   const filteredResources = getFilteredModalResources()
   const listMarkup = filteredResources.length
     ? filteredResources
-        .map(
-          (resource) => `
+        .map((resource) => {
+          const resourceIdentity = getResourceRecordIdentity(resource)
+          return `
             <article class="resource-picker__item">
               <div class="resource-picker__thumb">
                 ${buildResourcePreviewMarkup(resource)}
@@ -4191,18 +4308,18 @@ function buildRequirementResourcePicker() {
               </div>
               <div class="resource-picker__item-side">
                 <span>${escapeHtml(resource.moneda || 'PEN')} ${escapeHtml(formatNumber(resource.costo_unitario, { key: 'resource_cost', type: 'number' }) || '-')}</span>
-                <button class="table-action" type="button" data-action="attach-resource" data-resource-id="${resource.id}">Agregar</button>
+                <button class="table-action" type="button" data-action="attach-resource" data-resource-id="${escapeHtml(resourceIdentity)}" ${resourceIdentity ? '' : 'disabled'}>Agregar</button>
               </div>
             </article>
-          `,
-        )
+          `
+        })
         .join('')
     : '<div class="empty-table">No hay recursos que coincidan con la búsqueda.</div>'
 
   return `
     <aside class="resource-picker">
       <div class="resource-picker__header">
-        <div>
+        <div class="resource-picker__header-copy">
           <strong>Agregar recurso existente</strong>
           <p>Busca por nombre, código EKA o código fabricante y luego agrégalo solo a este requerimiento.</p>
         </div>
@@ -4210,6 +4327,11 @@ function buildRequirementResourcePicker() {
           <div class="filter-shell resource-picker__search">
             <input class="column-filter" data-resource-picker-search="true" type="text" value="${escapeHtml(requirementModalResourceSearch)}" placeholder="Buscar por nombre o código" />
           </div>
+          <button class="table-action table-action--icon table-action--tone-danger resource-picker__close" type="button" data-action="close-resource-picker" title="Cerrar catálogo" aria-label="Cerrar catálogo">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z"></path>
+            </svg>
+          </button>
           ${
             canCreateResource
               ? `<button class="table-action table-action--icon table-action--tone-edit" type="button" data-action="create-resource-from-requirement" title="Crear nuevo recurso" aria-label="Crear nuevo recurso">
@@ -4541,11 +4663,11 @@ function recalculateRequirementItemDerivedFields(item = {}) {
   const factorPercent = toNullableNumber(nextItem.factor_eq_herr)
 
   let baseUnitSoles = null
-  if (currency.includes('DOLAR')) {
+  if (currency.includes('dolar')) {
     if (unitDollar !== null && tc !== null) {
       baseUnitSoles = unitDollar * tc
     }
-  } else if (currency.includes('SOL') || currency === 'pen') {
+  } else if (currency.includes('sol') || currency === 'pen') {
     if (unitSoles !== null) {
       baseUnitSoles = unitSoles
     }
@@ -4615,6 +4737,32 @@ function formatRequirementInlineDisplayValue(value, column) {
   return formatNumber(value, column)
 }
 
+function getRequirementNumericCellClass(column = {}) {
+  if (column.key === 'factor_eq_herr') {
+    return 'cell-text cell-number cell-number--percent'
+  }
+
+  if (
+    [
+      'costo_unitario_dolar',
+      'costo_unitario_soles',
+      'pu_soles_sin_igv',
+      'costo_total_presupuestado_s',
+      'costo_total_presupuestado_usd',
+      'oferta_sol',
+      'oferta_usd',
+    ].includes(column.key)
+  ) {
+    return 'cell-text cell-number cell-number--money'
+  }
+
+  if (column.type === 'number') {
+    return 'cell-text cell-number'
+  }
+
+  return 'cell-text'
+}
+
 function buildRequirementInlineEditor(item, column) {
   const config = getRequirementInlineEditableColumnsConfig()[column.key]
   const rowId = getRequirementModalInlineRowId(item)
@@ -4638,7 +4786,7 @@ function buildRequirementInlineEditor(item, column) {
         data-column-key="${column.key}"
         title="${hint}"
       >
-        <span class="cell-text">${escapeHtml(String(formatRequirementInlineDisplayValue(item[column.key], column)))}</span>
+        <span class="${getRequirementNumericCellClass(column)}">${escapeHtml(String(formatRequirementInlineDisplayValue(item[column.key], column)))}</span>
       </button>
     `
   }
@@ -4941,6 +5089,143 @@ function getTagTone(value) {
   return 'info'
 }
 
+function getRequirementAttachmentIconMarkup() {
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 5C6.5 5 2.2 8.4 1 12c1.2 3.6 5.5 7 11 7s9.8-3.4 11-7c-1.2-3.6-5.5-7-11-7zm0 11.2A4.2 4.2 0 1 1 12 7.8a4.2 4.2 0 0 1 0 8.4zm0-6.7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"></path>
+    </svg>
+  `
+}
+
+function closeRequirementAttachmentViewer() {
+  if (!requirementAttachmentViewerModal) {
+    return
+  }
+
+  requirementAttachmentViewerModal.classList.add('is-hidden')
+  activeRequirementAttachmentViewerId = ''
+  if (requirementAttachmentViewerContent) {
+    requirementAttachmentViewerContent.innerHTML = ''
+  }
+  if (!requirementsExplorerModal?.classList.contains('is-hidden')) {
+    document.body.classList.add('menu-open')
+  } else {
+    document.body.classList.remove('menu-open')
+  }
+}
+
+function renderRequirementAttachmentViewer(attachments = [], options = {}) {
+  if (!requirementAttachmentViewerContent || !requirementAttachmentViewerTitle || !requirementAttachmentViewerEyebrow) {
+    return
+  }
+
+  const kind = options.kind === 'image' ? 'image' : 'document'
+  const title = String(options.title || (kind === 'image' ? 'Fotos del recurso' : 'Adjuntos del recurso')).trim()
+  requirementAttachmentViewerEyebrow.textContent = kind === 'image' ? 'Vista previa' : 'Documentos'
+  requirementAttachmentViewerTitle.textContent = title
+
+  if (kind === 'image') {
+    requirementAttachmentViewerContent.innerHTML = `
+      <div class="attachment-viewer-grid">
+        ${attachments
+          .map((attachment, index) => {
+            const safeUrl = escapeHtml(attachment.url)
+            const safeName = escapeHtml(attachment.file_name || `Imagen ${index + 1}`)
+            return `
+              <article class="attachment-viewer-card">
+                <div class="attachment-viewer-card__media">
+                  <img src="${safeUrl}" alt="${safeName}" />
+                </div>
+                <div class="attachment-viewer-card__footer">
+                  <strong>${safeName}</strong>
+                  <a href="${safeUrl}" target="_blank" rel="noreferrer">Abrir imagen</a>
+                </div>
+              </article>
+            `
+          })
+          .join('')}
+      </div>
+    `
+    return
+  }
+
+  requirementAttachmentViewerContent.innerHTML = `
+    <div class="attachment-document-list">
+      ${attachments
+        .map((attachment, index) => {
+          const safeUrl = escapeHtml(attachment.url)
+          const safeName = escapeHtml(attachment.file_name || `Archivo ${index + 1}`)
+          return `
+            <article class="attachment-document-row">
+              <div class="attachment-document-row__meta">
+                <strong>${safeName}</strong>
+              </div>
+              <a class="ghost-button ghost-button--soft" href="${safeUrl}" target="_blank" rel="noreferrer">Abrir archivo</a>
+            </article>
+          `
+        })
+        .join('')}
+    </div>
+  `
+}
+
+function openRequirementAttachmentViewer(viewerId = '', options = {}) {
+  const attachments = requirementAttachmentViewerRegistry.get(String(viewerId || '').trim()) || []
+  if (!attachments.length) {
+    requirementsExplorerContent.dataset.resourceNotice = 'No se encontraron adjuntos para mostrar.'
+    renderRequirementModalExplorerPreservingViewport()
+    return
+  }
+
+  if (!requirementAttachmentViewerModal) {
+    requirementsExplorerContent.dataset.resourceNotice = 'La vista previa de adjuntos no está disponible en esta pantalla.'
+    renderRequirementModalExplorerPreservingViewport()
+    return
+  }
+
+  activeRequirementAttachmentViewerId = String(viewerId || '').trim()
+  renderRequirementAttachmentViewer(attachments, options)
+  requirementAttachmentViewerModal.classList.remove('is-hidden')
+  document.body.classList.add('menu-open')
+}
+
+function buildRequirementAttachmentCell(value, column) {
+  const kind = column.key === 'fotos' ? 'image' : 'document'
+  const attachments = normalizeRequirementViewerAttachments(value, kind)
+  if (!attachments.length) {
+    return '<span class="cell-text cell-empty">-</span>'
+  }
+
+  const viewerId = registerRequirementAttachmentViewer(attachments)
+  const firstAttachment = attachments[0]
+  const countLabel = attachments.length === 1 ? '1 adjunto' : `${attachments.length} adjuntos`
+  const safeCountLabel = escapeHtml(countLabel)
+  const iconMarkup = getRequirementAttachmentIconMarkup()
+
+  if (kind === 'image' && attachments.length === 1) {
+    return `
+      <div class="attachment-inline attachment-inline--image">
+        <button class="icon-action icon-action--view attachment-inline__trigger" type="button" data-action="open-requirement-attachments" data-viewer-id="${escapeHtml(viewerId)}" data-viewer-kind="${kind}" title="Ver imagen" aria-label="Ver imagen">
+          ${iconMarkup}
+        </button>
+        <span class="attachment-inline__count">${safeCountLabel}</span>
+        <div class="attachment-hover-card" role="presentation">
+          <img src="${escapeHtml(firstAttachment.url)}" alt="${escapeHtml(firstAttachment.file_name || 'Imagen del recurso')}" />
+        </div>
+      </div>
+    `
+  }
+
+  return `
+    <div class="attachment-inline">
+      <button class="icon-action icon-action--view attachment-inline__trigger" type="button" data-action="open-requirement-attachments" data-viewer-id="${escapeHtml(viewerId)}" data-viewer-kind="${kind}" title="${kind === 'image' ? 'Ver fotos' : 'Ver ficha técnica'}" aria-label="${kind === 'image' ? 'Ver fotos' : 'Ver ficha técnica'}">
+        ${iconMarkup}
+      </button>
+      <span class="attachment-inline__count">${safeCountLabel}</span>
+    </div>
+  `
+}
+
 function formatCellValue(value, column) {
   if (value === null || value === undefined || value === '') {
     return '<span class="cell-text cell-empty">-</span>'
@@ -4957,20 +5242,7 @@ function formatCellValue(value, column) {
   }
 
   if (['ficha_tecnica', 'fotos', 'ficha_tecnica_a_suministrar', 'archivo_guia'].includes(column.key)) {
-    const attachmentItems = Array.isArray(value)
-      ? value.filter((item) => item !== null && item !== undefined && item !== '')
-      : typeof value === 'object'
-        ? Object.values(value).filter((item) => item !== null && item !== undefined && item !== '')
-        : String(value).trim()
-          ? [value]
-          : []
-
-    if (!attachmentItems.length) {
-      return '<span class="cell-text cell-empty">-</span>'
-    }
-
-    const label = attachmentItems.length === 1 ? '1 adjunto' : `${attachmentItems.length} adjuntos`
-    return `<span class="attachment-pill" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`
+    return buildRequirementAttachmentCell(value, column)
   }
 
   if (typeof value === 'object') {
@@ -4990,7 +5262,7 @@ function formatCellValue(value, column) {
   }
 
   if (column.type === 'number') {
-    return `<span class="cell-text">${formatNumber(value, column)}</span>`
+    return `<span class="${getRequirementNumericCellClass(column)}">${formatNumber(value, column)}</span>`
   }
 
   if (column.tag) {
@@ -7471,6 +7743,8 @@ function renderRequirementDetailsTable() {
     return
   }
 
+  requirementAttachmentViewerRegistry.clear()
+
   const permissions = getCurrentModulePermissions('details')
   if (!permissions.access) {
     requirementsDetailTableBody.innerHTML = `<tr><td class="empty-table" colspan="${Math.max(requirementDetailsColumns.length, 1)}">No tienes acceso a Detalle de Requerimientos.</td></tr>`
@@ -9369,6 +9643,33 @@ function getRequirementWorkflowPrimaryButtonLabel(record = activeRequirementReco
   return 'Continuar workflow'
 }
 
+function getRequirementWorkflowTypeUsdSummary(items = requirementModalItems) {
+  const totalsByType = new Map()
+
+  ;(Array.isArray(items) ? items : []).forEach((item) => {
+    const typeLabel = String(item?.tipo || 'Sin tipo').trim() || 'Sin tipo'
+    const usdDirect = Number(item?.costo_total_presupuestado_usd)
+    const usdFromSoles =
+      Number.isFinite(Number(item?.costo_total_presupuestado_s)) && Number(item?.tc) > 0
+        ? Number(item.costo_total_presupuestado_s) / Number(item.tc)
+        : null
+    const usdValue = Number.isFinite(usdDirect) ? usdDirect : usdFromSoles
+
+    if (!Number.isFinite(usdValue) || usdValue <= 0) {
+      return
+    }
+
+    totalsByType.set(typeLabel, (totalsByType.get(typeLabel) || 0) + usdValue)
+  })
+
+  return [...totalsByType.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .map(([type, total]) => ({
+      type,
+      formattedTotal: `$ ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    }))
+}
+
 function buildRequirementWorkflowSummaryMarkup(record = activeRequirementRecord) {
   if (!record) {
     return ''
@@ -9395,23 +9696,43 @@ function buildRequirementWorkflowSummaryMarkup(record = activeRequirementRecord)
       : ''
   const latestMovementLabel = latestWorkflowEvent?.title || 'Sin transición formal todavía'
   const latestMovementDate = formatDateTime(latestWorkflowEvent?.created_at) || 'Pendiente'
+  const typeUsdSummary = getRequirementWorkflowTypeUsdSummary(requirementModalItems)
 
   return `
     <section class="rq-workflow">
       <div class="rq-workflow__header">
-        <div>
+        <div class="rq-workflow__header-main">
           <p class="rq-workflow__eyebrow">Workflow formal</p>
           <h5 class="rq-workflow__title">${escapeHtml(getRequirementWorkflowStageLabel(stage))}</h5>
+          <div class="rq-workflow__chips">
+            <span class="tag tag--${getTagTone(getRequirementWorkflowStatusLabel(status))}">${escapeHtml(getRequirementWorkflowStatusLabel(status))}</span>
+            <span class="rq-chip">${escapeHtml(getRequirementPendingRoleLabel(record.pending_role || ''))}</span>
+            ${requiresFinal ? `<span class="rq-chip ${finalConformityApproved ? 'rq-chip--ok' : 'rq-chip--warning'}">${escapeHtml(finalConformityApproved ? 'Conformidad final registrada' : 'Conformidad final pendiente')}</span>` : ''}
+          </div>
           <p class="rq-workflow__meta-line">
             <span><strong>Pendiente:</strong> ${escapeHtml(getRequirementPendingRoleLabel(record.pending_role || ''))}</span>
             <span><strong>Último movimiento:</strong> ${escapeHtml(latestMovementLabel)}</span>
             <span><strong>Actualizado:</strong> ${escapeHtml(latestMovementDate)}</span>
           </p>
         </div>
-        <div class="rq-workflow__chips">
-          <span class="tag tag--${getTagTone(getRequirementWorkflowStatusLabel(status))}">${escapeHtml(getRequirementWorkflowStatusLabel(status))}</span>
-          <span class="rq-chip">${escapeHtml(getRequirementPendingRoleLabel(record.pending_role || ''))}</span>
-          ${requiresFinal ? `<span class="rq-chip ${finalConformityApproved ? 'rq-chip--ok' : 'rq-chip--warning'}">${escapeHtml(finalConformityApproved ? 'Conformidad final registrada' : 'Conformidad final pendiente')}</span>` : ''}
+        <div class="rq-workflow__summary">
+          <span class="rq-workflow__summary-label">Totales por tipo [USD]</span>
+          <div class="rq-workflow__summary-list">
+            ${
+              typeUsdSummary.length
+                ? typeUsdSummary
+                    .map(
+                      (entry) => `
+                        <article class="rq-workflow__summary-card">
+                          <span>${escapeHtml(entry.type)}</span>
+                          <strong>${escapeHtml(entry.formattedTotal)}</strong>
+                        </article>
+                      `,
+                    )
+                    .join('')
+                : '<span class="rq-workflow__summary-empty">Sin importes USD calculados todavía.</span>'
+            }
+          </div>
         </div>
       </div>
       ${workflowGuardMessage ? `<div class="sync-status" data-tone="warning">${escapeHtml(workflowGuardMessage)}</div>` : ''}
@@ -12006,6 +12327,7 @@ function getSortedRequirementModalRecords(recordsToSort) {
 
 function buildRequirementModalTable() {
   const permissions = getCurrentModulePermissions('details')
+  requirementAttachmentViewerRegistry.clear()
   const visibleColumns = getVisibleRequirementModalColumns()
   const stickyMetaMap = getFrozenColumnMeta(visibleColumns, requirementDetailsColumnWidths, requirementModalFrozenColumnCount)
   const actionsWidth = 156
@@ -12690,6 +13012,7 @@ async function openRequirementDetail(requirementRecord, options = {}) {
   requirementModalFilters = {}
   requirementModalSort = { key: 'item', direction: 'asc' }
   requirementModalVisibleColumnKeys = loadColumnKeys(requirementModalVisibilityStorageKey, requirementModalColumns)
+  syncRequirementModalVisibleColumnKeys(requirementModalColumns, { reason: 'openRequirementDetail' })
   requirementModalColumnManagerOpen = false
   requirementModalResourcePickerOpen = false
   requirementModalResourceSearch = ''
@@ -13044,9 +13367,20 @@ async function attachResourceToActiveRequirement(resourceId) {
   }
 
   const normalizedResourceId = String(resourceId ?? '').trim()
-  const resource = resourcesRecords.find((record) => String(record.id ?? '').trim() === normalizedResourceId)
+  const resource = resourcesRecords.find((record) => getResourceRecordIdentity(record) === normalizedResourceId)
   if (!resource) {
     requirementsExplorerContent.dataset.resourceNotice = 'No se encontró el recurso seleccionado en el catálogo.'
+    console.error('attachResourceToActiveRequirement: recurso no resuelto', {
+      resourceId,
+      normalizedResourceId,
+      availableResourceIds: resourcesRecords.slice(0, 20).map((record) => ({
+        id: record?.id ?? null,
+        resource_id: record?.resource_id ?? null,
+        recurso_id: record?.recurso_id ?? null,
+        codigo: record?.codigo ?? null,
+        descripcion: record?.descripcion ?? null,
+      })),
+    })
     renderRequirementModalExplorer()
     return
   }
@@ -13058,7 +13392,13 @@ async function attachResourceToActiveRequirement(resourceId) {
 
   try {
     customRequirementItems = [...customRequirementItems, nextItem]
+    requirementModalFilters = {}
+    requirementModalSort = { key: 'item', direction: 'asc' }
     await syncRequirementLocalItemsState(`Se agregó "${resource.descripcion}" al requerimiento ${activeRequirementRecord.rq_codigo}.`)
+    const insertedItem = requirementModalItems.find((item) => item.local_item_id === nextItem.local_item_id)
+    if (!insertedItem) {
+      throw new Error('El item local no quedó disponible en requirementModalItems después del refresco.')
+    }
     await persistCustomRequirementItems()
   } catch (error) {
     console.error('Error attachResourceToActiveRequirement:', error)
@@ -13082,10 +13422,8 @@ function openRequirementModalInlineEdit(localItemId, columnKey) {
   if (!localItemId || !getRequirementInlineEditableColumnsConfig()[columnKey]) {
     return
   }
-  const viewportState = captureRequirementsExplorerViewportState()
   requirementModalInlineEdit = { localItemId, columnKey }
-  renderRequirementModalExplorer()
-  restoreRequirementsExplorerViewportState(viewportState, {
+  renderRequirementModalExplorerPreservingViewport({
     focusSelector: `[data-inline-editor="true"][data-local-item-id="${CSS.escape(localItemId)}"][data-column-key="${columnKey}"]`,
     selectInput: true,
   })
@@ -13095,10 +13433,8 @@ function closeRequirementModalInlineEdit() {
   if (!requirementModalInlineEdit) {
     return
   }
-  const viewportState = captureRequirementsExplorerViewportState()
   requirementModalInlineEdit = null
-  renderRequirementModalExplorer()
-  restoreRequirementsExplorerViewportState(viewportState)
+  renderRequirementModalExplorerPreservingViewport()
 }
 
 async function saveRequirementModalInlineEdit(input) {
@@ -13505,6 +13841,7 @@ resourceCategoryManageButton?.addEventListener('click', () => {
 })
 
 closeResourcesModalButton?.addEventListener('click', closeResourcesModal)
+closeRequirementAttachmentViewerButton?.addEventListener('click', closeRequirementAttachmentViewer)
 confirmDialogCancelButton?.addEventListener('click', () => closeConfirmDialog(false))
 confirmDialogAcceptButton?.addEventListener('click', () => closeConfirmDialog(true))
 confirmDialogBackdrop?.addEventListener('click', () => closeConfirmDialog(false))
@@ -13926,6 +14263,19 @@ requirementsDetailTableHead?.addEventListener('click', (event) => {
   renderRequirementDetailsTable()
 })
 
+requirementsDetailTableBody?.addEventListener('click', (event) => {
+  const attachmentViewerButton = event.target.closest('[data-action="open-requirement-attachments"]')
+  if (!attachmentViewerButton) {
+    return
+  }
+
+  event.preventDefault()
+  openRequirementAttachmentViewer(attachmentViewerButton.dataset.viewerId, {
+    kind: attachmentViewerButton.dataset.viewerKind,
+    title: attachmentViewerButton.dataset.viewerKind === 'image' ? 'Fotos del recurso' : 'Adjuntos del recurso',
+  })
+})
+
 requirementsDetailPageSize?.addEventListener('change', () => {
   requirementDetailsPageSizeValue = Math.max(1, Number(requirementsDetailPageSize.value) || 200)
   requirementDetailsPage = 1
@@ -14182,6 +14532,17 @@ requirementsTableBody?.addEventListener('click', (event) => {
 requirementsExplorerContent?.addEventListener('click', (event) => {
   const quotationPermissions = getCurrentQuotationPermissions()
   const detailsPermissions = getCurrentModulePermissions('details')
+  const attachmentViewerButton = event.target.closest('[data-action="open-requirement-attachments"]')
+  if (attachmentViewerButton) {
+    event.preventDefault()
+    event.stopPropagation()
+    openRequirementAttachmentViewer(attachmentViewerButton.dataset.viewerId, {
+      kind: attachmentViewerButton.dataset.viewerKind,
+      title: attachmentViewerButton.dataset.viewerKind === 'image' ? 'Fotos del recurso' : 'Adjuntos del recurso',
+    })
+    return
+  }
+
   const inlineCloseButton = event.target.closest('[data-action="close-explorer"]')
   if (inlineCloseButton) {
     closeRequirementsExplorer()
@@ -14396,7 +14757,7 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
       explorerActiveTab = 'summary'
     }
     requirementModalColumnManagerOpen = !requirementModalColumnManagerOpen
-    renderRequirementModalExplorer()
+    renderRequirementModalExplorerPreservingViewport()
     return
   }
 
@@ -14427,7 +14788,7 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
   if (resetModalColumnsButton) {
     requirementModalVisibleColumnKeys = getDefaultVisibleColumnKeys(requirementModalColumns)
     requirementModalFrozenColumnCount = 0
-    persistRequirementModalVisibleColumnKeys()
+    syncRequirementModalVisibleColumnKeys(requirementModalColumns, { persist: true, reason: 'reset-modal-columns' })
     persistStoredCount(requirementModalFrozenColumnsStorageKey, requirementModalFrozenColumnCount)
     renderRequirementModalExplorer()
     return
@@ -14460,7 +14821,7 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
     } else if (!requirementModalResourcePickerOpen) {
       requirementsExplorerContent.dataset.resourceNotice = ''
     }
-    renderRequirementModalExplorer()
+    renderRequirementModalExplorerPreservingViewport()
     return
   }
 
@@ -14757,6 +15118,15 @@ requirementsExplorerContent?.addEventListener('input', (event) => {
 
 requirementsExplorerSidePanel?.addEventListener('click', (event) => {
   const detailsPermissions = getCurrentModulePermissions('details')
+  const closeResourcePickerButton = event.target.closest('[data-action="close-resource-picker"]')
+  if (closeResourcePickerButton) {
+    event.preventDefault()
+    event.stopPropagation()
+    requirementModalResourcePickerOpen = false
+    renderRequirementModalExplorerPreservingViewport()
+    return
+  }
+
   const createResourceFromRequirementButton = event.target.closest('[data-action="create-resource-from-requirement"]')
   if (createResourceFromRequirementButton) {
     event.preventDefault()
@@ -14868,7 +15238,7 @@ requirementsExplorerContent?.addEventListener('change', (event) => {
         columnToggle.checked = true
       }
     }
-    persistRequirementModalVisibleColumnKeys()
+    syncRequirementModalVisibleColumnKeys(requirementModalColumns, { persist: true, reason: 'toggle-modal-column' })
     renderRequirementModalExplorer()
     return
   }

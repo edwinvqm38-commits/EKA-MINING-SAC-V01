@@ -774,6 +774,25 @@
       </section>
     </div>
 
+    <div class="modal-shell is-hidden" id="requirementAttachmentViewerModal">
+      <div class="modal-backdrop" id="requirementAttachmentViewerBackdrop"></div>
+      <section class="modal-card modal-card--attachment-viewer">
+        <div class="modal-card__header">
+          <div class="modal-card__header-main">
+            <div>
+              <p class="eyebrow" id="requirementAttachmentViewerEyebrow">Adjuntos</p>
+              <h3 id="requirementAttachmentViewerTitle">Vista previa</h3>
+            </div>
+          </div>
+          <button class="icon-close" id="closeRequirementAttachmentViewerButton" type="button" aria-label="Cerrar">
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+        <div class="requirement-attachment-viewer" id="requirementAttachmentViewerContent"></div>
+      </section>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js?v=20260423-1"></script>
     <script src="./app.js"></script>
