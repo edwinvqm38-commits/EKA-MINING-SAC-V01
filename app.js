@@ -19,6 +19,10 @@ const authHint = document.getElementById('authHint')
 const authGoogleButton = document.getElementById('authGoogleButton')
 const authSubmitButton = document.getElementById('authSubmitButton')
 const authResetButton = document.getElementById('authResetButton')
+const deepLinkProgressOverlay = document.getElementById('deepLinkProgressOverlay')
+const deepLinkProgressPercent = document.getElementById('deepLinkProgressPercent')
+const deepLinkProgressLabel = document.getElementById('deepLinkProgressLabel')
+const deepLinkProgressFill = document.getElementById('deepLinkProgressFill')
 const adminButton = document.getElementById('adminButton')
 const logoutButton = document.getElementById('logoutButton')
 const quotationsNavItem = document.querySelector('.nav-item[data-view="quotations-log"]')
@@ -280,6 +284,13 @@ let activeResourceImageIndex = 0
 let customRequirementItems = []
 let activeResize = null
 let pendingDeepLinkRequirementTarget = null
+let deepLinkProgressState = {
+  active: false,
+  progress: 0,
+  target: 0,
+  label: '',
+  rafId: 0,
+}
 let requirementItemTrackingEvents = []
 let requirementItemTrackingState = 'idle'
 let requirementItemTrackingError = ''
@@ -1537,6 +1548,94 @@ function hideAuthShell() {
   updateAuthStatus('')
 }
 
+function renderDeepLinkProgressFrame(progressValue = deepLinkProgressState.progress) {
+  const progress = Math.max(0, Math.min(100, Math.round(progressValue)))
+  if (deepLinkProgressPercent) {
+    deepLinkProgressPercent.textContent = `${progress}%`
+  }
+  if (deepLinkProgressFill) {
+    deepLinkProgressFill.style.width = `${progress}%`
+  }
+  if (deepLinkProgressLabel) {
+    deepLinkProgressLabel.textContent = deepLinkProgressState.label || 'Preparando requerimiento...'
+  }
+}
+
+function animateDeepLinkProgress() {
+  if (!deepLinkProgressState.active) {
+    return
+  }
+
+  const delta = deepLinkProgressState.target - deepLinkProgressState.progress
+  if (Math.abs(delta) < 1) {
+    deepLinkProgressState.progress = deepLinkProgressState.target
+    renderDeepLinkProgressFrame()
+    deepLinkProgressState.rafId = 0
+    return
+  }
+
+  deepLinkProgressState.progress += delta * 0.18
+  renderDeepLinkProgressFrame()
+  deepLinkProgressState.rafId = window.requestAnimationFrame(animateDeepLinkProgress)
+}
+
+function startRequirementDeepLinkProgress(progress = 10, label = 'Iniciando apertura del enlace') {
+  if (!(deepLinkProgressOverlay && deepLinkProgressPercent && deepLinkProgressFill && deepLinkProgressLabel)) {
+    return
+  }
+
+  deepLinkProgressState.active = true
+  deepLinkProgressState.label = label
+  deepLinkProgressState.progress = Math.max(0, Math.min(100, Number(progress) || 0))
+  deepLinkProgressState.target = deepLinkProgressState.progress
+  if (deepLinkProgressState.rafId) {
+    window.cancelAnimationFrame(deepLinkProgressState.rafId)
+    deepLinkProgressState.rafId = 0
+  }
+  deepLinkProgressOverlay.classList.remove('is-hidden')
+  renderDeepLinkProgressFrame()
+}
+
+function updateRequirementDeepLinkProgress(progress = 0, label = '') {
+  if (!deepLinkProgressState.active) {
+    startRequirementDeepLinkProgress(progress, label)
+    return
+  }
+
+  deepLinkProgressState.target = Math.max(deepLinkProgressState.target, Math.min(100, Number(progress) || 0))
+  if (label) {
+    deepLinkProgressState.label = label
+  }
+  renderDeepLinkProgressFrame()
+  if (!deepLinkProgressState.rafId) {
+    deepLinkProgressState.rafId = window.requestAnimationFrame(animateDeepLinkProgress)
+  }
+}
+
+function finishRequirementDeepLinkProgress(progress = 100, label = 'Requerimiento abierto') {
+  if (!deepLinkProgressState.active) {
+    return
+  }
+
+  updateRequirementDeepLinkProgress(progress, label)
+  window.setTimeout(() => {
+    if (deepLinkProgressState.rafId) {
+      window.cancelAnimationFrame(deepLinkProgressState.rafId)
+    }
+    deepLinkProgressState = {
+      active: false,
+      progress: 0,
+      target: 0,
+      label: '',
+      rafId: 0,
+    }
+    if (deepLinkProgressOverlay) {
+      deepLinkProgressOverlay.classList.add('is-hidden')
+    }
+    renderDeepLinkProgressFrame(0)
+  }, progress >= 100 ? 220 : 0)
+}
+
 function setSidebarUserState() {
   const email = authSession?.user?.email || ''
   const displayName = currentUserProfile?.full_name || email || 'Administrador'
@@ -2207,6 +2306,9 @@ async function updateAdminUserRole(userId, role) {
 async function loadSecureDatasets() {
   closeRequirementsExplorer()
   pendingDeepLinkRequirementTarget = consumeRequirementDeepLink()
+  if (pendingDeepLinkRequirementTarget?.id || pendingDeepLinkRequirementTarget?.code || pendingDeepLinkRequirementTarget?.key) {
+    startRequirementDeepLinkProgress(10, 'Iniciando apertura del enlace')
+  }
   await loadResourcesCatalog()
   if (resourcesModal?.classList.contains('is-hidden')) {
     fillResourcesForm()
@@ -2222,6 +2324,9 @@ async function loadSecureDatasets() {
 
 async function applyAuthSession(session) {
   authSession = session || null
+  const hasPendingRequirementDeepLink = Boolean(
+    pendingDeepLinkRequirementTarget?.id || pendingDeepLinkRequirementTarget?.code || pendingDeepLinkRequirementTarget?.key,
+  )
 
   if (!authSession?.user) {
     authRecoveryMode = false
@@ -2231,6 +2336,10 @@ async function applyAuthSession(session) {
     closeRequirementsExplorer()
     closeRequirementEntryModal()
     resetAppData()
+    if (hasPendingRequirementDeepLink) {
+      updateRequirementDeepLinkProgress(25, 'Validando sesión')
+      finishRequirementDeepLinkProgress(0, '')
+    }
     showAuthShell(
       pendingDeepLinkRequirementTarget?.id || pendingDeepLinkRequirementTarget?.code || pendingDeepLinkRequirementTarget?.key
         ? getRequirementDeepLinkAccessMessage()
@@ -2241,8 +2350,15 @@ async function applyAuthSession(session) {
   }
 
   if (authRecoveryMode) {
+    if (hasPendingRequirementDeepLink) {
+      finishRequirementDeepLinkProgress(0, '')
+    }
     enterPasswordRecoveryMode(authSession)
     return
+  }
+
+  if (hasPendingRequirementDeepLink) {
+    updateRequirementDeepLinkProgress(25, 'Validando sesión')
   }
 
   try {
@@ -2250,8 +2366,15 @@ async function applyAuthSession(session) {
   } catch (error) {
     currentUserProfile = null
     setSidebarUserState()
+    if (hasPendingRequirementDeepLink) {
+      finishRequirementDeepLinkProgress(0, '')
+    }
     showAuthShell(`No se pudo validar tu perfil: ${error.message}`, 'danger')
     return
+  }
+
+  if (hasPendingRequirementDeepLink) {
+    updateRequirementDeepLinkProgress(45, 'Validando aprobación')
   }
 
   if (!currentUserProfile?.active) {
@@ -2267,6 +2390,9 @@ async function applyAuthSession(session) {
         : 'Cuenta pendiente de aprobación por el administrador.',
       'danger',
     )
+    if (hasPendingRequirementDeepLink) {
+      finishRequirementDeepLinkProgress(0, '')
+    }
     return
   }
 
@@ -2283,6 +2409,9 @@ async function initializeAuth() {
     setAppBootstrapResolved()
     closeRequirementsExplorer()
     pendingDeepLinkRequirementTarget = consumeRequirementDeepLink()
+    if (pendingDeepLinkRequirementTarget?.id || pendingDeepLinkRequirementTarget?.code || pendingDeepLinkRequirementTarget?.key) {
+      startRequirementDeepLinkProgress(10, 'Iniciando apertura del enlace')
+    }
     initializeSelectCatalogs()
     loadResourcesCatalog().then(() => {
       if (resourcesModal?.classList.contains('is-hidden')) {
@@ -12302,20 +12431,28 @@ async function tryOpenRequirementFromDeepLink() {
   }
 
   if (!ensureRequirementDeepLinkAccess(requirementTarget)) {
+    finishRequirementDeepLinkProgress(0, '')
     return
   }
 
+  updateRequirementDeepLinkProgress(65, 'Buscando requerimiento')
   const requirementRecord = findRequirementByDeepLinkTarget(requirementTarget)
   if (!requirementRecord) {
     pendingDeepLinkRequirementTarget = null
     clearRequirementDeepLink()
+    finishRequirementDeepLinkProgress(0, '')
     updateStatus('No se encontró el requerimiento vinculado al enlace recibido.', 'warning')
     return
   }
 
   pendingDeepLinkRequirementTarget = null
   clearRequirementDeepLink()
-  await openRequirementDetail(requirementRecord, { preserveDeepLink: false })
+  try {
+    await openRequirementDetail(requirementRecord, { preserveDeepLink: false, fromDeepLink: true })
+  } catch (error) {
+    finishRequirementDeepLinkProgress(0, '')
+    updateStatus(`No se pudo abrir el requerimiento vinculado: ${error.message}`, 'warning')
+  }
 }
 
 function downloadTextFile(filename, content, mimeType = 'text/plain;charset=utf-8') {
@@ -12532,7 +12669,11 @@ async function openRequirementDetail(requirementRecord, options = {}) {
     return
   }
 
-  const { preserveDeepLink = false } = options
+  const { preserveDeepLink = false, fromDeepLink = false } = options
+
+  if (fromDeepLink) {
+    updateRequirementDeepLinkProgress(85, 'Cargando detalle')
+  }
 
   selectedRequirementKey = getRequirementRecordKey(requirementRecord)
   activeExplorerMode = 'rq-detail'
@@ -12563,6 +12704,10 @@ async function openRequirementDetail(requirementRecord, options = {}) {
   openRequirementsExplorer('', requirementRecord.rq_codigo || 'Detalle de requerimiento', '')
   renderRequirementModalExplorer()
   void refreshExplorerExpedienteData(true)
+
+  if (fromDeepLink) {
+    finishRequirementDeepLinkProgress(100, 'Requerimiento abierto')
+  }
 }
 
 async function loadRecords() {
