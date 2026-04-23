@@ -68,6 +68,9 @@ const closeResourcesModalButton = document.getElementById('closeResourcesModalBu
 const resourcesModalTitle = document.getElementById('resourcesModalTitle')
 const resourcesForm = document.getElementById('resourcesForm')
 const resourcesFormReset = document.getElementById('resourcesFormReset')
+const resourceCategoryInput = document.getElementById('resourceCategory')
+const resourceCategoryManageButton = document.getElementById('resourceCategoryManageButton')
+const resourcesCatalogManagerPanel = document.getElementById('resourcesCatalogManagerPanel')
 const resourcesRefreshButton = document.getElementById('resourcesRefreshButton')
 const resourcesSearch = document.getElementById('resourcesSearch')
 const resourcesTableHead = document.getElementById('resourcesTableHead')
@@ -161,9 +164,18 @@ const viewTitles = {
 }
 
 const config = window.SUPABASE_CONFIG || null
+console.log('workflowEmailDelivery runtime =', window.SUPABASE_CONFIG?.workflowEmailDelivery)
 const primaryKey = config?.primaryKey || 'id'
 const expedienteEvidenceBucket = config?.expedienteEvidenceBucket || 'requerimientos'
 const expedienteEvidencePathPrefix = config?.expedienteEvidencePathPrefix || 'expediente'
+const workflowEmailDeliveryConfig = {
+  mode: String(config?.workflowEmailDelivery?.mode || 'local')
+    .trim()
+    .toLowerCase(),
+  webhookUrl: String(config?.workflowEmailDelivery?.webhookUrl || '').trim(),
+  webhookToken: String(config?.workflowEmailDelivery?.webhookToken || '').trim(),
+  timeoutMs: Math.max(5000, Number(config?.workflowEmailDelivery?.timeoutMs || 15000) || 15000),
+}
 const primarySuperAdminEmail = 'edwin.qm@outlook.com'
 const companyDocumentRepositoryEmail = 'presupuestos@ekamining.com'
 const initialAuthSearch = typeof window !== 'undefined' ? String(window.location.search || '') : ''
@@ -239,6 +251,16 @@ let explorerEvidenceError = ''
 let explorerLegacyAttachmentRecords = []
 let explorerTrackingComposerMode = ''
 let explorerEvidenceComposerOpen = false
+let explorerWorkflowComposerActionKey = ''
+let explorerWorkflowComposerDraft = {
+  actionKey: '',
+  recipients: '',
+  subject: '',
+  comment: '',
+}
+let explorerWorkflowRecipientOptions = []
+let explorerWorkflowRecipientsState = 'idle'
+let explorerWorkflowRecipientsError = ''
 let explorerExpedienteSnapshotRecord = null
 let explorerExpedienteSnapshotSource = ''
 let resourcesRecords = []
@@ -246,9 +268,21 @@ let resourcesSearchTerm = ''
 let resourcesActiveFilters = {}
 let resourcesSort = { key: 'descripcion', direction: 'asc' }
 let editingResourceId = null
+let activeResourceModalOrigin = ''
+let activeResourceRecordSnapshot = null
+let activeResourcePreviewUrls = []
+let activeResourceImageAttachments = []
+let activeResourceTechnicalAttachments = []
+let pendingResourceImageFiles = []
+let pendingResourceTechnicalFiles = []
+let activeResourceImageIndex = 0
 let customRequirementItems = []
 let activeResize = null
-let pendingDeepLinkRequirementKey = ''
+let pendingDeepLinkRequirementTarget = null
+let requirementItemTrackingEvents = []
+let requirementItemTrackingState = 'idle'
+let requirementItemTrackingError = ''
+let activeRequirementItemTrackingCode = ''
 let confirmDialogResolver = null
 let quickEditDialogResolver = null
 let requirementModalInlineEdit = null
@@ -257,6 +291,10 @@ let deletedCatalogOptions = {}
 let activeCatalogFieldKey = ''
 let activeCatalogHost = 'record'
 let editingCatalogOptionValue = ''
+let catalogManagerFeedbackMessage = ''
+let catalogManagerFeedbackTone = 'info'
+let pendingCategoryMigrationSource = ''
+let recordFormDrafts = {}
 let authSession = null
 let currentUserProfile = null
 let authListenerAttached = false
@@ -357,6 +395,8 @@ const requirementDetailsPermissionDefaultState = {
   show_refresh_button: true,
   show_new_requirement_button: false,
   show_add_resource_button: false,
+  show_create_catalog_resource_button: false,
+  show_workflow_actions: false,
   show_columns_button: true,
   show_download_html_button: true,
   show_export_excel_button: true,
@@ -376,6 +416,8 @@ const requirementDetailsPermissionGeneralOptions = [
 const requirementDetailsPermissionSecondaryOptions = [
   { key: 'show_new_requirement_button', label: 'Botón Nuevo requerimiento', description: 'Permite crear un nuevo requerimiento desde el detalle.' },
   { key: 'show_add_resource_button', label: 'Botón Agregar recurso', description: 'Permite agregar recursos existentes al RQ.' },
+  { key: 'show_create_catalog_resource_button', label: 'Botón Crear recurso desde RQ', description: 'Permite abrir el alta de un nuevo recurso desde el panel lateral del requerimiento.' },
+  { key: 'show_workflow_actions', label: 'Acciones de workflow', description: 'Permite continuar el workflow formal del requerimiento desde esta vista.' },
   { key: 'show_download_html_button', label: 'Botón Descargar HTML', description: 'Permite generar la ficha HTML del requerimiento.' },
   { key: 'show_export_excel_button', label: 'Botón Exportar Excel', description: 'Permite exportar el detalle a Excel.' },
   { key: 'show_export_pdf_button', label: 'Botón Exportar PDF', description: 'Permite imprimir/exportar el detalle a PDF.' },
@@ -387,6 +429,7 @@ const resourcesPermissionDefaultState = {
   show_refresh_button: true,
   show_form: false,
   save_edits: false,
+  show_manage_categories_button: false,
   show_edit_button: true,
   show_delete_button: false,
   editable_fields: [],
@@ -397,6 +440,7 @@ const resourcesPermissionGeneralOptions = [
   { key: 'show_refresh_button', label: 'Botón Actualizar', description: 'Permite recargar el catálogo local.' },
   { key: 'show_form', label: 'Mostrar formulario', description: 'Permite ver el formulario de alta/edición de recursos.' },
   { key: 'save_edits', label: 'Guardar recursos', description: 'Permite crear o actualizar recursos.' },
+  { key: 'show_manage_categories_button', label: 'Administrar categorías', description: 'Permite editar la lista del select Categoría dentro del formulario de recursos.' },
   { key: 'show_edit_button', label: 'Icono Lápiz', description: 'Muestra la acción para editar recursos existentes.' },
   { key: 'show_delete_button', label: 'Icono Eliminar', description: 'Permite eliminar recursos del catálogo.' },
 ]
@@ -569,6 +613,10 @@ const requirementDetailsColumnDefinitions = [
   { key: 'moneda', label: 'MONEDA', type: 'text', tag: true },
   { key: 'fecha_coti', label: 'FECHA DE COTI', type: 'date' },
   { key: 'estado', label: 'ESTADO', type: 'text', tag: true },
+  { key: 'item_tracking_status', label: 'SEGUIMIENTO ITEM', type: 'text', tag: true },
+  { key: 'item_tracking_owner', label: 'RESPONSABLE ITEM', type: 'text' },
+  { key: 'item_tracking_pending', label: 'PENDIENTE ITEM', type: 'text' },
+  { key: 'item_tracking_updated_at', label: 'ACTUALIZADO ITEM', type: 'text' },
   { key: 'a_suministrar', label: 'A SUMINISTRAR', type: 'text' },
   { key: 'ficha_tecnica_a_suministrar', label: 'FICHA TECNICA A SUMINISTRAR', type: 'text' },
   { key: 'estado_proveedor', label: 'ESTADO // PROVEEDOR', type: 'text', tag: true },
@@ -802,6 +850,12 @@ const managedSelectFieldDefinitions = {
     label: 'Área del requerimiento',
     kind: 'simple',
     aliases: ['area'],
+  },
+  resource_categoria: {
+    label: 'Categoría',
+    kind: 'simple',
+    aliases: ['categoria'],
+    transform: 'uppercase',
   },
   status_oferta: { label: 'Status Oferta', kind: 'simple' },
 }
@@ -1232,10 +1286,12 @@ function setActiveView(viewKey) {
     typeof window !== 'undefined' &&
     viewKey !== 'requirements-log' &&
     viewKey !== 'requirements-detail' &&
-    /^#rq=/.test(window.location.hash || '')
+    (/^#rq=/.test(window.location.hash || '') || /[?&](rq|rq_id|rq_codigo)=/i.test(window.location.search || ''))
   ) {
-    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-    pendingDeepLinkRequirementKey = ''
+    const cleanUrl = new URL(window.location.href)
+    applyRequirementDeepLinkToUrl(cleanUrl, {})
+    window.history.replaceState(null, '', `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`)
+    pendingDeepLinkRequirementTarget = null
   }
 
   navItems.forEach((item) => {
@@ -1887,15 +1943,15 @@ function buildModulePermissionsPreset(moduleKey = 'quotations', presetKey = 'rea
     },
     details: {
       blocked: { ...requirementDetailsPermissionDefaultState, access: false, editable_fields: editableFields },
-      reader: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: false, show_add_resource_button: false, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true, editable_fields: editableFields },
-      editor: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: true, show_add_resource_button: true, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true, editable_fields: editableFields },
-      full: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: true, show_add_resource_button: true, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true, editable_fields: editableFields },
+      reader: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: false, show_add_resource_button: false, show_create_catalog_resource_button: false, show_workflow_actions: false, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true, editable_fields: editableFields },
+      editor: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: true, show_add_resource_button: true, show_create_catalog_resource_button: false, show_workflow_actions: true, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true, editable_fields: editableFields },
+      full: { ...requirementDetailsPermissionDefaultState, access: true, show_refresh_button: true, show_new_requirement_button: true, show_add_resource_button: true, show_create_catalog_resource_button: true, show_workflow_actions: true, show_columns_button: true, show_download_html_button: true, show_export_excel_button: true, show_export_pdf_button: true, show_print_button: true, show_share_button: true, editable_fields: editableFields },
     },
     resources: {
       blocked: { ...resourcesPermissionDefaultState, access: false, editable_fields: editableFields },
-      reader: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: false, save_edits: false, show_edit_button: false, show_delete_button: false, editable_fields: editableFields },
-      editor: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: true, save_edits: true, show_edit_button: true, show_delete_button: false, editable_fields: editableFields },
-      full: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: true, save_edits: true, show_edit_button: true, show_delete_button: true, editable_fields: editableFields },
+      reader: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: false, save_edits: false, show_edit_button: false, show_delete_button: false, show_manage_categories_button: false, editable_fields: editableFields },
+      editor: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: true, save_edits: true, show_edit_button: true, show_delete_button: false, show_manage_categories_button: true, editable_fields: editableFields },
+      full: { ...resourcesPermissionDefaultState, access: true, show_refresh_button: true, show_form: true, save_edits: true, show_edit_button: true, show_delete_button: true, show_manage_categories_button: true, editable_fields: editableFields },
     },
     suppliers: {
       blocked: { ...suppliersPermissionDefaultState, access: false },
@@ -2149,9 +2205,11 @@ async function updateAdminUserRole(userId, role) {
 
 async function loadSecureDatasets() {
   closeRequirementsExplorer()
-  pendingDeepLinkRequirementKey = consumeRequirementDeepLink()
+  pendingDeepLinkRequirementTarget = consumeRequirementDeepLink()
   await loadResourcesCatalog()
-  fillResourcesForm()
+  if (resourcesModal?.classList.contains('is-hidden')) {
+    fillResourcesForm()
+  }
   await loadRecords()
   await loadRequirementsRecords()
   await loadRequirementDetails()
@@ -2216,9 +2274,13 @@ async function initializeAuth() {
   if (!supabaseClient?.auth) {
     setAppBootstrapResolved()
     closeRequirementsExplorer()
-    pendingDeepLinkRequirementKey = consumeRequirementDeepLink()
+    pendingDeepLinkRequirementTarget = consumeRequirementDeepLink()
     initializeSelectCatalogs()
-    loadResourcesCatalog().then(() => fillResourcesForm())
+    loadResourcesCatalog().then(() => {
+      if (resourcesModal?.classList.contains('is-hidden')) {
+        fillResourcesForm()
+      }
+    })
     loadRecords()
     loadRequirementsRecords()
     loadRequirementDetails().then(() => {
@@ -2449,8 +2511,46 @@ function normalizeCatalogEntries(fieldKey, entries = []) {
     .sort((a, b) => a.value.localeCompare(b.value, 'es', { sensitivity: 'base' }))
 }
 
+function normalizeCatalogCompareValue(value = '') {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleUpperCase('es-PE')
+}
+
+function transformCatalogValue(fieldKey, value = '') {
+  const definition = managedSelectFieldDefinitions[fieldKey] || { kind: 'simple' }
+  const normalized = String(value || '').trim().replace(/\s+/g, ' ')
+  if (!normalized) {
+    return ''
+  }
+
+  if (definition.transform === 'uppercase') {
+    return normalized.toLocaleUpperCase('es-PE')
+  }
+
+  return normalized
+}
+
 function getBaseCatalogEntries(fieldKey) {
   const definition = managedSelectFieldDefinitions[fieldKey] || { kind: 'simple' }
+  if (fieldKey === 'resource_categoria') {
+    const resourceSources = [
+      ...(Array.isArray(resourcesRecords) ? resourcesRecords : []),
+      ...(Array.isArray(defaultResourceCatalog) ? defaultResourceCatalog : []),
+    ]
+    const registry = new Map()
+    resourceSources.forEach((record) => {
+      const rawValue = transformCatalogValue(fieldKey, record?.categoria || '')
+      if (!rawValue) {
+        return
+      }
+
+      registry.set(normalizeCatalogCompareValue(rawValue), { value: rawValue })
+    })
+    return normalizeCatalogEntries(fieldKey, [...registry.values()])
+  }
+
   const sourceRecords = [
     ...(records.length ? records : fallbackRecords),
     ...(fieldKey === 'requirement_area'
@@ -2816,7 +2916,8 @@ function renderResourcesTable() {
     .join('')
 }
 
-function openResourcesModal(record = null) {
+function openResourcesModal(record = null, options = {}) {
+  activeResourceModalOrigin = options.origin || ''
   fillResourcesForm(record)
   if (resourcesModalTitle) {
     resourcesModalTitle.textContent = editingResourceId ? 'Editar recurso' : 'Nuevo recurso'
@@ -2826,9 +2927,99 @@ function openResourcesModal(record = null) {
 }
 
 function closeResourcesModal() {
+  if (activeCatalogHost === 'resource') {
+    closeCatalogManager()
+  }
+  revokeActiveResourcePreviewUrls()
   resourcesModal?.classList.add('is-hidden')
-  document.body.classList.remove('menu-open')
+  activeResourceModalOrigin = ''
+  activeResourceRecordSnapshot = null
+  activeResourceImageAttachments = []
+  activeResourceTechnicalAttachments = []
+  pendingResourceImageFiles = []
+  pendingResourceTechnicalFiles = []
+  activeResourceImageIndex = 0
+  if (!requirementsExplorerModal?.classList.contains('is-hidden')) {
+    document.body.classList.add('menu-open')
+  } else {
+    document.body.classList.remove('menu-open')
+  }
   fillResourcesForm()
+}
+
+function getResourceDocumentReference(record = null, fieldPrefix = 'imagen') {
+  return {
+    url: String(record?.[`${fieldPrefix}_url`] || '').trim(),
+    file_name: String(record?.[`${fieldPrefix}_nombre_archivo`] || '').trim(),
+    source: String(record?.[`${fieldPrefix}_source`] || '').trim(),
+    mime_type: String(record?.[`${fieldPrefix}_mime_type`] || '').trim(),
+    size_bytes: Number(record?.[`${fieldPrefix}_size_bytes`] || 0) || null,
+  }
+}
+
+function createResourceAttachmentId(prefix = 'attachment') {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function normalizeResourceAttachment(entry = {}, kind = 'document') {
+  const url = String(entry?.url || entry?.public_url || entry?.image_url || entry?.file_url || '').trim()
+  if (!url) {
+    return null
+  }
+
+  return {
+    id: String(entry?.id || createResourceAttachmentId(kind)),
+    url,
+    file_name: String(entry?.file_name || '').trim(),
+    source: String(entry?.source || '').trim(),
+    mime_type: String(entry?.mime_type || '').trim(),
+    size_bytes: Number(entry?.size_bytes || 0) || null,
+    bucket: String(entry?.bucket || '').trim(),
+    storage_path: String(entry?.storage_path || '').trim(),
+  }
+}
+
+function getResourceAttachmentCollection(record = null, fieldPrefix = 'imagen') {
+  const collectionKey = `${fieldPrefix}_adjuntos`
+  const rawCollection = (() => {
+    if (Array.isArray(record?.[collectionKey])) {
+      return record[collectionKey]
+    }
+
+    if (typeof record?.[collectionKey] === 'string' && record[collectionKey].trim()) {
+      try {
+        const parsed = JSON.parse(record[collectionKey])
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
+    }
+
+    return []
+  })()
+
+  const normalizedCollection = rawCollection
+    .map((entry) => normalizeResourceAttachment(entry, fieldPrefix))
+    .filter(Boolean)
+
+  if (normalizedCollection.length) {
+    return normalizedCollection
+  }
+
+  const legacyReference = normalizeResourceAttachment(getResourceDocumentReference(record, fieldPrefix), fieldPrefix)
+  return legacyReference ? [legacyReference] : []
+}
+
+function getActiveResourceRecord() {
+  if (!editingResourceId) {
+    return activeResourceRecordSnapshot || null
+  }
+
+  return (
+    resourcesRecords.find((record) => String(record?.id || '') === String(editingResourceId)) ||
+    activeResourceRecordSnapshot ||
+    null
+  )
 }
 
 function fillResourcesForm(record = null) {
@@ -2836,20 +3027,28 @@ function fillResourcesForm(record = null) {
     return
   }
 
+  const resourceRecord = record || null
   editingResourceId = record?.id || null
-  resourcesForm.codigo.value = record?.codigo || ''
-  resourcesForm.codigo_fabricante.value = record?.codigo_fabricante || ''
-  resourcesForm.descripcion.value = record?.descripcion || ''
-  resourcesForm.categoria.value = record?.categoria || 'MATERIAL'
-  resourcesForm.marca.value = record?.marca || ''
-  resourcesForm.unidad.value = record?.unidad || ''
-  resourcesForm.tiempo_entrega.value = record?.tiempo_entrega || ''
-  resourcesForm.moneda.value = record?.moneda || 'PEN'
-  resourcesForm.costo_unitario.value = record?.costo_unitario ?? ''
-  resourcesForm.proveedor.value = record?.proveedor || ''
-  resourcesForm.imagen_url.value = record?.imagen_url || ''
-  resourcesForm.ficha_tecnica_url.value = record?.ficha_tecnica_url || ''
-  resourcesForm.observacion.value = record?.observacion || ''
+  activeResourceRecordSnapshot = resourceRecord ? { ...resourceRecord } : null
+  activeResourceImageAttachments = getResourceAttachmentCollection(resourceRecord, 'imagen')
+  activeResourceTechnicalAttachments = getResourceAttachmentCollection(resourceRecord, 'ficha_tecnica')
+  pendingResourceImageFiles = []
+  pendingResourceTechnicalFiles = []
+  activeResourceImageIndex = 0
+
+  resourcesForm.codigo.value = resourceRecord?.codigo || ''
+  resourcesForm.codigo_fabricante.value = resourceRecord?.codigo_fabricante || ''
+  resourcesForm.descripcion.value = resourceRecord?.descripcion || ''
+  refreshResourceCategoryManagedSelect(resourceRecord?.categoria || 'MATERIAL')
+  resourcesForm.marca.value = resourceRecord?.marca || ''
+  resourcesForm.unidad.value = resourceRecord?.unidad || ''
+  resourcesForm.tiempo_entrega.value = resourceRecord?.tiempo_entrega || ''
+  resourcesForm.moneda.value = resourceRecord?.moneda || 'PEN'
+  resourcesForm.costo_unitario.value = resourceRecord?.costo_unitario ?? ''
+  resourcesForm.proveedor.value = resourceRecord?.proveedor || ''
+  resourcesForm.imagen_url.value = ''
+  resourcesForm.ficha_tecnica_url.value = ''
+  resourcesForm.observacion.value = resourceRecord?.observacion || ''
   if (resourcesForm.imagen_file) {
     resourcesForm.imagen_file.value = ''
   }
@@ -2861,6 +3060,12 @@ function fillResourcesForm(record = null) {
   const submitButton = resourcesForm.querySelector('#resourcesFormSubmit')
   if (submitButton instanceof HTMLButtonElement) {
     submitButton.textContent = editingResourceId ? 'Guardar cambios' : 'Guardar recurso'
+  }
+
+  if (resourceCategoryManageButton instanceof HTMLButtonElement) {
+    const canManage = canManageResourceCategories()
+    resourceCategoryManageButton.hidden = !canManage
+    resourceCategoryManageButton.disabled = !canManage
   }
 }
 
@@ -2878,68 +3083,204 @@ function readResourceFileAsDataUrl(file) {
   })
 }
 
-function isPreviewableImageResource(value = '') {
-  const normalized = String(value || '').trim().toLowerCase()
-  return Boolean(normalized) && (normalized.startsWith('data:image/') || /\.(png|jpg|jpeg|gif|webp|svg)(\?|#|$)/.test(normalized))
+function revokeActiveResourcePreviewUrls() {
+  activeResourcePreviewUrls.forEach((url) => {
+    try {
+      URL.revokeObjectURL(url)
+    } catch {}
+  })
+  activeResourcePreviewUrls = []
 }
 
-function isPreviewablePdfResource(value = '') {
-  const normalized = String(value || '').trim().toLowerCase()
-  return Boolean(normalized) && (normalized.startsWith('data:application/pdf') || /\.pdf(\?|#|$)/.test(normalized))
+function registerResourcePreviewUrl(url = '') {
+  const normalized = String(url || '').trim()
+  if (normalized.startsWith('blob:')) {
+    activeResourcePreviewUrls.push(normalized)
+  }
+  return normalized
 }
 
-function buildPreviewMarkup(url, type, fileName = '') {
-  const safeUrl = escapeHtml(url)
-  const safeName = escapeHtml(fileName || 'Archivo')
-  if (!url) {
+function decodeBase64ToUint8Array(value = '') {
+  const binary = window.atob(value)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return bytes
+}
+
+function convertDataUrlToBlobUrl(dataUrl = '') {
+  const normalized = String(dataUrl || '').trim()
+  const dataUrlMatch = normalized.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?(;base64)?,(.*)$/i)
+  if (!dataUrlMatch) {
+    return normalized
+  }
+
+  const mimeType = dataUrlMatch[1] || 'application/octet-stream'
+  const isBase64 = Boolean(dataUrlMatch[2])
+  const payload = dataUrlMatch[3] || ''
+  const byteArray = isBase64
+    ? decodeBase64ToUint8Array(payload)
+    : new TextEncoder().encode(decodeURIComponent(payload))
+  const blob = new Blob([byteArray], { type: mimeType })
+  return registerResourcePreviewUrl(URL.createObjectURL(blob))
+}
+
+function resolveResourceDocumentOpenUrl(url = '') {
+  const normalized = String(url || '').trim()
+  if (!normalized) {
     return ''
   }
 
-  if (type === 'image' && isPreviewableImageResource(url)) {
-    return `
-      <div class="resource-preview-card">
-        <a class="resource-preview-card__link" href="${safeUrl}" target="_blank" rel="noreferrer">
-          <img class="resource-preview-card__image" src="${safeUrl}" alt="${safeName}" />
-        </a>
-        <div class="resource-preview-card__meta">
-          <strong>${safeName}</strong>
-          <a class="attachment-pill attachment-pill--link" href="${safeUrl}" target="_blank" rel="noreferrer">Ver imagen</a>
-        </div>
-      </div>
-    `
+  if (normalized.startsWith('data:')) {
+    return convertDataUrlToBlobUrl(normalized)
   }
 
-  if (type === 'document' && (isPreviewableImageResource(url) || isPreviewablePdfResource(url))) {
-    const previewBody = isPreviewablePdfResource(url)
-      ? `<iframe class="resource-preview-card__frame" src="${safeUrl}" title="${safeName}"></iframe>`
-      : `<img class="resource-preview-card__image" src="${safeUrl}" alt="${safeName}" />`
-    return `
-      <div class="resource-preview-card">
-        <a class="resource-preview-card__link" href="${safeUrl}" target="_blank" rel="noreferrer">
-          ${previewBody}
-        </a>
-        <div class="resource-preview-card__meta">
-          <strong>${safeName}</strong>
-          <a class="attachment-pill attachment-pill--link" href="${safeUrl}" target="_blank" rel="noreferrer">Abrir archivo</a>
-        </div>
+  return normalized
+}
+
+function resolveResourceAttachmentUrl(attachment = {}) {
+  const directUrl = resolveResourceDocumentOpenUrl(attachment?.url || attachment?.public_url || '')
+  if (directUrl) {
+    return directUrl
+  }
+
+  const bucket = String(attachment?.bucket || '').trim()
+  const storagePath = String(attachment?.storage_path || '').trim().replace(/^\/+/, '')
+  if (bucket && storagePath && supabaseClient?.storage?.from) {
+    try {
+      const { data } = supabaseClient.storage.from(bucket).getPublicUrl(storagePath)
+      return resolveResourceDocumentOpenUrl(data?.publicUrl || '')
+    } catch {
+      return ''
+    }
+  }
+
+  return ''
+}
+
+function isPreviewableImageResource(value = '', mimeType = '') {
+  const normalized = String(value || '').trim().toLowerCase()
+  const normalizedMime = String(mimeType || '').trim().toLowerCase()
+  return Boolean(normalized) && (
+    normalized.startsWith('data:image/') ||
+    normalized.startsWith('blob:') && normalizedMime.startsWith('image/') ||
+    normalizedMime.startsWith('image/') ||
+    /\.(png|jpg|jpeg|gif|webp|svg)(\?|#|$)/.test(normalized)
+  )
+}
+
+function isPreviewablePdfResource(value = '', mimeType = '') {
+  const normalized = String(value || '').trim().toLowerCase()
+  const normalizedMime = String(mimeType || '').trim().toLowerCase()
+  return Boolean(normalized) && (
+    normalized.startsWith('data:application/pdf') ||
+    normalized.startsWith('blob:') && normalizedMime === 'application/pdf' ||
+    normalizedMime === 'application/pdf' ||
+    /\.pdf(\?|#|$)/.test(normalized)
+  )
+}
+
+function getResourceAttachmentDisplayName(attachment = {}, fallbackLabel = 'Archivo') {
+  return (
+    String(attachment?.file_name || '').trim() ||
+    String(attachment?.name || '').trim() ||
+    String(attachment?.title || '').trim() ||
+    fallbackLabel
+  )
+}
+
+function clampResourceImageIndex(nextIndex = 0, total = 0) {
+  if (!total) {
+    activeResourceImageIndex = 0
+    return
+  }
+  activeResourceImageIndex = Math.min(Math.max(nextIndex, 0), total - 1)
+}
+
+function buildResourceDocumentListItemMarkup(attachment, kind = 'document', options = {}) {
+  const attachmentUrl = resolveResourceAttachmentUrl(attachment)
+  const safeUrl = escapeHtml(attachmentUrl)
+  const safeName = escapeHtml(getResourceAttachmentDisplayName(attachment))
+  const actionLabel = kind === 'image' ? 'Ver imagen' : 'Abrir archivo'
+  const removeAction = options.removable
+    ? `<button class="icon-action icon-action--remove" type="button" title="${kind === 'image' ? 'Quitar imagen' : 'Quitar archivo'}" aria-label="${kind === 'image' ? 'Quitar imagen' : 'Quitar archivo'}" data-action="remove-resource-attachment" data-attachment-kind="${escapeHtml(kind)}" data-attachment-source="${escapeHtml(options.source || 'existing')}" data-attachment-id="${escapeHtml(options.id || '')}">
+         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+       </button>`
+    : ''
+  const primaryAction = attachmentUrl
+    ? `<a class="icon-action icon-action--view" href="${safeUrl}" target="_blank" rel="noreferrer" title="${escapeHtml(actionLabel)}" aria-label="${escapeHtml(actionLabel)}">
+         <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Zm10 3.25A3.25 3.25 0 1 0 12 8.75a3.25 3.25 0 0 0 0 6.5Z"/></svg>
+       </a>`
+    : '<span class="icon-action icon-action--muted" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3l18 18M10.58 10.58a2 2 0 0 0 2.84 2.84M9.88 5.09A10.94 10.94 0 0 1 12 5c6.5 0 10 7 10 7a17.57 17.57 0 0 1-4.23 4.92M6.53 6.53C3.69 8.27 2 12 2 12a17.73 17.73 0 0 0 10 7 10.8 10.8 0 0 0 5.47-1.53"/></svg></span>'
+
+  return `
+    <article class="resource-document-item resource-document-item--${escapeHtml(kind)}">
+      <div class="resource-document-item__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M8 3h6l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm5 1v4h4m-8 5h6m-6 4h4"/></svg>
       </div>
+      <div class="resource-document-item__meta">
+        <strong>${safeName}</strong>
+      </div>
+      <div class="resource-document-item__actions">
+        ${primaryAction}
+        ${removeAction}
+      </div>
+    </article>
+  `
+}
+
+function buildPendingFileCardMarkup(file, kind = 'document', index = 0) {
+  const fileUrl = registerResourcePreviewUrl(URL.createObjectURL(file))
+  const safeUrl = escapeHtml(fileUrl)
+  const safeName = escapeHtml(file.name || 'Archivo')
+  const actionLabel = kind === 'image' ? 'Ver imagen' : 'Abrir archivo'
+  if (kind === 'image') {
+    return `
+      <article class="resource-attachment-card resource-attachment-card--pending">
+        <a class="resource-attachment-card__preview" href="${safeUrl}" target="_blank" rel="noreferrer">
+          <img class="resource-attachment-card__image" src="${safeUrl}" alt="${safeName}" />
+        </a>
+        <div class="resource-attachment-card__meta">
+          <strong>${safeName}</strong>
+          <div class="resource-attachment-card__actions">
+            <a class="icon-action icon-action--view" href="${safeUrl}" target="_blank" rel="noreferrer" title="${escapeHtml(actionLabel)}" aria-label="${escapeHtml(actionLabel)}">
+              <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Zm10 3.25A3.25 3.25 0 1 0 12 8.75a3.25 3.25 0 0 0 0 6.5Z"/></svg>
+            </a>
+            <button class="icon-action icon-action--remove" type="button" title="Quitar imagen" aria-label="Quitar imagen" data-action="remove-resource-attachment" data-attachment-kind="${escapeHtml(kind)}" data-attachment-source="pending" data-attachment-index="${index}">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
+        </div>
+      </article>
     `
   }
 
   return `
-    <div class="resource-preview-card resource-preview-card--file">
-      <div class="resource-preview-card__icon" aria-hidden="true">
+    <article class="resource-document-item resource-document-item--pending">
+      <div class="resource-document-item__icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M8 3h6l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm5 1v4h4m-8 5h6m-6 4h4"/></svg>
       </div>
-      <div class="resource-preview-card__meta">
+      <div class="resource-document-item__meta">
         <strong>${safeName}</strong>
-        <a class="attachment-pill attachment-pill--link" href="${safeUrl}" target="_blank" rel="noreferrer">Abrir archivo</a>
       </div>
-    </div>
+      <div class="resource-document-item__actions">
+        <a class="icon-action icon-action--view" href="${safeUrl}" target="_blank" rel="noreferrer" title="${escapeHtml(actionLabel)}" aria-label="${escapeHtml(actionLabel)}">
+          <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Zm10 3.25A3.25 3.25 0 1 0 12 8.75a3.25 3.25 0 0 0 0 6.5Z"/></svg>
+        </a>
+        <button class="icon-action icon-action--remove" type="button" title="Quitar archivo" aria-label="Quitar archivo" data-action="remove-resource-attachment" data-attachment-kind="${escapeHtml(kind)}" data-attachment-source="pending" data-attachment-index="${index}">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+    </article>
   `
 }
 
-function buildResourceDocumentPayload(rawUrl, fileDataUrl, fileObject) {
+function buildResourceEmptyStateMarkup(message = 'Sin adjuntos registrados.') {
+  return `<div class="resource-attachment-empty">${escapeHtml(message)}</div>`
+}
+
+function buildResourceDocumentPayload(rawUrl, fileDataUrl, fileObject, options = {}) {
   const trimmedUrl = String(rawUrl || '').trim()
   if (fileDataUrl && fileObject) {
     return {
@@ -2970,28 +3311,169 @@ function buildResourceDocumentPayload(rawUrl, fileDataUrl, fileObject) {
   }
 }
 
+function buildResourceImageCarouselMarkup(items = []) {
+  if (!items.length) {
+    clampResourceImageIndex(0, 0)
+    return buildResourceEmptyStateMarkup('No hay imágenes de referencia registradas.')
+  }
+
+  clampResourceImageIndex(activeResourceImageIndex, items.length)
+  const currentItem = items[activeResourceImageIndex]
+  const safeUrl = escapeHtml(currentItem.url)
+  const safeName = escapeHtml(currentItem.file_name || 'Imagen')
+  const showControls = items.length > 1
+  const removeAttributes = currentItem.sourceKey === 'pending'
+    ? `data-attachment-index="${currentItem.attachmentIndex}"`
+    : `data-attachment-id="${escapeHtml(currentItem.attachmentId || '')}"`
+  const removeAction = currentItem.removable
+    ? `<button class="icon-action icon-action--remove" type="button" title="Quitar imagen" aria-label="Quitar imagen" data-action="remove-resource-attachment" data-attachment-kind="image" data-attachment-source="${escapeHtml(currentItem.sourceKey || 'existing')}" ${removeAttributes}>
+         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+       </button>`
+    : ''
+
+  return `
+    <div class="resource-image-carousel">
+      <div class="resource-image-carousel__stage">
+        <button class="resource-image-carousel__nav" type="button" data-action="resource-image-prev" ${showControls ? '' : 'disabled'} aria-label="Imagen anterior">
+          <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <a class="resource-image-carousel__preview" href="${safeUrl}" target="_blank" rel="noreferrer">
+          <img class="resource-image-carousel__image" src="${safeUrl}" alt="${safeName}" />
+        </a>
+        <button class="resource-image-carousel__nav" type="button" data-action="resource-image-next" ${showControls ? '' : 'disabled'} aria-label="Imagen siguiente">
+          <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+      </div>
+      <div class="resource-image-carousel__footer">
+        <div class="resource-image-carousel__meta">
+          <strong>${safeName}</strong>
+          ${showControls ? `<span>${activeResourceImageIndex + 1} / ${items.length}</span>` : ''}
+        </div>
+        <div class="resource-image-carousel__actions">
+          <a class="icon-action icon-action--view" href="${safeUrl}" target="_blank" rel="noreferrer" title="Ver imagen" aria-label="Ver imagen">
+            <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Zm10 3.25A3.25 3.25 0 1 0 12 8.75a3.25 3.25 0 0 0 0 6.5Z"/></svg>
+          </a>
+          ${removeAction}
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function buildResourceDocumentListMarkup(items = []) {
+  if (!items.length) {
+    return buildResourceEmptyStateMarkup('No hay documentos técnicos adjuntos.')
+  }
+
+  return `<div class="resource-document-list">${items.join('')}</div>`
+}
+
+function getResourceImageItemCount() {
+  if (!resourcesForm) {
+    return 0
+  }
+
+  return (
+    activeResourceImageAttachments.length +
+    pendingResourceImageFiles.length +
+    (String(resourcesForm.imagen_url?.value || '').trim() ? 1 : 0)
+  )
+}
+
 function refreshResourceDocumentPreviews() {
   if (!resourcesForm) {
     return
   }
 
-  const imageFile = resourcesForm.imagen_file?.files?.[0] || null
-  const technicalFile = resourcesForm.ficha_tecnica_file?.files?.[0] || null
+  revokeActiveResourcePreviewUrls()
   const imageUrl = String(resourcesForm.imagen_url?.value || '').trim()
   const technicalUrl = String(resourcesForm.ficha_tecnica_url?.value || '').trim()
+  const imageAttachments = [...activeResourceImageAttachments]
+  const technicalAttachments = [...activeResourceTechnicalAttachments]
 
-  const imagePreviewUrl = imageFile ? URL.createObjectURL(imageFile) : imageUrl
-  const imagePreviewName = imageFile?.name || imageUrl || 'Imagen de referencia'
   if (resourceImagePreview) {
-    const imageMarkup = buildPreviewMarkup(imagePreviewUrl, 'image', imagePreviewName)
+    const imageMarkup = buildResourceImageCarouselMarkup(
+      [
+        ...imageAttachments.map((attachment) => {
+          const resolvedUrl = resolveResourceAttachmentUrl(attachment)
+          const isImageAttachment =
+            isPreviewableImageResource(resolvedUrl, attachment.mime_type) ||
+            isPreviewableImageResource(attachment.url, attachment.mime_type)
+          if (!resolvedUrl || !isImageAttachment) {
+            return null
+          }
+
+          return {
+            attachmentId: attachment.id,
+            sourceKey: 'existing',
+            url: resolvedUrl,
+            file_name: getResourceAttachmentDisplayName(attachment, 'Imagen'),
+            removable: true,
+          }
+        }),
+        ...(imageUrl
+          ? (() => {
+              const resolvedUrl = resolveResourceAttachmentUrl({ url: imageUrl })
+              if (!resolvedUrl || !(isPreviewableImageResource(resolvedUrl) || isPreviewableImageResource(imageUrl))) {
+                return []
+              }
+
+              return [{
+                attachmentId: 'typed-image-url',
+                sourceKey: 'typed-url',
+                url: resolvedUrl,
+                file_name: imageUrl,
+                removable: true,
+              }]
+            })()
+          : []),
+        ...pendingResourceImageFiles.map((file, index) => ({
+          attachmentIndex: index,
+          sourceKey: 'pending',
+          url: registerResourcePreviewUrl(URL.createObjectURL(file)),
+          file_name: file.name || 'Imagen',
+          mime_type: file.type || '',
+          removable: true,
+        })),
+      ].filter(Boolean),
+    )
     resourceImagePreview.innerHTML = imageMarkup
     resourceImagePreview.classList.toggle('is-hidden', !imageMarkup)
   }
 
-  const technicalPreviewUrl = technicalFile ? URL.createObjectURL(technicalFile) : technicalUrl
-  const technicalPreviewName = technicalFile?.name || technicalUrl || 'Ficha técnica'
   if (resourceTechnicalSheetPreview) {
-    const technicalMarkup = buildPreviewMarkup(technicalPreviewUrl, 'document', technicalPreviewName)
+    const technicalMarkup = buildResourceDocumentListMarkup(
+      [
+        ...technicalAttachments.map((attachment) =>
+          buildResourceDocumentListItemMarkup(
+            {
+              ...attachment,
+              url: resolveResourceAttachmentUrl(attachment),
+              file_name: getResourceAttachmentDisplayName(attachment, 'Documento técnico'),
+            },
+            'document',
+            { removable: true, source: 'existing', id: attachment.id },
+          ),
+        ),
+        ...(technicalUrl
+          ? [
+              buildResourceDocumentListItemMarkup(
+                {
+                  id: 'typed-document-url',
+                  url: resolveResourceAttachmentUrl({ url: technicalUrl }),
+                  file_name: technicalUrl,
+                  source: 'url',
+                  mime_type: '',
+                  size_bytes: null,
+                },
+                'document',
+                { removable: true, source: 'typed-url', id: 'typed-document-url' },
+              ),
+            ]
+          : []),
+        ...pendingResourceTechnicalFiles.map((file, index) => buildPendingFileCardMarkup(file, 'document', index)),
+      ].filter(Boolean),
+    )
     resourceTechnicalSheetPreview.innerHTML = technicalMarkup
     resourceTechnicalSheetPreview.classList.toggle('is-hidden', !technicalMarkup)
   }
@@ -3002,23 +3484,14 @@ function refreshResourceFileHints() {
     return
   }
 
-  const imageFile = resourcesForm.imagen_file?.files?.[0] || null
-  const technicalFile = resourcesForm.ficha_tecnica_file?.files?.[0] || null
-
   if (resourceImageHint) {
-    resourceImageHint.textContent = imageFile
-      ? `Imagen seleccionada: ${imageFile.name}`
-      : editingResourceId && resourcesForm.imagen_url.value.trim()
-        ? 'Se mantendrá la referencia actual salvo que subas otra imagen.'
-        : 'Puedes ingresar una URL o subir una imagen.'
+    resourceImageHint.textContent = ''
+    resourceImageHint.classList.add('is-hidden')
   }
 
   if (resourceTechnicalSheetHint) {
-    resourceTechnicalSheetHint.textContent = technicalFile
-      ? `Archivo seleccionado: ${technicalFile.name}`
-      : editingResourceId && resourcesForm.ficha_tecnica_url.value.trim()
-        ? 'Se mantendrá la ficha actual salvo que subas otro documento.'
-        : 'Puedes ingresar una URL o subir un archivo digital.'
+    resourceTechnicalSheetHint.textContent = ''
+    resourceTechnicalSheetHint.classList.add('is-hidden')
   }
 
   refreshResourceDocumentPreviews()
@@ -3029,16 +3502,61 @@ async function collectResourceFormData() {
     return null
   }
 
-  const imageFile = resourcesForm.imagen_file?.files?.[0] || null
-  const technicalSheetFile = resourcesForm.ficha_tecnica_file?.files?.[0] || null
-  const imageDataUrl = imageFile ? await readResourceFileAsDataUrl(imageFile) : ''
-  const technicalSheetDataUrl = technicalSheetFile ? await readResourceFileAsDataUrl(technicalSheetFile) : ''
-  const imagePayload = buildResourceDocumentPayload(resourcesForm.imagen_url.value, imageDataUrl, imageFile)
-  const technicalSheetPayload = buildResourceDocumentPayload(
-    resourcesForm.ficha_tecnica_url.value,
-    technicalSheetDataUrl,
-    technicalSheetFile,
+  const imageUrl = String(resourcesForm.imagen_url.value || '').trim()
+  const technicalUrl = String(resourcesForm.ficha_tecnica_url.value || '').trim()
+  const imagePayloads = await Promise.all(
+    pendingResourceImageFiles.map(async (file) =>
+      buildResourceDocumentPayload('', await readResourceFileAsDataUrl(file), file, { kind: 'image' }),
+    ),
   )
+  const technicalPayloads = await Promise.all(
+    pendingResourceTechnicalFiles.map(async (file) =>
+      buildResourceDocumentPayload('', await readResourceFileAsDataUrl(file), file, { kind: 'technical' }),
+    ),
+  )
+
+  const imageAttachments = [
+    ...activeResourceImageAttachments.map((entry) => ({ ...entry })),
+    ...(imageUrl
+      ? [
+          {
+            id: createResourceAttachmentId('image-url'),
+            url: imageUrl,
+            file_name: imageUrl,
+            source: 'url',
+            mime_type: '',
+            size_bytes: null,
+          },
+        ]
+      : []),
+    ...imagePayloads.map((entry) => ({
+      id: createResourceAttachmentId('image-file'),
+      ...entry,
+    })),
+  ]
+
+  const technicalAttachments = [
+    ...activeResourceTechnicalAttachments.map((entry) => ({ ...entry })),
+    ...(technicalUrl
+      ? [
+          {
+            id: createResourceAttachmentId('document-url'),
+            url: technicalUrl,
+            file_name: technicalUrl,
+            source: 'url',
+            mime_type: '',
+            size_bytes: null,
+          },
+        ]
+      : []),
+    ...technicalPayloads.map((entry) => ({
+      id: createResourceAttachmentId('document-file'),
+      ...entry,
+    })),
+  ]
+
+  const primaryImageAttachment = imageAttachments[0] || { url: '', file_name: '', source: '', mime_type: '', size_bytes: null }
+  const primaryTechnicalAttachment = technicalAttachments[0] || { url: '', file_name: '', source: '', mime_type: '', size_bytes: null }
 
   return {
     id: editingResourceId || createLocalId('resource'),
@@ -3052,16 +3570,18 @@ async function collectResourceFormData() {
     moneda: resourcesForm.moneda.value.trim() || 'PEN',
     costo_unitario: resourcesForm.costo_unitario.value ? Number(resourcesForm.costo_unitario.value) : null,
     proveedor: resourcesForm.proveedor.value.trim(),
-    imagen_url: imagePayload.url,
-    imagen_nombre_archivo: imagePayload.file_name,
-    imagen_source: imagePayload.source,
-    imagen_mime_type: imagePayload.mime_type,
-    imagen_size_bytes: imagePayload.size_bytes,
-    ficha_tecnica_url: technicalSheetPayload.url,
-    ficha_tecnica_nombre_archivo: technicalSheetPayload.file_name,
-    ficha_tecnica_source: technicalSheetPayload.source,
-    ficha_tecnica_mime_type: technicalSheetPayload.mime_type,
-    ficha_tecnica_size_bytes: technicalSheetPayload.size_bytes,
+    imagen_url: primaryImageAttachment.url,
+    imagen_nombre_archivo: primaryImageAttachment.file_name,
+    imagen_source: primaryImageAttachment.source,
+    imagen_mime_type: primaryImageAttachment.mime_type,
+    imagen_size_bytes: primaryImageAttachment.size_bytes,
+    imagen_adjuntos: imageAttachments,
+    ficha_tecnica_url: primaryTechnicalAttachment.url,
+    ficha_tecnica_nombre_archivo: primaryTechnicalAttachment.file_name,
+    ficha_tecnica_source: primaryTechnicalAttachment.source,
+    ficha_tecnica_mime_type: primaryTechnicalAttachment.mime_type,
+    ficha_tecnica_size_bytes: primaryTechnicalAttachment.size_bytes,
+    ficha_tecnica_adjuntos: technicalAttachments,
     observacion: resourcesForm.observacion.value.trim(),
   }
 }
@@ -3085,6 +3605,7 @@ async function loadResourcesCatalog() {
     if (Array.isArray(cached?.records) && cached.records.length) {
       resourcesRecords = [...cached.records]
       renderResourcesTable()
+      refreshResourceCategoryManagedSelect()
       updateResourcesStatus(
         `Catálogo local listo. ${resourcesRecords.length} recurso(s) cargados. Ult. sync: ${formatCacheTimestamp(cached.updatedAt) || 'sin fecha'}.`,
         'success',
@@ -3095,6 +3616,7 @@ async function loadResourcesCatalog() {
 
   resourcesRecords = [...defaultResourceCatalog]
   renderResourcesTable()
+  refreshResourceCategoryManagedSelect()
   updateResourcesStatus('Catálogo local inicial cargado. Puedes editarlo y ampliarlo desde esta pestaña.', 'info')
   try {
     await persistResourcesCatalog()
@@ -3238,6 +3760,9 @@ function buildRequirementSummaryMarkup(requirementRecord = activeRequirementReco
   const statusTone = getTagTone(requirementRecord.estado)
   const attachmentCount = countRequirementAttachments(detailItems)
   const localItemsCount = detailItems.filter((item) => String(item.fuente || '').toUpperCase() === 'LOCAL').length
+  const workflowStage = getRequirementWorkflowStage(requirementRecord)
+  const workflowStatus = getRequirementWorkflowStatus(requirementRecord)
+  const pendingRoleLabel = getRequirementPendingRoleLabel(requirementRecord.pending_role || '')
 
   return `
     <section class="rq-summary rq-summary--requirement">
@@ -3248,6 +3773,9 @@ function buildRequirementSummaryMarkup(requirementRecord = activeRequirementReco
         </div>
         <div class="rq-summary__chips">
           <span class="tag tag--${statusTone}">${escapeHtml(requirementRecord.estado || 'Sin estado')}</span>
+          <span class="rq-chip">${escapeHtml(getRequirementWorkflowStageLabel(workflowStage))}</span>
+          <span class="rq-chip">${escapeHtml(pendingRoleLabel)}</span>
+          ${workflowStatus !== workflowStage ? `<span class="rq-chip">${escapeHtml(getRequirementWorkflowStageLabel(workflowStatus))}</span>` : ''}
           <span class="rq-chip rq-chip--accent">${escapeHtml(`${requirementRecord.cantidad_items ?? detailItems.length ?? 0} items`)}</span>
           <span class="rq-chip ${alerts.length ? 'rq-chip--warning' : 'rq-chip--ok'}">${escapeHtml(alerts.length ? `${alerts.length} alerta(s)` : 'Sin alertas')}</span>
           <span class="rq-chip">${escapeHtml(`${attachmentCount} adjuntos`)}</span>
@@ -3509,6 +4037,7 @@ function buildRequirementResourcePicker() {
     return ''
   }
 
+  const canCreateResource = canCreateResourceFromRequirement()
   const filteredResources = getFilteredModalResources()
   const listMarkup = filteredResources.length
     ? filteredResources
@@ -3540,8 +4069,19 @@ function buildRequirementResourcePicker() {
           <strong>Agregar recurso existente</strong>
           <p>Busca por nombre, código EKA o código fabricante y luego agrégalo solo a este requerimiento.</p>
         </div>
-        <div class="filter-shell resource-picker__search">
-          <input class="column-filter" data-resource-picker-search="true" type="text" value="${escapeHtml(requirementModalResourceSearch)}" placeholder="Buscar por nombre o código" />
+        <div class="resource-picker__header-actions">
+          <div class="filter-shell resource-picker__search">
+            <input class="column-filter" data-resource-picker-search="true" type="text" value="${escapeHtml(requirementModalResourceSearch)}" placeholder="Buscar por nombre o código" />
+          </div>
+          ${
+            canCreateResource
+              ? `<button class="table-action table-action--icon table-action--tone-edit" type="button" data-action="create-resource-from-requirement" title="Crear nuevo recurso" aria-label="Crear nuevo recurso">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M19 11H13V5h-2v6H5v2h6v6h2v-6h6z"></path>
+                  </svg>
+                </button>`
+              : ''
+          }
         </div>
       </div>
       <div class="resource-picker__list">${listMarkup}</div>
@@ -4585,6 +5125,10 @@ function renderCatalogManager() {
       requirementCatalogManagerPanel.classList.add('is-hidden')
       requirementCatalogManagerPanel.innerHTML = ''
     }
+    if (resourcesCatalogManagerPanel) {
+      resourcesCatalogManagerPanel.classList.add('is-hidden')
+      resourcesCatalogManagerPanel.innerHTML = ''
+    }
     return
   }
 
@@ -4592,6 +5136,13 @@ function renderCatalogManager() {
   const entries = getCatalogEntries(activeCatalogFieldKey)
   const selectedEntry = findCatalogEntry(activeCatalogFieldKey, editingCatalogOptionValue) || { value: editingCatalogOptionValue, email: '', phone: '' }
   const isContactCatalog = fieldDefinition.kind === 'contact'
+  const migrationSource =
+    activeCatalogFieldKey === 'resource_categoria' ? transformCatalogValue('resource_categoria', pendingCategoryMigrationSource) : ''
+  const migrationUsage = migrationSource ? getResourcesUsingCategory(migrationSource) : { count: 0 }
+  const migrationDestinationOptions =
+    migrationSource && activeCatalogFieldKey === 'resource_categoria'
+      ? entries.filter((entry) => normalizeCatalogCompareValue(entry.value) !== normalizeCatalogCompareValue(migrationSource))
+      : []
 
   if (catalogManagerPanel && catalogManagerPanel !== activePanel) {
     catalogManagerPanel.classList.add('is-hidden')
@@ -4600,6 +5151,10 @@ function renderCatalogManager() {
   if (requirementCatalogManagerPanel && requirementCatalogManagerPanel !== activePanel) {
     requirementCatalogManagerPanel.classList.add('is-hidden')
     requirementCatalogManagerPanel.innerHTML = ''
+  }
+  if (resourcesCatalogManagerPanel && resourcesCatalogManagerPanel !== activePanel) {
+    resourcesCatalogManagerPanel.classList.add('is-hidden')
+    resourcesCatalogManagerPanel.innerHTML = ''
   }
 
   activePanel.classList.remove('is-hidden')
@@ -4617,6 +5172,30 @@ function renderCatalogManager() {
       ${isContactCatalog ? `<input class="column-filter" name="catalogOptionPhone" type="text" placeholder="Teléfono" value="${escapeHtml(selectedEntry.phone || '')}" />` : ''}
       <button class="ghost-button ghost-button--accent" type="button" data-action="save-catalog-option">${editingCatalogOptionValue ? 'Actualizar' : 'Agregar'}</button>
     </div>
+    <div class="catalog-manager-panel__status ${catalogManagerFeedbackMessage ? '' : 'is-hidden'}" data-tone="${escapeHtml(catalogManagerFeedbackTone)}">
+      ${escapeHtml(catalogManagerFeedbackMessage)}
+    </div>
+    ${
+      migrationSource
+        ? `
+          <div class="catalog-manager-panel__migration">
+            <strong>Migrar categoría antes de eliminar</strong>
+            <p>${migrationUsage.count} recurso(s) usan actualmente <b>${escapeHtml(migrationSource)}</b>. Debes moverlos a otra categoría antes de eliminarla.</p>
+            <div class="catalog-manager-panel__migration-grid">
+              <select class="column-filter" name="migrationDestinationExisting">
+                <option value="">Seleccionar categoría destino</option>
+                ${migrationDestinationOptions
+                  .map((entry) => `<option value="${escapeHtml(entry.value)}">${escapeHtml(entry.value)}</option>`)
+                  .join('')}
+              </select>
+              <input class="column-filter" name="migrationDestinationNew" type="text" placeholder="O crea una nueva categoría" />
+              <button class="ghost-button ghost-button--accent" type="button" data-action="confirm-category-migration">Migrar y eliminar</button>
+              <button class="ghost-button ghost-button--soft" type="button" data-action="cancel-category-migration">Cancelar</button>
+            </div>
+          </div>
+        `
+        : ''
+    }
     <div class="catalog-manager-panel__list">
       ${
         entries.length
@@ -4642,18 +5221,31 @@ function renderCatalogManager() {
   `
 }
 
+function rerenderCatalogManagerPreservingFormState(host = activeCatalogHost) {
+  const targetForm =
+    host === 'requirement' ? requirementEntryForm : host === 'resource' ? resourcesForm : recordForm
+  const formSnapshot = captureFormState(targetForm)
+  renderCatalogManager()
+  restoreFormState(targetForm, formSnapshot)
+}
+
 function openCatalogManager(fieldKey, host = 'record') {
   activeCatalogHost = host
   activeCatalogFieldKey = getManagedSelectFieldKey(fieldKey)
   editingCatalogOptionValue = ''
-  renderCatalogManager()
+  clearPendingCategoryMigration()
+  setCatalogManagerFeedback('')
+  rerenderCatalogManagerPreservingFormState(host)
 }
 
 function closeCatalogManager() {
+  const previousHost = activeCatalogHost
   activeCatalogFieldKey = ''
   activeCatalogHost = 'record'
   editingCatalogOptionValue = ''
-  renderCatalogManager()
+  clearPendingCategoryMigration()
+  setCatalogManagerFeedback('')
+  rerenderCatalogManagerPreservingFormState(previousHost)
 }
 
 function captureFormState(formElement) {
@@ -4749,6 +5341,44 @@ function restoreFormState(formElement, snapshot) {
       } catch {}
     }
   }
+}
+
+function getRecordFormDraftKey(recordId = currentEditingId) {
+  return recordId ? `edit:${recordId}` : 'create'
+}
+
+function saveRecordFormDraft() {
+  if (!(recordForm instanceof HTMLFormElement) || recordModal?.classList.contains('is-hidden')) {
+    return
+  }
+
+  const snapshot = captureFormState(recordForm)
+  if (!snapshot) {
+    return
+  }
+
+  recordFormDrafts[getRecordFormDraftKey()] = {
+    snapshot,
+    updatedAt: Date.now(),
+  }
+}
+
+function restoreRecordFormDraft(recordId = currentEditingId) {
+  if (!(recordForm instanceof HTMLFormElement)) {
+    return false
+  }
+
+  const draft = recordFormDrafts[getRecordFormDraftKey(recordId)]
+  if (!draft?.snapshot) {
+    return false
+  }
+
+  restoreFormState(recordForm, draft.snapshot)
+  return true
+}
+
+function clearRecordFormDraft(recordId = currentEditingId) {
+  delete recordFormDrafts[getRecordFormDraftKey(recordId)]
 }
 
 function refreshManagedSelects() {
@@ -4862,29 +5492,128 @@ function refreshRequirementAreaManagedSelect() {
   }
 }
 
+function refreshResourceCategoryManagedSelect(nextValue = '') {
+  if (!(resourceCategoryInput instanceof HTMLSelectElement)) {
+    return
+  }
+
+  const currentValue = transformCatalogValue('resource_categoria', nextValue || resourceCategoryInput.value || 'MATERIAL')
+  const managedFieldKey = getManagedSelectFieldKey('resource_categoria') || 'resource_categoria'
+  const baseEntries = getBaseCatalogEntries(managedFieldKey)
+  const storedEntries = getCatalogEntries(managedFieldKey)
+  const deletedSet = new Set(
+    (Array.isArray(deletedCatalogOptions[managedFieldKey]) ? deletedCatalogOptions[managedFieldKey] : []).map((value) =>
+      normalizeCatalogCompareValue(value),
+    ),
+  )
+  const mergedEntries = new Map()
+  ;[...baseEntries, ...storedEntries].forEach((entry) => {
+    if (!entry?.value) {
+      return
+    }
+    const normalizedCompare = normalizeCatalogCompareValue(entry.value)
+    if (deletedSet.has(normalizedCompare)) {
+      return
+    }
+    mergedEntries.set(normalizedCompare, { value: transformCatalogValue(managedFieldKey, entry.value) })
+  })
+
+  optionCatalogs[managedFieldKey] = [...mergedEntries.values()].sort((a, b) =>
+    a.value.localeCompare(b.value, 'es', { sensitivity: 'base' }),
+  )
+  deletedCatalogOptions[managedFieldKey] = Array.isArray(deletedCatalogOptions[managedFieldKey])
+    ? deletedCatalogOptions[managedFieldKey]
+    : []
+  persistSelectCatalogState()
+
+  const options = getCatalogOptions(managedFieldKey)
+  resourceCategoryInput.innerHTML = options
+    .map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`)
+    .join('')
+
+  if (currentValue && options.includes(currentValue)) {
+    resourceCategoryInput.value = currentValue
+  } else if (currentValue) {
+    const fallbackOption = document.createElement('option')
+    fallbackOption.value = currentValue
+    fallbackOption.textContent = currentValue
+    resourceCategoryInput.appendChild(fallbackOption)
+    resourceCategoryInput.value = currentValue
+  }
+}
+
 function getActiveCatalogForm() {
-  return activeCatalogHost === 'requirement' ? requirementEntryForm : recordForm
+  if (activeCatalogHost === 'requirement') {
+    return requirementEntryForm
+  }
+  if (activeCatalogHost === 'resource') {
+    return resourcesForm
+  }
+  return recordForm
 }
 
 function getActiveCatalogPanel() {
-  return activeCatalogHost === 'requirement' ? requirementCatalogManagerPanel : catalogManagerPanel
+  if (activeCatalogHost === 'requirement') {
+    return requirementCatalogManagerPanel
+  }
+  if (activeCatalogHost === 'resource') {
+    return resourcesCatalogManagerPanel
+  }
+  return catalogManagerPanel
+}
+
+function setCatalogManagerFeedback(message = '', tone = 'info') {
+  catalogManagerFeedbackMessage = String(message || '').trim()
+  catalogManagerFeedbackTone = tone || 'info'
+}
+
+function getResourcesUsingCategory(categoryValue = '') {
+  const normalizedCompare = normalizeCatalogCompareValue(categoryValue)
+  const matches = resourcesRecords.filter(
+    (record) => normalizeCatalogCompareValue(record?.categoria || '') === normalizedCompare,
+  )
+  return {
+    records: matches,
+    count: matches.length,
+    codes: new Set(matches.map((record) => String(record?.codigo || '').trim()).filter(Boolean)),
+  }
+}
+
+function setPendingCategoryMigration(sourceValue = '') {
+  pendingCategoryMigrationSource = transformCatalogValue('resource_categoria', sourceValue)
+}
+
+function clearPendingCategoryMigration() {
+  pendingCategoryMigrationSource = ''
+}
+
+function canManageResourceCategories(profile = currentUserProfile) {
+  const permissions = getCurrentModulePermissions('resources', profile)
+  return Boolean(
+    permissions.access &&
+      permissions.show_form &&
+      permissions.save_edits &&
+      permissions.show_manage_categories_button,
+  )
 }
 
 function saveCatalogOption(fieldKey, nextValue, previousValue = '', metadata = {}) {
-  const normalizedValue = String(nextValue || '').trim()
-  const normalizedPrevious = String(previousValue || '').trim()
+  const catalogFieldKey = getManagedSelectFieldKey(fieldKey) || fieldKey
+  const normalizedValue = transformCatalogValue(catalogFieldKey, nextValue)
+  const normalizedPrevious = transformCatalogValue(catalogFieldKey, previousValue)
   if (!fieldKey || !normalizedValue) {
+    setCatalogManagerFeedback('Ingresa un valor válido antes de guardar.', 'warning')
     return false
   }
 
   const targetForm = getActiveCatalogForm()
   const formSnapshot = captureFormState(targetForm)
-  const catalogFieldKey = getManagedSelectFieldKey(fieldKey) || fieldKey
   const fieldDefinition = managedSelectFieldDefinitions[catalogFieldKey] || managedSelectFieldDefinitions[fieldKey] || { kind: 'simple' }
   let nextEntries = [...getCatalogEntries(catalogFieldKey)]
 
   if (normalizedPrevious) {
-    nextEntries = nextEntries.filter((entry) => entry.value !== normalizedPrevious)
+    const previousCompareValue = normalizeCatalogCompareValue(normalizedPrevious)
+    nextEntries = nextEntries.filter((entry) => normalizeCatalogCompareValue(entry.value) !== previousCompareValue)
   }
 
   const nextEntry =
@@ -4896,10 +5625,13 @@ function saveCatalogOption(fieldKey, nextValue, previousValue = '', metadata = {
         }
       : { value: normalizedValue }
 
-  if (!nextEntries.some((entry) => entry.value === normalizedValue)) {
+  const compareValue = normalizeCatalogCompareValue(normalizedValue)
+  if (!nextEntries.some((entry) => normalizeCatalogCompareValue(entry.value) === compareValue)) {
     nextEntries.push(nextEntry)
   } else {
-    nextEntries = nextEntries.map((entry) => (entry.value === normalizedValue ? nextEntry : entry))
+    nextEntries = nextEntries.map((entry) =>
+      normalizeCatalogCompareValue(entry.value) === compareValue ? nextEntry : entry,
+    )
   }
 
   optionCatalogs[catalogFieldKey] = nextEntries.sort((a, b) => a.value.localeCompare(b.value, 'es', { sensitivity: 'base' }))
@@ -4908,24 +5640,51 @@ function saveCatalogOption(fieldKey, nextValue, previousValue = '', metadata = {
   refreshManagedSelects()
   refreshRequirementRequesterManagedSelect()
   refreshRequirementAreaManagedSelect()
+  refreshResourceCategoryManagedSelect(normalizedValue)
   restoreFormState(targetForm, formSnapshot)
   if (targetForm === requirementEntryForm) {
     applyLinkedContactFields('requirement_solicitante', requirementRequesterInput?.value || '')
   }
+  if (targetForm === resourcesForm && resourceCategoryInput instanceof HTMLSelectElement) {
+    resourceCategoryInput.value = normalizedValue
+  }
+  setCatalogManagerFeedback(
+    editingCatalogOptionValue
+      ? `${fieldDefinition.label || 'La lista'} se actualizó correctamente.`
+      : `${fieldDefinition.label || 'La lista'} se agregó correctamente.`,
+    'success',
+  )
   renderCatalogManager()
   return true
 }
 
 function deleteCatalogOption(fieldKey, optionValue) {
-  const normalizedValue = String(optionValue || '').trim()
+  const catalogFieldKey = getManagedSelectFieldKey(fieldKey) || fieldKey
+  const normalizedValue = transformCatalogValue(catalogFieldKey, optionValue)
   if (!fieldKey || !normalizedValue) {
     return
   }
 
   const targetForm = getActiveCatalogForm()
   const formSnapshot = captureFormState(targetForm)
-  const catalogFieldKey = getManagedSelectFieldKey(fieldKey) || fieldKey
-  optionCatalogs[catalogFieldKey] = getCatalogEntries(catalogFieldKey).filter((entry) => entry.value !== normalizedValue)
+  const fieldDefinition = managedSelectFieldDefinitions[catalogFieldKey] || managedSelectFieldDefinitions[fieldKey] || { kind: 'simple' }
+  if (catalogFieldKey === 'resource_categoria') {
+    const normalizedCompare = normalizeCatalogCompareValue(normalizedValue)
+    const isInUse = resourcesRecords.some(
+      (record) => normalizeCatalogCompareValue(record?.categoria || '') === normalizedCompare,
+    )
+    if (isInUse) {
+      setCatalogManagerFeedback('No puedes eliminar esta categoría porque ya está asignada a recursos existentes.', 'warning')
+      renderCatalogManager()
+      return
+    }
+  }
+
+  const normalizedCompare = normalizeCatalogCompareValue(normalizedValue)
+  clearPendingCategoryMigration()
+  optionCatalogs[catalogFieldKey] = getCatalogEntries(catalogFieldKey).filter(
+    (entry) => normalizeCatalogCompareValue(entry.value) !== normalizedCompare,
+  )
   const deletedValues = new Set(Array.isArray(deletedCatalogOptions[catalogFieldKey]) ? deletedCatalogOptions[catalogFieldKey] : [])
   deletedValues.add(normalizedValue)
   deletedCatalogOptions[catalogFieldKey] = [...deletedValues]
@@ -4933,11 +5692,159 @@ function deleteCatalogOption(fieldKey, optionValue) {
   refreshManagedSelects()
   refreshRequirementRequesterManagedSelect()
   refreshRequirementAreaManagedSelect()
+  refreshResourceCategoryManagedSelect()
   restoreFormState(targetForm, formSnapshot)
   if (targetForm === requirementEntryForm) {
     applyLinkedContactFields('requirement_solicitante', requirementRequesterInput?.value || '')
   }
+  if (targetForm === resourcesForm && resourceCategoryInput instanceof HTMLSelectElement) {
+    if (normalizeCatalogCompareValue(resourceCategoryInput.value) === normalizedCompare) {
+      resourceCategoryInput.value = resourceCategoryInput.options[0]?.value || 'MATERIAL'
+    }
+  }
+  setCatalogManagerFeedback(`${fieldDefinition.label || 'La lista'} se eliminó correctamente.`, 'success')
   renderCatalogManager()
+}
+
+function removeCatalogOptionValue(fieldKey, optionValue, options = {}) {
+  const catalogFieldKey = getManagedSelectFieldKey(fieldKey) || fieldKey
+  const normalizedValue = transformCatalogValue(catalogFieldKey, optionValue)
+  if (!catalogFieldKey || !normalizedValue) {
+    return false
+  }
+
+  const targetForm = getActiveCatalogForm()
+  const formSnapshot = captureFormState(targetForm)
+  const normalizedCompare = normalizeCatalogCompareValue(normalizedValue)
+  clearPendingCategoryMigration()
+  optionCatalogs[catalogFieldKey] = getCatalogEntries(catalogFieldKey).filter(
+    (entry) => normalizeCatalogCompareValue(entry.value) !== normalizedCompare,
+  )
+  const deletedValues = new Set(Array.isArray(deletedCatalogOptions[catalogFieldKey]) ? deletedCatalogOptions[catalogFieldKey] : [])
+  deletedValues.add(normalizedValue)
+  deletedCatalogOptions[catalogFieldKey] = [...deletedValues]
+  persistSelectCatalogState()
+  refreshManagedSelects()
+  refreshRequirementRequesterManagedSelect()
+  refreshRequirementAreaManagedSelect()
+  if (catalogFieldKey === 'resource_categoria') {
+    refreshResourceCategoryManagedSelect(options.nextValue || '')
+  }
+  restoreFormState(targetForm, formSnapshot)
+  return true
+}
+
+async function confirmDeleteCatalogOption(fieldKey, optionValue) {
+  const managedFieldKey = getManagedSelectFieldKey(fieldKey) || fieldKey
+  const normalizedValue = transformCatalogValue(managedFieldKey, optionValue)
+  if (!normalizedValue) {
+    return
+  }
+
+  const fieldDefinition =
+    managedSelectFieldDefinitions[managedFieldKey] ||
+    managedSelectFieldDefinitions[fieldKey] ||
+    { label: 'Lista' }
+  if (managedFieldKey === 'resource_categoria') {
+    const usage = getResourcesUsingCategory(normalizedValue)
+    if (usage.count) {
+      setPendingCategoryMigration(normalizedValue)
+      editingCatalogOptionValue = ''
+      setCatalogManagerFeedback(
+        `La categoría ${normalizedValue} está en uso por ${usage.count} recurso(s). Debes migrarlos antes de eliminarla.`,
+        'warning',
+      )
+      renderCatalogManager()
+      return
+    }
+  }
+
+  const confirmed = await openConfirmDialog({
+    eyebrow: 'Confirmar eliminación',
+    title: `Eliminar valor de ${fieldDefinition.label || 'lista'}`,
+    message: `¿Deseas eliminar "${normalizedValue}" de esta lista?`,
+    confirmLabel: 'Eliminar',
+    cancelLabel: 'Cancelar',
+  })
+  if (!confirmed) {
+    return
+  }
+
+  deleteCatalogOption(fieldKey, normalizedValue)
+}
+
+async function executeResourceCategoryMigration(sourceValue, destinationValue) {
+  const sourceCategory = transformCatalogValue('resource_categoria', sourceValue)
+  const destinationCategory = transformCatalogValue('resource_categoria', destinationValue)
+  if (!sourceCategory || !destinationCategory) {
+    setCatalogManagerFeedback('Selecciona o crea una categoría destino válida.', 'warning')
+    renderCatalogManager()
+    return
+  }
+
+  if (normalizeCatalogCompareValue(sourceCategory) === normalizeCatalogCompareValue(destinationCategory)) {
+    setCatalogManagerFeedback('La categoría destino debe ser diferente de la categoría que vas a eliminar.', 'warning')
+    renderCatalogManager()
+    return
+  }
+
+  const usage = getResourcesUsingCategory(sourceCategory)
+  if (!usage.count) {
+    clearPendingCategoryMigration()
+    deleteCatalogOption('resource_categoria', sourceCategory)
+    return
+  }
+
+  const confirmed = await openConfirmDialog({
+    eyebrow: 'Migración de categoría',
+    title: 'Mover recursos y eliminar categoría',
+    message: `Se moverán ${usage.count} recurso(s) de ${sourceCategory} hacia ${destinationCategory}. Luego se eliminará ${sourceCategory}. ¿Deseas continuar?`,
+    confirmLabel: 'Migrar y eliminar',
+    cancelLabel: 'Cancelar',
+  })
+  if (!confirmed) {
+    return
+  }
+
+  saveCatalogOption('resource_categoria', destinationCategory)
+  const normalizedSource = normalizeCatalogCompareValue(sourceCategory)
+  const affectedCodes = usage.codes
+  resourcesRecords = resourcesRecords.map((record) =>
+    normalizeCatalogCompareValue(record?.categoria || '') === normalizedSource
+      ? { ...record, categoria: destinationCategory }
+      : record,
+  )
+  if (Array.isArray(customRequirementItems) && customRequirementItems.length && affectedCodes.size) {
+    customRequirementItems = customRequirementItems.map((item) => {
+      const itemCode = String(item?.codigo || '').trim()
+      if (!affectedCodes.has(itemCode)) {
+        return item
+      }
+      if (normalizeCatalogCompareValue(item?.tipo || '') !== normalizedSource) {
+        return item
+      }
+      return { ...item, tipo: destinationCategory }
+    })
+    await persistCustomRequirementItems()
+  }
+
+  await persistResourcesCatalog()
+  removeCatalogOptionValue('resource_categoria', sourceCategory, { nextValue: destinationCategory })
+  clearPendingCategoryMigration()
+  renderResourcesTable()
+  refreshResourceCategoryManagedSelect(destinationCategory)
+  if (resourceCategoryInput instanceof HTMLSelectElement) {
+    resourceCategoryInput.value = destinationCategory
+  }
+  if (activeRequirementRecord || quotationLinkedRecord) {
+    renderRequirementModalExplorer()
+  }
+  setCatalogManagerFeedback(
+    `Se migraron ${usage.count} recurso(s) a ${destinationCategory} y se eliminó ${sourceCategory}.`,
+    'success',
+  )
+  renderCatalogManager()
+  updateResourcesStatus(`Categoría ${sourceCategory} migrada a ${destinationCategory} correctamente.`, 'success')
 }
 
 function buildFormFields() {
@@ -5039,7 +5946,9 @@ function openModal(record = null) {
     }
   })
 
-  if (!currentEditingId) {
+  const restoredDraft = restoreRecordFormDraft(currentEditingId)
+
+  if (!currentEditingId && !restoredDraft) {
     const quotationInput = recordForm.elements.cotizacion
     if (quotationInput instanceof HTMLInputElement) {
       quotationInput.value = getNextQuotationCode()
@@ -5059,12 +5968,18 @@ function openModal(record = null) {
 
   recordModal.classList.remove('is-hidden')
   document.body.classList.add('menu-open')
+  saveRecordFormDraft()
 }
 
-function closeModal() {
+function closeModal(options = {}) {
+  const { clearDraft = true } = options
+  const draftRecordId = currentEditingId
   recordModal.classList.add('is-hidden')
   document.body.classList.remove('menu-open')
   recordForm.reset()
+  if (clearDraft) {
+    clearRecordFormDraft(draftRecordId)
+  }
   currentEditingId = null
   currentEditingRecord = null
   closeCatalogManager()
@@ -5134,6 +6049,29 @@ function handleCatalogManagerAction(event) {
     return
   }
 
+  const cancelMigrationButton = event.target.closest('[data-action="cancel-category-migration"]')
+  if (cancelMigrationButton) {
+    clearPendingCategoryMigration()
+    setCatalogManagerFeedback('Se canceló la migración de categoría.', 'info')
+    renderCatalogManager()
+    return
+  }
+
+  const confirmMigrationButton = event.target.closest('[data-action="confirm-category-migration"]')
+  if (confirmMigrationButton) {
+    const activePanel = getActiveCatalogPanel()
+    const existingSelect = activePanel?.querySelector('[name="migrationDestinationExisting"]')
+    const newInput = activePanel?.querySelector('[name="migrationDestinationNew"]')
+    const nextDestination =
+      newInput instanceof HTMLInputElement && newInput.value.trim()
+        ? newInput.value
+        : existingSelect instanceof HTMLSelectElement
+          ? existingSelect.value
+          : ''
+    void executeResourceCategoryMigration(pendingCategoryMigrationSource, nextDestination)
+    return
+  }
+
   const saveButton = event.target.closest('[data-action="save-catalog-option"]')
   if (saveButton) {
     const activePanel = getActiveCatalogPanel()
@@ -5155,14 +6093,17 @@ function handleCatalogManagerAction(event) {
 
   const editButton = event.target.closest('[data-action="edit-catalog-option"]')
   if (editButton) {
+    const targetForm = getActiveCatalogForm()
+    const formSnapshot = captureFormState(targetForm)
     editingCatalogOptionValue = editButton.dataset.catalogOption || ''
     renderCatalogManager()
+    restoreFormState(targetForm, formSnapshot)
     return
   }
 
   const deleteButton = event.target.closest('[data-action="delete-catalog-option"]')
   if (deleteButton) {
-    deleteCatalogOption(activeCatalogFieldKey, deleteButton.dataset.catalogOption || '')
+    void confirmDeleteCatalogOption(activeCatalogFieldKey, deleteButton.dataset.catalogOption || '')
   }
 }
 
@@ -5452,7 +6393,7 @@ function buildExplorerFilePayload(file, uploadResult, options = {}) {
   }
 }
 
-async function createExplorerAttachmentEvidence(context, file, title, description, requirementCode = '') {
+async function createExplorerAttachmentEvidence(context, file, title, description, requirementCode = '', options = {}) {
   if (!supabaseClient || !context || !file) {
     return false
   }
@@ -5476,7 +6417,11 @@ async function createExplorerAttachmentEvidence(context, file, title, descriptio
     size_bytes: filePayload.size_bytes,
     bucket: filePayload.bucket,
     storage_path: filePayload.storage_path,
-    metadata: filePayload.metadata,
+    seguimiento_evento_id: options.seguimientoEventoId || null,
+    metadata: {
+      ...(filePayload.metadata || {}),
+      ...(options.metadata || {}),
+    },
     uploaded_by: authSession?.user?.id || null,
     updated_by: authSession?.user?.id || null,
   }
@@ -5561,6 +6506,9 @@ function updateRequirementEntryStatus(message, tone = 'info') {
 
 function getRequirementContextFromRecord(sourceRecord = {}) {
   return {
+    id: sourceRecord.id ?? null,
+    cotizacion_id: sourceRecord.cotizacion_id ?? null,
+    rq_codigo: sourceRecord.rq_codigo || '',
     cotizacion_codigo: sourceRecord.cotizacion_codigo || sourceRecord.cotizacion || '',
     centro_costos: sourceRecord.centro_costos || sourceRecord.oc || '',
     descripcion_cotizacion: sourceRecord.descripcion_cotizacion || sourceRecord.descripcion || '',
@@ -5636,7 +6584,13 @@ function validateRequirementCode(value) {
   }
 
   const normalized = String(value || '').trim().toUpperCase()
-  const duplicated = requirementsRecords.some((record) => String(record.rq_codigo || '').trim().toUpperCase() === normalized)
+  const editingRequirementId = activeRequirementEntryContext?.id
+  const duplicated = requirementsRecords.some((record) => {
+    if (String(record.rq_codigo || '').trim().toUpperCase() !== normalized) {
+      return false
+    }
+    return editingRequirementId ? String(record.id ?? '') !== String(editingRequirementId) : true
+  })
 
   requirementCodeInput.setCustomValidity(duplicated ? 'El código RQ ya existe. Usa otro código.' : '')
   requirementCodeInput.dataset.duplicate = duplicated ? 'true' : 'false'
@@ -5688,12 +6642,19 @@ function getSuggestedRequirementCode(context = {}) {
 
 function validateRequirementCodeSilently(value) {
   const normalized = String(value || '').trim().toUpperCase()
-  return !requirementsRecords.some((record) => String(record.rq_codigo || '').trim().toUpperCase() === normalized)
+  const editingRequirementId = activeRequirementEntryContext?.id
+  return !requirementsRecords.some((record) => {
+    if (String(record.rq_codigo || '').trim().toUpperCase() !== normalized) {
+      return false
+    }
+    return editingRequirementId ? String(record.id ?? '') !== String(editingRequirementId) : true
+  })
 }
 
 function openRequirementEntryModal(context = {}) {
   activeRequirementEntryContext = getRequirementContextFromRecord(context)
-  requirementEntryTitle.textContent = 'Nuevo requerimiento'
+  const isEditingRequirement = Boolean(activeRequirementEntryContext?.id)
+  requirementEntryTitle.textContent = isEditingRequirement ? 'Editar requerimiento' : 'Nuevo requerimiento'
   requirementEntryForm?.reset()
   refreshRequirementRequesterManagedSelect()
   refreshRequirementAreaManagedSelect()
@@ -5728,7 +6689,11 @@ function openRequirementEntryModal(context = {}) {
     requirementAreaInput.value = nextArea
   }
   if (requirementStateInput) requirementStateInput.value = activeRequirementEntryContext.estado || 'REGISTRADO'
-  if (requirementCodeInput) requirementCodeInput.value = getSuggestedRequirementCode(activeRequirementEntryContext)
+  if (requirementCodeInput) {
+    requirementCodeInput.value = isEditingRequirement
+      ? activeRequirementEntryContext.rq_codigo || ''
+      : getSuggestedRequirementCode(activeRequirementEntryContext)
+  }
 
   validateRequirementCode(requirementCodeInput?.value || '')
   requirementEntryModal?.classList.remove('is-hidden')
@@ -5749,6 +6714,7 @@ function closeRequirementEntryModal() {
 
 function collectRequirementEntryPayload() {
   return {
+    cotizacion_id: activeRequirementEntryContext?.cotizacion_id ?? null,
     rq_codigo: requirementCodeInput?.value?.trim() || null,
     cotizacion_codigo: requirementQuotationInput?.value?.trim() || null,
     centro_costos: requirementCostCenterInput?.value?.trim() || null,
@@ -5767,6 +6733,8 @@ function collectRequirementEntryPayload() {
 }
 
 async function saveRequirementEntry(payload) {
+  const requirementId = activeRequirementEntryContext?.id ?? null
+  const isEditingRequirement = Boolean(requirementId)
   if (!payload.rq_codigo) {
     updateRequirementEntryStatus('Ingresa un código RQ válido.', 'warning')
     return
@@ -5778,18 +6746,35 @@ async function saveRequirementEntry(payload) {
 
   const source = config?.requirementsSource
   if (!supabaseClient || !source) {
-    requirementsRecords = [payload, ...requirementsRecords]
+    if (isEditingRequirement) {
+      requirementsRecords = requirementsRecords.map((record) =>
+        String(record.id ?? '') === String(requirementId) ? { ...record, ...payload, id: record.id } : record,
+      )
+    } else {
+      requirementsRecords = [{ id: Date.now(), ...payload }, ...requirementsRecords]
+    }
     buildRequirementsHead()
     renderRequirementsTable()
-    updateRequirementsStatus(`Requerimiento ${payload.rq_codigo} registrado en modo local.`, 'warning')
+    updateRequirementsStatus(
+      isEditingRequirement
+        ? `Requerimiento ${payload.rq_codigo} actualizado en modo local.`
+        : `Requerimiento ${payload.rq_codigo} registrado en modo local.`,
+      'warning',
+    )
     closeRequirementEntryModal()
     return
   }
 
-  updateRequirementEntryStatus('Guardando requerimiento en Supabase...', 'info')
-  const { error } = await supabaseClient.from(source).insert(payload)
+  updateRequirementEntryStatus(
+    isEditingRequirement ? 'Actualizando requerimiento en Supabase...' : 'Guardando requerimiento en Supabase...',
+    'info',
+  )
+  const query = isEditingRequirement
+    ? supabaseClient.from(source).update(payload).eq('id', requirementId)
+    : supabaseClient.from(source).insert(payload)
+  const { error } = await query
   if (error) {
-    updateRequirementEntryStatus(`No se pudo guardar: ${error.message}`, 'danger')
+    updateRequirementEntryStatus(`No se pudo ${isEditingRequirement ? 'actualizar' : 'guardar'}: ${error.message}`, 'danger')
     return
   }
 
@@ -5802,7 +6787,12 @@ async function saveRequirementEntry(payload) {
     await openRequirementDetail(activeRequirementRecord)
   }
 
-  updateRequirementsStatus(`Requerimiento ${payload.rq_codigo} registrado correctamente.`, 'success')
+  updateRequirementsStatus(
+    isEditingRequirement
+      ? `Requerimiento ${payload.rq_codigo} actualizado correctamente.`
+      : `Requerimiento ${payload.rq_codigo} registrado correctamente.`,
+    'success',
+  )
 }
 
 function buildRequirementsHead() {
@@ -6446,8 +7436,17 @@ function resetExplorerExpedienteState() {
   explorerLegacyAttachmentRecords = []
   explorerTrackingComposerMode = ''
   explorerEvidenceComposerOpen = false
+  explorerWorkflowComposerActionKey = ''
+  resetRequirementWorkflowComposerDraft()
+  explorerWorkflowRecipientOptions = []
+  explorerWorkflowRecipientsState = 'idle'
+  explorerWorkflowRecipientsError = ''
   explorerExpedienteSnapshotRecord = null
   explorerExpedienteSnapshotSource = ''
+  requirementItemTrackingEvents = []
+  requirementItemTrackingState = 'idle'
+  requirementItemTrackingError = ''
+  activeRequirementItemTrackingCode = ''
   activeExpedienteContext = null
   if (requirementsExplorerContent) {
     requirementsExplorerContent.dataset.expedienteEntityType = ''
@@ -6662,6 +7661,96 @@ async function loadExplorerTrackingEvents(context) {
   }
 }
 
+async function loadRequirementWorkflowRecipientOptions() {
+  const suggestionMap = new Map()
+  const registerSuggestion = (email = '', label = '') => {
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      return
+    }
+    suggestionMap.set(normalizedEmail, {
+      email: normalizedEmail,
+      label: String(label || '').trim() || normalizedEmail,
+    })
+  }
+
+  registerSuggestion(currentUserProfile?.email || authSession?.user?.email || '', currentUserProfile?.full_name || 'Tú')
+  Object.entries(activeRequirementRecord || {}).forEach(([key, value]) => {
+    if (/(correo|email)/i.test(key)) {
+      registerSuggestion(String(value || '').trim(), toLabel(key))
+    }
+  })
+
+  if (!supabaseClient) {
+    explorerWorkflowRecipientOptions = [...suggestionMap.values()]
+    explorerWorkflowRecipientsState = 'ready'
+    explorerWorkflowRecipientsError = ''
+    return explorerWorkflowRecipientOptions
+  }
+
+  explorerWorkflowRecipientsState = 'loading'
+  explorerWorkflowRecipientsError = ''
+  try {
+    const { data, error } = await supabaseClient
+      .from('user_profiles')
+      .select('email, full_name, role, active')
+      .eq('active', true)
+      .order('full_name', { ascending: true })
+
+    if (error) {
+      throw error
+    }
+
+    ;(Array.isArray(data) ? data : []).forEach((profile) => {
+      registerSuggestion(profile?.email || '', profile?.full_name || getVisibleRoleLabel(profile))
+    })
+
+    explorerWorkflowRecipientOptions = [...suggestionMap.values()]
+    explorerWorkflowRecipientsState = 'ready'
+    explorerWorkflowRecipientsError = ''
+    return explorerWorkflowRecipientOptions
+  } catch (error) {
+    explorerWorkflowRecipientOptions = [...suggestionMap.values()]
+    explorerWorkflowRecipientsState = explorerWorkflowRecipientOptions.length ? 'ready' : 'error'
+    explorerWorkflowRecipientsError = error?.message || 'No se pudieron cargar los interesados sugeridos.'
+    return explorerWorkflowRecipientOptions
+  }
+}
+
+async function loadRequirementItemTrackingEvents(requirementRecord = activeRequirementRecord) {
+  if (!supabaseClient || !requirementRecord?.id) {
+    requirementItemTrackingEvents = []
+    requirementItemTrackingState = 'ready'
+    requirementItemTrackingError = ''
+    return []
+  }
+
+  requirementItemTrackingState = 'loading'
+  requirementItemTrackingError = ''
+  try {
+    const { data, error } = await supabaseClient
+      .from('seguimiento_eventos')
+      .select('*')
+      .eq('entity_type', 'requerimiento_item')
+      .eq('entity_id', requirementRecord.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      throw error
+    }
+
+    requirementItemTrackingEvents = Array.isArray(data) ? data : []
+    requirementItemTrackingState = 'ready'
+    requirementItemTrackingError = ''
+    return requirementItemTrackingEvents
+  } catch (error) {
+    requirementItemTrackingEvents = []
+    requirementItemTrackingState = 'error'
+    requirementItemTrackingError = error?.message || 'No se pudo cargar el seguimiento por ítem.'
+    return []
+  }
+}
+
 async function loadExplorerEvidenceRecords(context) {
   if (!supabaseClient || !context) {
     explorerEvidenceRecords = []
@@ -6750,6 +7839,8 @@ async function refreshExplorerExpedienteData(force = false) {
     loadExplorerExpedienteSnapshot(context),
     loadExplorerTrackingEvents(context),
     loadExplorerEvidenceRecords(context),
+    context.entityType === 'requerimiento' ? loadRequirementWorkflowRecipientOptions() : Promise.resolve([]),
+    context.entityType === 'requerimiento' ? loadRequirementItemTrackingEvents(activeRequirementRecord) : Promise.resolve([]),
   ])
 
   if (!requirementsExplorerModal?.classList.contains('is-hidden')) {
@@ -7020,10 +8111,35 @@ function buildExplorerFileActions(record = {}, labels = {}) {
   `
 }
 
-function buildExplorerReferenceMarkup(referenceValue = '') {
-  const reference = String(referenceValue || '').trim()
+function buildExplorerReferenceMarkup(eventRecord = null) {
+  const reference = String(eventRecord?.communication_ref || '').trim()
   if (!reference) {
     return ''
+  }
+
+  const parsedReferenceTarget = readRequirementDeepLinkTarget(reference)
+  const linkTarget = {
+    ...parsedReferenceTarget,
+    id: String(eventRecord?.entity_type === 'requerimiento' ? eventRecord?.entity_id ?? '' : '').trim() || parsedReferenceTarget.id,
+    code: String(eventRecord?.entity_type === 'requerimiento' ? eventRecord?.entity_code ?? '' : '').trim() || parsedReferenceTarget.code,
+  }
+
+  if (linkTarget.key || linkTarget.id || linkTarget.code) {
+    return `
+      <div class="expediente-card__footer">
+        <span class="expediente-link-label">Referencia</span>
+        <button
+          class="ghost-button ghost-button--soft"
+          type="button"
+          data-action="open-reference-requirement"
+          data-requirement-key="${escapeHtml(linkTarget.key)}"
+          data-requirement-id="${escapeHtml(linkTarget.id)}"
+          data-requirement-code="${escapeHtml(linkTarget.code)}"
+        >
+          Abrir requerimiento
+        </button>
+      </div>
+    `
   }
 
   if (/^https?:\/\//i.test(reference)) {
@@ -7047,9 +8163,17 @@ function getExplorerTabDefinitions() {
   const legacyEvidenceCount = activeExplorerMode === 'rq-detail' ? getLegacyRequirementEvidence().length : 0
   return [
     { key: 'summary', label: 'Resumen' },
-    { key: 'tracking', label: 'Seguimiento', count: explorerTrackingEvents.filter((eventRecord) => eventRecord.event_type !== 'comunicacion').length },
+    {
+      key: 'tracking',
+      label: 'Seguimiento',
+      count: explorerTrackingEvents.filter((eventRecord) => !isExplorerCommunicationRecord(eventRecord)).length,
+    },
     { key: 'evidence', label: 'Evidencias', count: explorerEvidenceRecords.length + legacyEvidenceCount },
-    { key: 'communications', label: 'Comunicaciones', count: explorerTrackingEvents.filter((eventRecord) => eventRecord.event_type === 'comunicacion').length },
+    {
+      key: 'communications',
+      label: 'Comunicaciones',
+      count: explorerTrackingEvents.filter((eventRecord) => isExplorerCommunicationRecord(eventRecord)).length,
+    },
     { key: 'history', label: 'Historial', count: explorerTrackingEvents.length },
   ]
 }
@@ -7139,12 +8263,1333 @@ function canManageExplorerExpediente() {
   return false
 }
 
+const requirementWorkflowStageLabels = {
+  draft: 'Borrador',
+  sent_for_review: 'Enviado a revisión',
+  technical_review_initial: 'Revisión técnica inicial',
+  logistics_costing: 'Logística / costeo',
+  technical_final_conformity: 'Conformidad final',
+  go_review: 'Gerencia de Operaciones',
+  approved_for_attention: 'Aprobado para atención',
+  observed: 'Observado',
+  returned: 'Devuelto',
+}
+
+const requirementWorkflowStatusLabels = {
+  open: 'Abierto',
+  approved: 'Aprobado',
+  observed: 'Observado',
+  returned: 'Devuelto',
+}
+
+const requirementWorkflowPendingRoleLabels = {
+  comercial: 'Proyecto / usuario inicial',
+  tecnico: 'Revisión técnica',
+  logistica: 'Logística / costeo',
+  revision_final: 'Conformidad final',
+  gerencia_operaciones: 'Gerencia de Operaciones',
+}
+
+function normalizeRequirementWorkflowStage(value = '') {
+  const normalized = String(value || '').trim().toLowerCase()
+  return requirementWorkflowStageLabels[normalized] ? normalized : 'draft'
+}
+
+function normalizeRequirementWorkflowStatus(value = '') {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (requirementWorkflowStatusLabels[normalized]) {
+    return normalized
+  }
+
+  if (normalized === 'approved_for_attention') {
+    return 'approved'
+  }
+
+  if (normalized === 'observed') {
+    return 'observed'
+  }
+
+  if (normalized === 'returned') {
+    return 'returned'
+  }
+
+  return 'open'
+}
+
+function getRequirementWorkflowStageLabel(stage = '') {
+  return requirementWorkflowStageLabels[normalizeRequirementWorkflowStage(stage)] || 'Borrador'
+}
+
+function getRequirementWorkflowStatusLabel(status = '') {
+  return requirementWorkflowStatusLabels[normalizeRequirementWorkflowStatus(status)] || 'Abierto'
+}
+
+function getRequirementPendingRoleLabel(roleKey = '') {
+  const normalized = String(roleKey || '').trim().toLowerCase()
+  return requirementWorkflowPendingRoleLabels[normalized] || (normalized ? toLabel(normalized) : 'Sin pendiente')
+}
+
+function getRequirementWorkflowStage(record = activeRequirementRecord) {
+  return normalizeRequirementWorkflowStage(record?.workflow_stage || record?.workflow_status || 'draft')
+}
+
+function getRequirementWorkflowStatus(record = activeRequirementRecord) {
+  return normalizeRequirementWorkflowStatus(record?.workflow_status || '')
+}
+
+function getRequirementWorkflowEvents() {
+  return explorerTrackingEvents.filter((eventRecord) => String(eventRecord?.event_type || '').trim() === 'workflow')
+}
+
+function getRequirementReviewNotificationEvents() {
+  return getRequirementWorkflowEvents().filter((eventRecord) => {
+    const subtype = String(eventRecord?.event_subtype || '').trim()
+    return [
+      'send_for_review',
+      'send_for_review_failed',
+      'retry_send_for_review',
+      'retry_send_for_review_failed',
+    ].includes(subtype)
+  })
+}
+
+function getLatestRequirementReviewNotificationEvent() {
+  return getRequirementReviewNotificationEvents()[0] || null
+}
+
+function hasSuccessfulRequirementReviewDelivery() {
+  return getRequirementReviewNotificationEvents().some((eventRecord) => {
+    const deliveryStatus = String(eventRecord?.metadata?.email_delivery?.status || '').trim().toLowerCase()
+    return isRequirementWorkflowAutomaticEmailEnabled() ? deliveryStatus === 'sent' : deliveryStatus === 'sent' || deliveryStatus === 'prepared'
+  })
+}
+
+function hasWorkflowEventSubtype(eventSubtype = '') {
+  const normalizedSubtype = String(eventSubtype || '').trim()
+  return getRequirementWorkflowEvents().some((eventRecord) => String(eventRecord?.event_subtype || '').trim() === normalizedSubtype)
+}
+
+function requiresRequirementFinalConformity(record = activeRequirementRecord) {
+  return Boolean(record?.requires_final_conformity || hasWorkflowEventSubtype('logistics_costing_complete'))
+}
+
+function hasApprovedRequirementFinalConformity(record = activeRequirementRecord) {
+  if (!requiresRequirementFinalConformity(record)) {
+    return true
+  }
+
+  return hasWorkflowEventSubtype('technical_final_conformity_approve')
+}
+
+function getRequirementItemTrackingKey(itemRecord = {}) {
+  const requirementCode = String(itemRecord?.rq_codigo || activeRequirementRecord?.rq_codigo || '').trim()
+  const itemIdentity = getRequirementDetailRecordIdentity(itemRecord)
+  if (!requirementCode || !itemIdentity) {
+    return ''
+  }
+  return `${requirementCode}::${itemIdentity}`
+}
+
+function getRequirementItemTrackingEvents(itemRecord = null) {
+  const trackingKey = getRequirementItemTrackingKey(itemRecord || {})
+  if (!trackingKey) {
+    return []
+  }
+
+  return requirementItemTrackingEvents.filter((eventRecord) => String(eventRecord?.entity_code || '').trim() === trackingKey)
+}
+
+function getRequirementItemLatestTrackingEvent(itemRecord = null) {
+  return getRequirementItemTrackingEvents(itemRecord)[0] || null
+}
+
+function getRequirementItemTrackingSummary(itemRecord = null) {
+  const latestEvent = getRequirementItemLatestTrackingEvent(itemRecord)
+  const metadata = latestEvent?.metadata && typeof latestEvent.metadata === 'object' ? latestEvent.metadata : {}
+  return {
+    status: String(metadata.status || latestEvent?.status_after || '').trim() || 'Sin seguimiento',
+    owner: String(metadata.owner_name || metadata.owner_email || '').trim() || 'Sin responsable',
+    pending: String(metadata.pending_label || '').trim() || 'Sin pendiente',
+    updatedAt: latestEvent?.created_at || '',
+    comment: String(latestEvent?.comment || '').trim(),
+    actor: String(metadata.actor_name || '').trim() || String(latestEvent?.created_by || '').trim(),
+  }
+}
+
+function enrichRequirementItemTrackingSummary(itemRecord = {}) {
+  const summary = getRequirementItemTrackingSummary(itemRecord)
+  return {
+    ...itemRecord,
+    item_tracking_status: summary.status,
+    item_tracking_owner: summary.owner,
+    item_tracking_pending: summary.pending,
+    item_tracking_updated_at: summary.updatedAt ? formatDateTime(summary.updatedAt) : '',
+  }
+}
+
+function getRequirementWorkflowPreviewItems(items = requirementModalItems) {
+  return (Array.isArray(items) ? items : [])
+    .slice(0, 8)
+    .map((itemRecord) => ({
+      item: itemRecord?.item ?? '',
+      descripcion: String(itemRecord?.descripcion || itemRecord?.codigo || '-').trim() || '-',
+      unidad: String(itemRecord?.und || itemRecord?.unidad || '-').trim() || '-',
+      cantidad: itemRecord?.cant_rq ?? itemRecord?.cantidad ?? '',
+      categoria: String(itemRecord?.tipo || itemRecord?.categoria || '-').trim() || '-',
+    }))
+}
+
+function buildRequirementWorkflowItemPreviewTable(items = requirementModalItems) {
+  const previewItems = getRequirementWorkflowPreviewItems(items)
+  if (!previewItems.length) {
+    return '<p style="margin:0;color:#60708b">No hay ítems disponibles para este requerimiento.</p>'
+  }
+
+  return `
+    <table style="width:100%;border-collapse:collapse;margin:10px 0 0;font-size:13px">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dbe4f0;color:#60708b">Ítem</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dbe4f0;color:#60708b">Descripción / recurso</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dbe4f0;color:#60708b">Unidad</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dbe4f0;color:#60708b">Cantidad</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid #dbe4f0;color:#60708b">Categoría</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${previewItems
+          .map(
+            (itemRecord) => `
+              <tr>
+                <td style="padding:8px;border-bottom:1px solid #eef3fb">${escapeHtml(String(itemRecord.item || '-'))}</td>
+                <td style="padding:8px;border-bottom:1px solid #eef3fb">${escapeHtml(itemRecord.descripcion)}</td>
+                <td style="padding:8px;border-bottom:1px solid #eef3fb">${escapeHtml(itemRecord.unidad)}</td>
+                <td style="padding:8px;border-bottom:1px solid #eef3fb">${escapeHtml(String(itemRecord.cantidad || '-'))}</td>
+                <td style="padding:8px;border-bottom:1px solid #eef3fb">${escapeHtml(itemRecord.categoria)}</td>
+              </tr>
+            `,
+          )
+          .join('')}
+      </tbody>
+    </table>
+  `
+}
+
+function getRequirementWorkflowInterestedSuggestions(record = activeRequirementRecord) {
+  const suggestionMap = new Map()
+  const registerSuggestion = (email = '', label = '') => {
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      return
+    }
+    suggestionMap.set(normalizedEmail, {
+      email: normalizedEmail,
+      label: String(label || '').trim() || normalizedEmail,
+    })
+  }
+
+  registerSuggestion(currentUserProfile?.email || authSession?.user?.email || '', currentUserProfile?.full_name || 'Tú')
+  explorerWorkflowRecipientOptions.forEach((option) => registerSuggestion(option.email, option.label))
+
+  Object.entries(record || {}).forEach(([key, value]) => {
+    if (!/(correo|email)/i.test(key)) {
+      return
+    }
+    registerSuggestion(String(value || '').trim(), toLabel(key))
+  })
+
+  return [...suggestionMap.values()].sort((leftValue, rightValue) =>
+    leftValue.label.localeCompare(rightValue.label, 'es', { sensitivity: 'base' }),
+  )
+}
+
+function buildRequirementDeepLinkUrl(requirementRecord = activeRequirementRecord) {
+  if (typeof window === 'undefined' || !requirementRecord) {
+    return ''
+  }
+
+  const targetUrl = new URL(window.location.href)
+  applyRequirementDeepLinkToUrl(targetUrl, buildRequirementDeepLinkTarget(requirementRecord))
+  return targetUrl.toString()
+}
+
+function buildRequirementDeepLinkTarget(requirementRecord = activeRequirementRecord) {
+  if (!requirementRecord) {
+    return { id: '', code: '', key: '' }
+  }
+
+  return {
+    id: String(requirementRecord.id ?? requirementRecord.requerimiento_id ?? requirementRecord.requirement_id ?? '').trim(),
+    code: String(requirementRecord.rq_codigo ?? requirementRecord.requerimiento_codigo ?? requirementRecord.requirement_code ?? '').trim(),
+    key: String(getRequirementRecordKey(requirementRecord) || '').trim(),
+  }
+}
+
+function readRequirementDeepLinkTarget(referenceValue = '') {
+  let searchText = ''
+  let hashText = ''
+
+  if (!referenceValue && typeof window !== 'undefined') {
+    searchText = String(window.location.search || '')
+    hashText = String(window.location.hash || '')
+  } else {
+    const rawReference = String(referenceValue || '').trim()
+    if (/^https?:\/\//i.test(rawReference)) {
+      try {
+        const parsedUrl = new URL(rawReference, window.location.href)
+        searchText = parsedUrl.search || ''
+        hashText = parsedUrl.hash || ''
+      } catch {}
+    } else if (rawReference.startsWith('#')) {
+      hashText = rawReference
+    } else if (rawReference.startsWith('?')) {
+      searchText = rawReference
+    } else if (/[?#]/.test(rawReference)) {
+      const [pathPart = '', hashPart = ''] = rawReference.split('#')
+      const queryIndex = pathPart.indexOf('?')
+      if (queryIndex >= 0) {
+        searchText = pathPart.slice(queryIndex)
+      }
+      if (hashPart) {
+        hashText = `#${hashPart}`
+      }
+    }
+  }
+
+  const searchParams = new URLSearchParams(searchText.replace(/^\?/, ''))
+  const hashParams = new URLSearchParams(hashText.replace(/^#/, ''))
+  return {
+    id: String(
+      hashParams.get('rq_id') ||
+      hashParams.get('requirement_id') ||
+      searchParams.get('rq_id') ||
+      searchParams.get('requirement_id') ||
+      '',
+    ).trim(),
+    code: String(
+      hashParams.get('rq_codigo') ||
+      hashParams.get('requirement_code') ||
+      searchParams.get('rq_codigo') ||
+      searchParams.get('requirement_code') ||
+      '',
+    ).trim(),
+    key: String(hashParams.get('rq') || searchParams.get('rq') || '').trim(),
+  }
+}
+
+function applyRequirementDeepLinkToUrl(targetUrl, requirementTarget = {}) {
+  if (!(targetUrl instanceof URL)) {
+    return
+  }
+
+  ;['rq', 'rq_id', 'rq_codigo', 'requirement_id', 'requirement_code'].forEach((key) => {
+    targetUrl.searchParams.delete(key)
+  })
+
+  const normalizedTarget = {
+    id: String(requirementTarget?.id || '').trim(),
+    code: String(requirementTarget?.code || '').trim(),
+    key: String(requirementTarget?.key || '').trim(),
+  }
+
+  if (normalizedTarget.id) {
+    targetUrl.searchParams.set('rq_id', normalizedTarget.id)
+  }
+  if (normalizedTarget.code) {
+    targetUrl.searchParams.set('rq_codigo', normalizedTarget.code)
+  }
+  if (normalizedTarget.key) {
+    targetUrl.searchParams.set('rq', normalizedTarget.key)
+  }
+
+  const hashParams = new URLSearchParams()
+  if (normalizedTarget.id) {
+    hashParams.set('rq_id', normalizedTarget.id)
+  }
+  if (normalizedTarget.code) {
+    hashParams.set('rq_codigo', normalizedTarget.code)
+  }
+  if (normalizedTarget.key) {
+    hashParams.set('rq', normalizedTarget.key)
+  }
+  targetUrl.hash = hashParams.toString() ? `#${hashParams.toString()}` : ''
+}
+
+function buildRequirementWorkflowEmailSubject(requirementRecord = activeRequirementRecord) {
+  const shortDescription = String(requirementRecord?.descripcion_cotizacion || '').trim().slice(0, 90)
+  const parts = [
+    '[RQ]',
+    requirementRecord?.centro_costos ? String(requirementRecord.centro_costos).trim() : '',
+    requirementRecord?.rq_codigo ? String(requirementRecord.rq_codigo).trim() : '',
+    requirementRecord?.cotizacion_codigo ? String(requirementRecord.cotizacion_codigo).trim() : '',
+    shortDescription,
+  ].filter(Boolean)
+
+  return parts.join(' | ').trim() || '[RQ] Notificación de requerimiento'
+}
+
+function isRequirementWorkflowAutomaticEmailEnabled() {
+  return workflowEmailDeliveryConfig.mode === 'n8n-webhook' && Boolean(workflowEmailDeliveryConfig.webhookUrl)
+}
+
+function getRequirementWorkflowEmailDeliveryLabel() {
+  return isRequirementWorkflowAutomaticEmailEnabled() ? 'n8n + Gmail' : 'cliente local'
+}
+
+function parseRequirementWorkflowRecipients(recipients = '') {
+  const seen = new Set()
+  return String(recipients || '')
+    .split(/[;,]/)
+    .map((entry) => String(entry || '').trim())
+    .filter((entry) => entry && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(entry))
+    .filter((entry) => {
+      const key = entry.toLowerCase()
+      if (seen.has(key)) {
+        return false
+      }
+      seen.add(key)
+      return true
+    })
+}
+
+function summarizeWorkflowWebhookResponse(payload = {}) {
+  if (!payload || typeof payload !== 'object') {
+    return {}
+  }
+
+  const summary = {}
+  ;['ok', 'message', 'error', 'provider', 'messageId', 'id'].forEach((key) => {
+    if (payload[key] !== undefined && payload[key] !== null && payload[key] !== '') {
+      summary[key] = payload[key]
+    }
+  })
+
+  if (Array.isArray(payload.accepted)) {
+    summary.accepted = payload.accepted.slice(0, 20)
+  }
+  if (Array.isArray(payload.rejected)) {
+    summary.rejected = payload.rejected.slice(0, 20)
+  }
+
+  return summary
+}
+
+function buildRequirementWorkflowNotificationHtml(requirementRecord = activeRequirementRecord, actionDefinition = {}, comment = '') {
+  const safeComment = escapeHtml(comment || 'Sin comentario adicional.')
+  const directLink = buildRequirementDeepLinkUrl(requirementRecord)
+  return `
+    <section style="font-family:Segoe UI,Arial,sans-serif;color:#23314d">
+      <h2 style="margin:0 0 12px">Notificación de requerimiento</h2>
+      <p style="margin:0 0 12px">Se registró la acción <strong>${escapeHtml(actionDefinition.notificationLabel || actionDefinition.label || 'Workflow')}</strong> en la app web.</p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 12px">
+        <tr><td style="padding:6px 0;color:#60708b">Centro de costo</td><td style="padding:6px 0"><strong>${escapeHtml(requirementRecord?.centro_costos || '-')}</strong></td></tr>
+        <tr><td style="padding:6px 0;color:#60708b">RQ</td><td style="padding:6px 0"><strong>${escapeHtml(requirementRecord?.rq_codigo || '-')}</strong></td></tr>
+        <tr><td style="padding:6px 0;color:#60708b">Cotización</td><td style="padding:6px 0">${escapeHtml(requirementRecord?.cotizacion_codigo || '-')}</td></tr>
+        <tr><td style="padding:6px 0;color:#60708b">Descripción cotización</td><td style="padding:6px 0">${escapeHtml(requirementRecord?.descripcion_cotizacion || '-')}</td></tr>
+        <tr><td style="padding:6px 0;color:#60708b">Cliente</td><td style="padding:6px 0">${escapeHtml(requirementRecord?.cliente || '-')}</td></tr>
+        <tr><td style="padding:6px 0;color:#60708b">Unidad</td><td style="padding:6px 0">${escapeHtml(requirementRecord?.unidad || '-')}</td></tr>
+        <tr><td style="padding:6px 0;color:#60708b">Fecha RQ</td><td style="padding:6px 0">${escapeHtml(formatDate(requirementRecord?.fecha_rq) || '-')}</td></tr>
+        <tr><td style="padding:6px 0;color:#60708b">Items</td><td style="padding:6px 0">${escapeHtml(String(requirementRecord?.cantidad_items ?? requirementModalItems.length ?? 0))}</td></tr>
+        <tr><td style="padding:6px 0;color:#60708b">Etapa actual</td><td style="padding:6px 0">${escapeHtml(getRequirementWorkflowStageLabel(actionDefinition.nextStage || getRequirementWorkflowStage(requirementRecord)))}</td></tr>
+      </table>
+      <p style="margin:0 0 12px"><strong>Comentario:</strong><br>${safeComment}</p>
+      <div style="margin:0 0 12px">
+        <h3 style="margin:0 0 8px;font-size:15px;color:#243a61">Resumen de ítems solicitados</h3>
+        ${buildRequirementWorkflowItemPreviewTable(requirementModalItems)}
+      </div>
+      ${directLink ? `<p style="margin:18px 0 0"><a href="${escapeHtml(directLink)}" style="display:inline-block;padding:10px 14px;background:#c18a26;color:#fff;text-decoration:none;border-radius:10px">Abrir requerimiento</a></p>` : ''}
+    </section>
+  `
+}
+
+function buildRequirementWorkflowNotificationText(requirementRecord = activeRequirementRecord, actionDefinition = {}, comment = '') {
+  const lines = [
+    `Acción: ${actionDefinition.notificationLabel || actionDefinition.label || 'Workflow'}`,
+    `Centro de costo: ${requirementRecord?.centro_costos || '-'}`,
+    `RQ: ${requirementRecord?.rq_codigo || '-'}`,
+    `Cotización: ${requirementRecord?.cotizacion_codigo || '-'}`,
+    `Descripción cotización: ${requirementRecord?.descripcion_cotizacion || '-'}`,
+    `Cliente: ${requirementRecord?.cliente || '-'}`,
+    `Unidad: ${requirementRecord?.unidad || '-'}`,
+    `Fecha RQ: ${formatDate(requirementRecord?.fecha_rq) || '-'}`,
+    `Items: ${requirementRecord?.cantidad_items ?? requirementModalItems.length ?? 0}`,
+    `Etapa actual: ${getRequirementWorkflowStageLabel(actionDefinition.nextStage || getRequirementWorkflowStage(requirementRecord))}`,
+    '',
+    `Comentario: ${comment || 'Sin comentario adicional.'}`,
+  ]
+  const previewItems = getRequirementWorkflowPreviewItems(requirementModalItems)
+  if (previewItems.length) {
+    lines.push('', 'Resumen de ítems:')
+    previewItems.forEach((itemRecord) => {
+      lines.push(`- ${itemRecord.item || '-'} | ${itemRecord.descripcion} | ${itemRecord.unidad} | ${itemRecord.cantidad || '-'} | ${itemRecord.categoria}`)
+    })
+  }
+  const directLink = buildRequirementDeepLinkUrl(requirementRecord)
+  if (directLink) {
+    lines.push('', `Abrir requerimiento: ${directLink}`)
+  }
+  return lines.join('\n')
+}
+
+async function copyRequirementWorkflowNotificationHtml(htmlContent = '', plainText = '') {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined' || !htmlContent) {
+    if (navigator.clipboard?.writeText && plainText) {
+      await navigator.clipboard.writeText(plainText)
+    }
+    return
+  }
+
+  const clipboardItem = new ClipboardItem({
+    'text/html': new Blob([htmlContent], { type: 'text/html' }),
+    'text/plain': new Blob([plainText || htmlContent], { type: 'text/plain' }),
+  })
+  await navigator.clipboard.write([clipboardItem])
+}
+
+function openRequirementWorkflowMailClient(recipients = '', subject = '', plainTextBody = '') {
+  if (typeof window === 'undefined' || !recipients) {
+    return false
+  }
+
+  const normalizedRecipients = String(recipients || '').trim().replace(/\s+/g, '')
+  if (!normalizedRecipients) {
+    return false
+  }
+  const mailtoUrl = `mailto:${normalizedRecipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainTextBody)}`
+  const anchor = document.createElement('a')
+  anchor.href = mailtoUrl
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  return true
+}
+
+async function sendRequirementWorkflowEmailViaWebhook({
+  recipients = '',
+  subject = '',
+  html = '',
+  text = '',
+  requirementRecord = activeRequirementRecord,
+  actionDefinition = {},
+  eventRecord = null,
+  comment = '',
+} = {}) {
+  if (!isRequirementWorkflowAutomaticEmailEnabled()) {
+    return {
+      ok: false,
+      mode: 'local',
+      error: 'No hay un webhook de workflow configurado para envío automático.',
+      code: 'missing-webhook-config',
+    }
+  }
+
+  const recipientList = parseRequirementWorkflowRecipients(recipients)
+  if (!recipientList.length) {
+    return {
+      ok: false,
+      mode: 'webhook',
+      error: 'No se encontraron destinatarios válidos para el envío automático.',
+      code: 'empty-recipients',
+    }
+  }
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timeoutHandle = controller
+    ? setTimeout(() => {
+        try {
+          controller.abort()
+        } catch {}
+      }, workflowEmailDeliveryConfig.timeoutMs)
+    : null
+
+  const payload = {
+    type: 'requirement_workflow_review',
+    source: 'ops-ia-web',
+    actionKey: actionDefinition?.key || '',
+    actionLabel: actionDefinition?.notificationLabel || actionDefinition?.label || 'Workflow',
+    recipients: recipientList,
+    subject: String(subject || '').trim(),
+    html: String(html || ''),
+    text: String(text || ''),
+    comment: String(comment || '').trim(),
+    eventId: eventRecord?.id || null,
+    communicationRef: eventRecord?.communication_ref || buildRequirementDeepLinkUrl(requirementRecord) || '',
+    requirement: {
+      id: requirementRecord?.id || null,
+      rqCodigo: requirementRecord?.rq_codigo || '',
+      cotizacionCodigo: requirementRecord?.cotizacion_codigo || '',
+      centroCostos: requirementRecord?.centro_costos || '',
+      descripcionCotizacion: requirementRecord?.descripcion_cotizacion || '',
+      cliente: requirementRecord?.cliente || '',
+      unidad: requirementRecord?.unidad || '',
+      fechaRq: requirementRecord?.fecha_rq || '',
+      workflowStage: actionDefinition?.nextStage || getRequirementWorkflowStage(requirementRecord),
+      workflowStatus: actionDefinition?.nextStatus || actionDefinition?.nextStage || '',
+      itemCount: Number(requirementRecord?.cantidad_items ?? requirementModalItems.length ?? 0) || 0,
+      deepLink: buildRequirementDeepLinkUrl(requirementRecord) || '',
+    },
+    actor: {
+      id: authSession?.user?.id || null,
+      email: currentUserProfile?.email || authSession?.user?.email || '',
+      name: currentUserProfile?.full_name || currentUserProfile?.email || authSession?.user?.email || '',
+      role: currentUserProfile?.role || '',
+    },
+  }
+
+  try {
+    const response = await fetch(workflowEmailDeliveryConfig.webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(workflowEmailDeliveryConfig.webhookToken
+          ? { 'X-Workflow-Token': workflowEmailDeliveryConfig.webhookToken }
+          : {}),
+      },
+      body: JSON.stringify(payload),
+      signal: controller?.signal,
+    })
+
+    const rawText = await response.text()
+    let parsedBody = {}
+    if (rawText) {
+      try {
+        parsedBody = JSON.parse(rawText)
+      } catch {
+        parsedBody = { message: rawText }
+      }
+    }
+
+    if (!response.ok || parsedBody?.ok === false) {
+      return {
+        ok: false,
+        mode: 'webhook',
+        provider: parsedBody?.provider || 'n8n',
+        statusCode: response.status,
+        error:
+          parsedBody?.error ||
+          parsedBody?.message ||
+          `El webhook respondió con estado ${response.status}.`,
+        response: summarizeWorkflowWebhookResponse(parsedBody),
+        accepted: Array.isArray(parsedBody?.accepted) ? parsedBody.accepted : [],
+        rejected: Array.isArray(parsedBody?.rejected) ? parsedBody.rejected : [],
+      }
+    }
+
+    return {
+      ok: true,
+      mode: 'webhook',
+      provider: parsedBody?.provider || 'gmail',
+      statusCode: response.status,
+      messageId: parsedBody?.messageId || parsedBody?.id || '',
+      response: summarizeWorkflowWebhookResponse(parsedBody),
+      accepted: Array.isArray(parsedBody?.accepted) && parsedBody.accepted.length ? parsedBody.accepted : recipientList,
+      rejected: Array.isArray(parsedBody?.rejected) ? parsedBody.rejected : [],
+    }
+  } catch (error) {
+    const isAbortError = error?.name === 'AbortError'
+    return {
+      ok: false,
+      mode: 'webhook',
+      provider: 'n8n',
+      error: isAbortError
+        ? `El webhook tardó más de ${Math.round(workflowEmailDeliveryConfig.timeoutMs / 1000)} segundos en responder.`
+        : error?.message || 'No se pudo completar la solicitud de envío.',
+      code: isAbortError ? 'timeout' : 'request-failed',
+    }
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle)
+    }
+  }
+}
+
+async function updateRequirementWorkflowEmailAudit(eventRecord = null, metadata = {}, deliveryResult = null) {
+  if (!supabaseClient || !eventRecord?.id) {
+    return metadata
+  }
+
+  const attemptedAt = new Date().toISOString()
+  const emailDelivery = {
+    attempted_at: attemptedAt,
+    mode: deliveryResult?.mode || (isRequirementWorkflowAutomaticEmailEnabled() ? 'webhook' : 'local'),
+    status: deliveryResult?.ok
+      ? deliveryResult?.mode === 'webhook'
+        ? 'sent'
+        : 'prepared'
+      : deliveryResult?.mode === 'local'
+        ? 'prepared'
+        : 'failed',
+    provider: deliveryResult?.provider || (deliveryResult?.mode === 'webhook' ? 'n8n' : 'local-mail-client'),
+    message_id: deliveryResult?.messageId || '',
+    accepted: Array.isArray(deliveryResult?.accepted) ? deliveryResult.accepted : [],
+    rejected: Array.isArray(deliveryResult?.rejected) ? deliveryResult.rejected : [],
+    error: deliveryResult?.ok ? '' : deliveryResult?.error || 'No se pudo completar el envío.',
+    response: deliveryResult?.response || {},
+  }
+
+  const nextMetadata = {
+    ...metadata,
+    email_delivery: emailDelivery,
+  }
+
+  const { error } = await supabaseClient
+    .from('seguimiento_eventos')
+    .update({
+      metadata: nextMetadata,
+      updated_at: attemptedAt,
+      updated_by: authSession?.user?.id || null,
+    })
+    .eq('id', eventRecord.id)
+
+  if (error) {
+    console.error('[Workflow] No se pudo actualizar la auditoría del correo', { eventId: eventRecord.id, error })
+    return metadata
+  }
+
+  return nextMetadata
+}
+
+function canManageRequirementWorkflow(profile = currentUserProfile) {
+  const permissions = getCurrentModulePermissions('details', profile)
+  return Boolean(canManageExplorerExpediente() && permissions.show_workflow_actions)
+}
+
+function getRequirementWorkflowActionCatalog() {
+  return {
+    send_for_review: {
+      key: 'send_for_review',
+      label: 'Enviar a revisión',
+      title: 'Enviar a revisión',
+      notificationLabel: 'Envío a revisión',
+      nextStage: 'sent_for_review',
+      nextStatus: 'open',
+      pendingRole: 'tecnico',
+      roles: ['admin', 'comercial', 'tecnico'],
+      commentRequired: false,
+      recipientsRequired: true,
+      opensEmail: true,
+      requireEmailSuccessToAdvance: true,
+    },
+    retry_send_for_review: {
+      key: 'retry_send_for_review',
+      label: 'Reintentar envío',
+      title: 'Reintentar envío a revisión',
+      notificationLabel: 'Reintento de envío a revisión',
+      nextStage: 'sent_for_review',
+      nextStatus: 'open',
+      pendingRole: 'tecnico',
+      roles: ['admin', 'comercial', 'tecnico'],
+      commentRequired: false,
+      recipientsRequired: true,
+      opensEmail: true,
+      requireEmailSuccessToAdvance: true,
+    },
+    rollback_review_to_draft: {
+      key: 'rollback_review_to_draft',
+      label: 'Volver a borrador',
+      title: 'Volver el requerimiento a borrador',
+      nextStage: 'draft',
+      nextStatus: 'open',
+      pendingRole: 'comercial',
+      roles: ['admin', 'comercial', 'tecnico'],
+      commentRequired: true,
+    },
+    start_technical_review_initial: {
+      key: 'start_technical_review_initial',
+      label: 'Tomar revisión técnica',
+      title: 'Iniciar revisión técnica inicial',
+      nextStage: 'technical_review_initial',
+      nextStatus: 'open',
+      pendingRole: 'tecnico',
+      roles: ['admin', 'tecnico'],
+      commentRequired: false,
+    },
+    technical_review_initial_approve: {
+      key: 'technical_review_initial_approve',
+      label: 'Conforme a logística',
+      title: 'Cerrar revisión técnica inicial',
+      nextStage: 'logistics_costing',
+      nextStatus: 'open',
+      pendingRole: 'logistica',
+      roles: ['admin', 'tecnico'],
+      commentRequired: true,
+    },
+    technical_review_initial_observe: {
+      key: 'technical_review_initial_observe',
+      label: 'Observar requerimiento',
+      title: 'Observar en revisión técnica inicial',
+      nextStage: 'observed',
+      nextStatus: 'observed',
+      pendingRole: 'comercial',
+      roles: ['admin', 'tecnico'],
+      commentRequired: true,
+    },
+    logistics_costing_complete: {
+      key: 'logistics_costing_complete',
+      label: 'Enviar a conformidad final',
+      title: 'Cerrar costeo logístico',
+      nextStage: 'technical_final_conformity',
+      nextStatus: 'open',
+      pendingRole: 'revision_final',
+      roles: ['admin', 'logistica'],
+      commentRequired: true,
+      nextRequiresFinalConformity: true,
+    },
+    technical_final_conformity_approve: {
+      key: 'technical_final_conformity_approve',
+      label: 'Conforme y pasa a GO',
+      title: 'Registrar conformidad final',
+      nextStage: 'go_review',
+      nextStatus: 'open',
+      pendingRole: 'gerencia_operaciones',
+      roles: ['admin', 'tecnico', 'comercial'],
+      commentRequired: true,
+      nextRequiresFinalConformity: false,
+    },
+    technical_final_conformity_observe_logistics: {
+      key: 'technical_final_conformity_observe_logistics',
+      label: 'Observar y volver a Logística',
+      title: 'Observar conformidad final',
+      nextStage: 'logistics_costing',
+      nextStatus: 'open',
+      pendingRole: 'logistica',
+      roles: ['admin', 'tecnico', 'comercial'],
+      commentRequired: true,
+      nextRequiresFinalConformity: true,
+    },
+    technical_final_conformity_return: {
+      key: 'technical_final_conformity_return',
+      label: 'Devolver requerimiento',
+      title: 'Devolver desde conformidad final',
+      nextStage: 'returned',
+      nextStatus: 'returned',
+      pendingRole: 'comercial',
+      roles: ['admin', 'tecnico', 'comercial'],
+      commentRequired: true,
+      nextRequiresFinalConformity: false,
+    },
+    go_approve: {
+      key: 'go_approve',
+      label: 'Aprobar atención',
+      title: 'Aprobación de Gerencia de Operaciones',
+      nextStage: 'approved_for_attention',
+      nextStatus: 'approved',
+      pendingRole: '',
+      roles: ['admin'],
+      commentRequired: true,
+      nextRequiresFinalConformity: false,
+    },
+    go_observe: {
+      key: 'go_observe',
+      label: 'Observar requerimiento',
+      title: 'Observación de Gerencia de Operaciones',
+      nextStage: 'observed',
+      nextStatus: 'observed',
+      pendingRole: 'comercial',
+      roles: ['admin'],
+      commentRequired: true,
+      nextRequiresFinalConformity: false,
+    },
+    go_return: {
+      key: 'go_return',
+      label: 'Devolver requerimiento',
+      title: 'Devolución de Gerencia de Operaciones',
+      nextStage: 'returned',
+      nextStatus: 'returned',
+      pendingRole: 'comercial',
+      roles: ['admin'],
+      commentRequired: true,
+      nextRequiresFinalConformity: false,
+    },
+  }
+}
+
+function getRequirementWorkflowActionDefinition(actionKey = '') {
+  return getRequirementWorkflowActionCatalog()[String(actionKey || '').trim()] || null
+}
+
+function getRequirementWorkflowStageActions(stage = getRequirementWorkflowStage(activeRequirementRecord)) {
+  const catalog = getRequirementWorkflowActionCatalog()
+  switch (normalizeRequirementWorkflowStage(stage)) {
+    case 'draft':
+    case 'observed':
+    case 'returned':
+      return [catalog.send_for_review]
+    case 'sent_for_review':
+      if (isRequirementWorkflowAutomaticEmailEnabled()) {
+        const actions = [catalog.retry_send_for_review, catalog.rollback_review_to_draft]
+        if (hasSuccessfulRequirementReviewDelivery()) {
+          actions.unshift(catalog.start_technical_review_initial)
+        }
+        return actions
+      }
+      return [catalog.start_technical_review_initial, catalog.retry_send_for_review]
+    case 'technical_review_initial':
+      return [catalog.technical_review_initial_approve, catalog.technical_review_initial_observe]
+    case 'logistics_costing':
+      return [catalog.logistics_costing_complete]
+    case 'technical_final_conformity':
+      return [
+        catalog.technical_final_conformity_approve,
+        catalog.technical_final_conformity_observe_logistics,
+        catalog.technical_final_conformity_return,
+      ]
+    case 'go_review':
+      return [catalog.go_approve, catalog.go_observe, catalog.go_return]
+    default:
+      return []
+  }
+}
+
+function canExecuteRequirementWorkflowAction(actionDefinition, profile = currentUserProfile) {
+  if (!actionDefinition || !canManageRequirementWorkflow(profile)) {
+    return false
+  }
+
+  const role = String(profile?.role || '').trim()
+  return actionDefinition.roles.includes(role)
+}
+
+function getAvailableRequirementWorkflowActions(record = activeRequirementRecord, profile = currentUserProfile) {
+  return getRequirementWorkflowStageActions(getRequirementWorkflowStage(record)).filter((actionDefinition) =>
+    canExecuteRequirementWorkflowAction(actionDefinition, profile),
+  )
+}
+
+function getRequirementWorkflowPrimaryButtonLabel(record = activeRequirementRecord) {
+  const stage = getRequirementWorkflowStage(record)
+  if (stage === 'draft' || stage === 'observed' || stage === 'returned') {
+    return 'Enviar a revisión'
+  }
+
+  if (stage === 'sent_for_review' && isRequirementWorkflowAutomaticEmailEnabled() && !hasSuccessfulRequirementReviewDelivery()) {
+    return 'Reintentar envío'
+  }
+
+  return 'Continuar workflow'
+}
+
+function buildRequirementWorkflowSummaryMarkup(record = activeRequirementRecord) {
+  if (!record) {
+    return ''
+  }
+
+  const stage = getRequirementWorkflowStage(record)
+  const status = getRequirementWorkflowStatus(record)
+  const workflowEvents = getRequirementWorkflowEvents()
+  const latestWorkflowEvent = workflowEvents[0] || null
+  const availableActions = getAvailableRequirementWorkflowActions(record)
+  const composerAction =
+    getRequirementWorkflowActionDefinition(explorerWorkflowComposerActionKey) ||
+    availableActions[0] ||
+    null
+  const requiresFinal = requiresRequirementFinalConformity(record)
+  const finalConformityApproved = hasApprovedRequirementFinalConformity(record)
+  const latestReviewNotification = getLatestRequirementReviewNotificationEvent()
+  const reviewDeliveryStatus = String(latestReviewNotification?.metadata?.email_delivery?.status || '').trim().toLowerCase()
+  const workflowGuardMessage =
+    requiresFinal && !finalConformityApproved
+      ? 'No se puede pasar a Gerencia de Operaciones hasta registrar la conformidad final posterior al costeo logístico.'
+      : stage === 'sent_for_review' && isRequirementWorkflowAutomaticEmailEnabled() && reviewDeliveryStatus !== 'sent'
+        ? 'El envío automático de revisión todavía no está confirmado. Reintenta el correo o vuelve el requerimiento a borrador antes de continuar.'
+      : ''
+  const latestMovementLabel = latestWorkflowEvent?.title || 'Sin transición formal todavía'
+  const latestMovementDate = formatDateTime(latestWorkflowEvent?.created_at) || 'Pendiente'
+
+  return `
+    <section class="rq-workflow">
+      <div class="rq-workflow__header">
+        <div>
+          <p class="rq-workflow__eyebrow">Workflow formal</p>
+          <h5 class="rq-workflow__title">${escapeHtml(getRequirementWorkflowStageLabel(stage))}</h5>
+          <p class="rq-workflow__meta-line">
+            <span><strong>Pendiente:</strong> ${escapeHtml(getRequirementPendingRoleLabel(record.pending_role || ''))}</span>
+            <span><strong>Último movimiento:</strong> ${escapeHtml(latestMovementLabel)}</span>
+            <span><strong>Actualizado:</strong> ${escapeHtml(latestMovementDate)}</span>
+          </p>
+        </div>
+        <div class="rq-workflow__chips">
+          <span class="tag tag--${getTagTone(getRequirementWorkflowStatusLabel(status))}">${escapeHtml(getRequirementWorkflowStatusLabel(status))}</span>
+          <span class="rq-chip">${escapeHtml(getRequirementPendingRoleLabel(record.pending_role || ''))}</span>
+          ${requiresFinal ? `<span class="rq-chip ${finalConformityApproved ? 'rq-chip--ok' : 'rq-chip--warning'}">${escapeHtml(finalConformityApproved ? 'Conformidad final registrada' : 'Conformidad final pendiente')}</span>` : ''}
+        </div>
+      </div>
+      ${workflowGuardMessage ? `<div class="sync-status" data-tone="warning">${escapeHtml(workflowGuardMessage)}</div>` : ''}
+      ${composerAction && explorerWorkflowComposerActionKey ? buildRequirementWorkflowComposer(composerAction, record, availableActions) : ''}
+    </section>
+  `
+}
+
+function buildRequirementWorkflowSuggestionButtons(record = activeRequirementRecord) {
+  return getRequirementWorkflowInterestedSuggestions(record)
+    .map(
+      (option) => `
+        <button
+          class="rq-workflow__recipient-pill"
+          type="button"
+          data-action="append-workflow-recipient"
+          data-recipient-email="${escapeHtml(option.email)}"
+          title="${escapeHtml(option.email)}"
+        >
+          ${escapeHtml(option.label)}
+        </button>
+      `,
+    )
+    .join('')
+}
+
+function appendWorkflowRecipients(inputElement, recipientEmail = '') {
+  if (!(inputElement instanceof HTMLInputElement)) {
+    return
+  }
+
+  const normalizedEmail = String(recipientEmail || '').trim().toLowerCase()
+  if (!normalizedEmail || !normalizedEmail.includes('@')) {
+    return
+  }
+
+  const existingValues = String(inputElement.value || '')
+    .split(/[;,]+/)
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+
+  if (existingValues.includes(normalizedEmail)) {
+    inputElement.focus()
+    return
+  }
+
+  inputElement.value = [...existingValues, normalizedEmail].join('; ')
+  inputElement.dispatchEvent(new Event('input', { bubbles: true }))
+  inputElement.focus()
+}
+
+function buildRequirementWorkflowPreviewMarkup(record = activeRequirementRecord, actionDefinition = {}, comment = '') {
+  return buildRequirementWorkflowNotificationHtml(record, actionDefinition, comment || '')
+}
+
+function resetRequirementWorkflowComposerDraft(actionKey = '') {
+  explorerWorkflowComposerDraft = {
+    actionKey: String(actionKey || '').trim(),
+    recipients: '',
+    subject: '',
+    comment: '',
+  }
+}
+
+function syncRequirementWorkflowComposerDraft(formElement) {
+  if (!(formElement instanceof HTMLFormElement)) {
+    return
+  }
+
+  explorerWorkflowComposerDraft = {
+    actionKey: String(
+      formElement.elements.workflow_action?.value ||
+        formElement.querySelector('[name="workflow_action"]')?.value ||
+        explorerWorkflowComposerActionKey ||
+        '',
+    ).trim(),
+    recipients: String(formElement.elements.communication_to?.value || '').trim(),
+    subject: String(formElement.elements.communication_subject?.value || '').trim(),
+    comment: String(formElement.elements.comment?.value || '').trim(),
+  }
+}
+
+function readRequirementWorkflowFieldValue(formElement, fieldName = '', formData = null, fallbackValue = '') {
+  if (!(formElement instanceof HTMLFormElement) || !fieldName) {
+    return String(fallbackValue || '').trim()
+  }
+
+  const visibleField = formElement.querySelector(`[name="${fieldName}"]`)
+  const visibleValue = String(visibleField?.value || '').trim()
+  if (visibleValue) {
+    return visibleValue
+  }
+
+  const namedField = formElement.elements?.[fieldName]
+  const namedValue = String(namedField?.value || '').trim()
+  if (namedValue) {
+    return namedValue
+  }
+
+  const formDataValue = String(formData?.get?.(fieldName) || '').trim()
+  if (formDataValue) {
+    return formDataValue
+  }
+
+  return String(fallbackValue || '').trim()
+}
+
+function buildRequirementWorkflowComposer(actionDefinition, record = activeRequirementRecord, availableActions = []) {
+  if (!actionDefinition || !record) {
+    return ''
+  }
+
+  const defaultSubject = actionDefinition.opensEmail ? buildRequirementWorkflowEmailSubject(record) : ''
+  const draft = explorerWorkflowComposerDraft.actionKey === actionDefinition.key ? explorerWorkflowComposerDraft : null
+  const recipientsValue = draft?.recipients || ''
+  const subjectValue = draft?.subject || defaultSubject
+  const commentValue = draft?.comment || ''
+  const roleHint = getRequirementPendingRoleLabel(actionDefinition.pendingRole || '')
+  const recipientSuggestions = buildRequirementWorkflowSuggestionButtons(record)
+  const recipientsStatusMessage =
+    explorerWorkflowRecipientsState === 'loading'
+      ? 'Cargando interesados sugeridos...'
+      : explorerWorkflowRecipientsError
+        ? explorerWorkflowRecipientsError
+        : ''
+  const actionSelectorMarkup =
+    availableActions.length > 1
+      ? `
+        <label class="field">
+          <span>Acción</span>
+          <select name="workflow_action">
+            ${availableActions
+              .map(
+                (availableAction) => `
+                  <option value="${escapeHtml(availableAction.key)}" ${availableAction.key === actionDefinition.key ? 'selected' : ''}>
+                    ${escapeHtml(availableAction.label)}
+                  </option>
+                `,
+              )
+              .join('')}
+          </select>
+        </label>
+      `
+      : `<input type="hidden" name="workflow_action" value="${escapeHtml(actionDefinition.key)}" />`
+  return `
+    <form class="expediente-composer expediente-composer--workflow" data-action="submit-requirement-workflow">
+      ${actionSelectorMarkup}
+      <div class="expediente-composer__header">
+        <strong>${escapeHtml(actionDefinition.title)}</strong>
+        <button class="ghost-button ghost-button--soft" type="button" data-action="cancel-requirement-workflow">Cancelar</button>
+      </div>
+      <div class="expediente-composer__grid expediente-composer__grid--communication">
+        <label class="field">
+          <span>Etapa actual</span>
+          <input type="text" value="${escapeHtml(getRequirementWorkflowStageLabel(getRequirementWorkflowStage(record)))}" readonly />
+        </label>
+        <label class="field">
+          <span>Próximo actor</span>
+          <input type="text" value="${escapeHtml(roleHint)}" readonly />
+        </label>
+        ${
+          actionDefinition.opensEmail
+            ? `
+              <label class="field">
+                <span>Destinatarios</span>
+                <input name="communication_to" type="text" value="${escapeHtml(recipientsValue)}" placeholder="correo1@empresa.com; correo2@empresa.com" list="workflowRecipientsDatalist" required />
+              </label>
+              <label class="field field--wide">
+                <span>Asunto</span>
+                <input name="communication_subject" type="text" value="${escapeHtml(subjectValue)}" required />
+              </label>
+              <datalist id="workflowRecipientsDatalist">
+                ${getRequirementWorkflowInterestedSuggestions(record)
+                  .map((option) => `<option value="${escapeHtml(option.email)}">${escapeHtml(option.label)}</option>`)
+                  .join('')}
+              </datalist>
+            `
+            : ''
+        }
+        <label class="field field--wide">
+          <span>Archivo adjunto</span>
+          <input name="attachment_file" type="file" title="Puedes adjuntar un sustento o comentario formal de esta etapa." />
+        </label>
+        <label class="field field--full">
+          <span>Comentario${actionDefinition.commentRequired ? ' *' : ''}</span>
+          <textarea name="comment" rows="4" placeholder="Describe la decisión, observación o sustento de esta transición." ${actionDefinition.commentRequired ? 'required' : ''}>${escapeHtml(commentValue)}</textarea>
+        </label>
+      </div>
+      ${
+        actionDefinition.opensEmail
+          ? `
+            <div class="rq-workflow__recipient-picker">
+              <div class="rq-workflow__recipient-picker-header">
+                <strong>Interesados sugeridos</strong>
+                ${recipientsStatusMessage ? `<span>${escapeHtml(recipientsStatusMessage)}</span>` : ''}
+              </div>
+              <div class="rq-workflow__recipient-list">
+                ${recipientSuggestions || '<span class="cell-text cell-empty">No hay sugerencias cargadas. Puedes escribir los correos manualmente.</span>'}
+              </div>
+            </div>
+            <div class="rq-workflow__preview-shell">
+              <div class="rq-workflow__preview-head">
+                <strong>Vista previa del correo</strong>
+                <span>${
+                  isRequirementWorkflowAutomaticEmailEnabled()
+                    ? `La app registra la trazabilidad y enviará el correo automáticamente vía ${escapeHtml(getRequirementWorkflowEmailDeliveryLabel())}.`
+                    : 'La app registra la trazabilidad y prepara un correo local en tu cliente. No hace envío automático desde servidor.'
+                }</span>
+              </div>
+              <div class="rq-workflow__preview-subject" data-role="workflow-email-subject">${escapeHtml(defaultSubject)}</div>
+              <div class="rq-workflow__preview" data-role="workflow-email-preview">
+                ${buildRequirementWorkflowPreviewMarkup(record, actionDefinition)}
+              </div>
+            </div>
+          `
+          : ''
+      }
+      <div class="rq-workflow__note">
+        ${escapeHtml(
+          actionDefinition.opensEmail
+            ? isRequirementWorkflowAutomaticEmailEnabled()
+              ? `La app registrará la transición formal y enviará el correo automáticamente por ${getRequirementWorkflowEmailDeliveryLabel()}. Si el envío falla, el error quedará auditado en la app.`
+              : 'La app registrará la transición formal y abrirá tu cliente de correo con el mensaje preparado. El envío real depende de que lo confirmes manualmente en ese cliente.'
+            : 'La trazabilidad oficial de esta etapa quedará registrada en la app con actor, comentario y fecha.',
+        )}
+      </div>
+      <div class="record-form__actions">
+        <button class="ghost-button ghost-button--soft" type="reset">Limpiar</button>
+        <button class="ghost-button ghost-button--accent" type="submit">${escapeHtml(actionDefinition.opensEmail ? (isRequirementWorkflowAutomaticEmailEnabled() ? 'Registrar y enviar correo' : 'Registrar y abrir correo') : 'Registrar transición')}</button>
+      </div>
+    </form>
+  `
+}
+
+function refreshWorkflowEmailComposerPreview(formElement) {
+  if (!(formElement instanceof HTMLFormElement) || !activeRequirementRecord) {
+    return
+  }
+
+  const actionDefinition = getRequirementWorkflowActionDefinition(formElement.elements.workflow_action?.value || explorerWorkflowComposerActionKey)
+  if (!actionDefinition?.opensEmail) {
+    return
+  }
+
+  const comment = String(formElement.elements.comment?.value || '').trim()
+  const subject = String(formElement.elements.communication_subject?.value || '').trim() || buildRequirementWorkflowEmailSubject(activeRequirementRecord)
+  const subjectElement = formElement.querySelector('[data-role="workflow-email-subject"]')
+  const previewElement = formElement.querySelector('[data-role="workflow-email-preview"]')
+  if (subjectElement instanceof HTMLElement) {
+    subjectElement.textContent = subject
+  }
+  if (previewElement instanceof HTMLElement) {
+    previewElement.innerHTML = buildRequirementWorkflowPreviewMarkup(activeRequirementRecord, actionDefinition, comment)
+  }
+}
+
+function buildRequirementItemTrackingComposer(itemRecord = null) {
+  if (!itemRecord) {
+    return ''
+  }
+
+  const trackingSummary = getRequirementItemTrackingSummary(itemRecord)
+  const trackingKey = getRequirementItemTrackingKey(itemRecord)
+  const trackingHistory = getRequirementItemTrackingEvents(itemRecord).slice(0, 4)
+  return `
+    <section class="rq-item-tracking">
+      <div class="rq-item-tracking__header">
+        <div>
+          <p class="rq-item-tracking__eyebrow">Seguimiento por ítem</p>
+          <h5 class="rq-item-tracking__title">Ítem ${escapeHtml(String(itemRecord.item || '-'))} · ${escapeHtml(String(itemRecord.descripcion || itemRecord.codigo || 'Sin descripción'))}</h5>
+        </div>
+        <button class="ghost-button ghost-button--soft" type="button" data-action="close-item-tracking">Cerrar</button>
+      </div>
+      <div class="rq-item-tracking__summary">
+        <span class="tag tag--${getTagTone(trackingSummary.status)}">${escapeHtml(trackingSummary.status)}</span>
+        <span class="rq-chip">${escapeHtml(trackingSummary.owner)}</span>
+        <span class="rq-chip">${escapeHtml(trackingSummary.pending)}</span>
+        <span class="rq-chip">${escapeHtml(trackingSummary.updatedAt ? formatDateTime(trackingSummary.updatedAt) : 'Sin actualización')}</span>
+      </div>
+      <form class="expediente-composer expediente-composer--item-tracking" data-action="submit-item-tracking">
+        <input type="hidden" name="item_tracking_code" value="${escapeHtml(trackingKey)}" />
+        <div class="expediente-composer__grid expediente-composer__grid--communication">
+          <label class="field">
+            <span>Responsable / encargado</span>
+            <input name="owner_name" type="text" value="${escapeHtml(trackingSummary.owner === 'Sin responsable' ? '' : trackingSummary.owner)}" placeholder="Nombre o área responsable" />
+          </label>
+          <label class="field">
+            <span>Correo responsable</span>
+            <input name="owner_email" type="email" placeholder="responsable@empresa.com" />
+          </label>
+          <label class="field">
+            <span>Estado del ítem</span>
+            <select name="status_after">
+              <option value="Pendiente" ${trackingSummary.status === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+              <option value="En revisión" ${trackingSummary.status === 'En revisión' ? 'selected' : ''}>En revisión</option>
+              <option value="En gestión" ${trackingSummary.status === 'En gestión' ? 'selected' : ''}>En gestión</option>
+              <option value="Resuelto" ${trackingSummary.status === 'Resuelto' ? 'selected' : ''}>Resuelto</option>
+              <option value="Observado" ${trackingSummary.status === 'Observado' ? 'selected' : ''}>Observado</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Pendiente actual</span>
+            <input name="pending_label" type="text" value="${escapeHtml(trackingSummary.pending === 'Sin pendiente' ? '' : trackingSummary.pending)}" placeholder="Qué falta resolver o validar" />
+          </label>
+          <label class="field field--wide">
+            <span>Adjunto</span>
+            <input name="attachment_file" type="file" title="Adjunta un sustento del seguimiento por ítem." />
+          </label>
+          <label class="field field--full">
+            <span>Comentario</span>
+            <textarea name="comment" rows="3" placeholder="Observación, dependencia o decisión registrada para este ítem.">${escapeHtml(trackingSummary.comment || '')}</textarea>
+          </label>
+        </div>
+        <div class="record-form__actions">
+          <button class="ghost-button ghost-button--soft" type="reset">Limpiar</button>
+          <button class="ghost-button ghost-button--accent" type="submit">Guardar seguimiento del ítem</button>
+        </div>
+      </form>
+      <div class="rq-item-tracking__history">
+        <strong>Últimos movimientos del ítem</strong>
+        ${
+          trackingHistory.length
+            ? trackingHistory
+                .map(
+                  (eventRecord) => `
+                    <article class="rq-item-tracking__history-entry">
+                      <div>
+                        <strong>${escapeHtml(eventRecord.title || eventRecord.status_after || 'Seguimiento de ítem')}</strong>
+                        <span>${escapeHtml(formatDateTime(eventRecord.created_at) || '-')}</span>
+                      </div>
+                      <p>${escapeHtml(eventRecord.comment || 'Sin comentario adicional.')}</p>
+                    </article>
+                  `,
+                )
+                .join('')
+            : '<p class="cell-text cell-empty">Todavía no hay seguimiento por ítem registrado.</p>'
+        }
+      </div>
+    </section>
+  `
+}
+
+function applyRequirementWorkflowLocally(nextFields = {}) {
+  if (!activeRequirementRecord) {
+    return
+  }
+
+  activeRequirementRecord = {
+    ...activeRequirementRecord,
+    ...nextFields,
+  }
+  requirementsRecords = requirementsRecords.map((record) =>
+    getRequirementRecordKey(record) === getRequirementRecordKey(activeRequirementRecord)
+      ? { ...record, ...nextFields }
+      : record,
+  )
+  requirementsExplorerContent.dataset.summaryMarkup = buildRequirementSummaryMarkup(activeRequirementRecord, requirementModalItems)
+}
+
 function setExplorerNotice(message = '') {
   if (!requirementsExplorerContent) {
     return
   }
 
   requirementsExplorerContent.dataset.resourceNotice = message
+  const noticeElement = requirementsExplorerContent.querySelector('[data-role="resource-notice"]')
+  if (!(noticeElement instanceof HTMLElement)) {
+    return
+  }
+
+  if (message) {
+    noticeElement.textContent = message
+    noticeElement.classList.remove('is-hidden')
+  } else {
+    noticeElement.textContent = ''
+    noticeElement.classList.add('is-hidden')
+  }
 }
 
 function getTrackingEventOptions() {
@@ -7322,27 +9767,46 @@ function buildEvidenceComposer() {
         </label>
         <label class="field">
           <span>Modo</span>
-          <select name="source_type">
+          <select name="source_type" data-evidence-source-mode>
+            <option value="upload">Archivo digital</option>
             <option value="link">Link</option>
             <option value="manual">Manual</option>
           </select>
         </label>
         <label class="field field--wide">
           <span>Título</span>
-          <input name="title" type="text" placeholder="Ej. Correo con sustento del cliente" required />
+          <input name="title" type="text" placeholder="Opcional. Si lo dejas vacío, usaremos el nombre del archivo o un título automático." />
         </label>
         <label class="field field--wide">
           <span>URL o enlace</span>
-          <input name="external_url" type="text" placeholder="Pega el link si existe" />
+          <input
+            name="external_url"
+            type="text"
+            placeholder="Pega el link si existe"
+            data-evidence-external-url
+            disabled
+          />
         </label>
         <label class="field">
           <span>Nombre de archivo</span>
-          <input name="file_name" type="text" placeholder="Opcional si aún no subes archivo" />
+          <input
+            name="file_name"
+            type="text"
+            placeholder="Se completa automáticamente al adjuntar el archivo"
+            data-evidence-file-name
+            readonly
+          />
         </label>
         ${buildRequirementReferenceSelectMarkup('esta evidencia')}
         <label class="field field--wide">
           <span>Archivo digital</span>
-          <input name="attachment_file" type="file" title="Puedes subir un archivo digital para registrarlo como evidencia." />
+          <input
+            name="attachment_file"
+            type="file"
+            title="Puedes subir un archivo digital para registrarlo como evidencia."
+            accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.csv,.txt"
+            data-evidence-file-input
+          />
         </label>
         <label class="field field--full">
           <span>Descripción</span>
@@ -7355,6 +9819,71 @@ function buildEvidenceComposer() {
       </div>
     </form>
   `
+}
+
+function syncEvidenceComposerMode(formElement, options = {}) {
+  if (!(formElement instanceof HTMLFormElement)) {
+    return
+  }
+
+  const sourceSelect = formElement.querySelector('select[name="source_type"]')
+  if (!(sourceSelect instanceof HTMLSelectElement)) {
+    return
+  }
+
+  const externalUrlInput = formElement.querySelector('input[name="external_url"]')
+  const attachmentInput = formElement.querySelector('input[name="attachment_file"]')
+  const fileNameInput = formElement.querySelector('input[name="file_name"]')
+  const selectedMode = String(sourceSelect.value || 'upload').trim() || 'upload'
+  const isUploadMode = selectedMode === 'upload'
+  const isLinkMode = selectedMode === 'link'
+  const isManualMode = selectedMode === 'manual'
+
+  if (externalUrlInput instanceof HTMLInputElement) {
+    if (!isLinkMode && options.clearExternalUrl) {
+      externalUrlInput.value = ''
+    }
+    externalUrlInput.disabled = !isLinkMode
+    externalUrlInput.required = isLinkMode
+    externalUrlInput.placeholder = isLinkMode
+      ? 'Pega el link si existe'
+      : isUploadMode
+        ? 'El modo Archivo digital no usa enlace'
+        : 'El modo Manual no usa enlace'
+  }
+
+  if (attachmentInput instanceof HTMLInputElement) {
+    if (!isUploadMode && options.clearAttachment) {
+      attachmentInput.value = ''
+    }
+    attachmentInput.disabled = !isUploadMode
+    attachmentInput.required = isUploadMode
+    attachmentInput.title = isUploadMode
+      ? 'Puedes subir un archivo digital para registrarlo como evidencia.'
+      : isLinkMode
+        ? 'Para usar un PDF o archivo, cambia el modo a Archivo digital.'
+        : 'El modo Manual registra solo texto o comentario, sin archivo adjunto.'
+  }
+
+  if (fileNameInput instanceof HTMLInputElement) {
+    const selectedFile =
+      attachmentInput instanceof HTMLInputElement && attachmentInput.files instanceof FileList && attachmentInput.files.length
+        ? attachmentInput.files[0]
+        : null
+
+    if (selectedFile?.name) {
+      fileNameInput.value = selectedFile.name
+    } else if (options.clearFileName && !isManualMode) {
+      fileNameInput.value = ''
+    }
+
+    fileNameInput.readOnly = !isManualMode
+    fileNameInput.placeholder = isManualMode
+      ? 'Opcional. Puedes nombrar la evidencia manualmente.'
+      : isUploadMode
+        ? 'Se completa automáticamente con el nombre del archivo'
+        : 'El modo Link no usa nombre de archivo'
+  }
 }
 
 function buildExpedienteSectionHeader(titleText, metaText = '', actionMarkup = '', noteText = '') {
@@ -7438,6 +9967,7 @@ async function saveExplorerTrackingEvent(formElement, mode = 'tracking') {
     mode,
     result: data,
   })
+  const createdEvent = Array.isArray(data) ? data[0] : data
 
   if (selectedFile) {
     try {
@@ -7447,6 +9977,13 @@ async function saveExplorerTrackingEvent(formElement, mode = 'tracking') {
         isCommunication ? 'Adjunto de comunicación' : 'Adjunto de seguimiento',
         comment || title || (isCommunication ? 'Archivo relacionado a comunicación' : 'Archivo relacionado a seguimiento'),
         relatedRequirementCode,
+        {
+          seguimientoEventoId: createdEvent?.id || null,
+          metadata: {
+            linked_event_type: payload.event_type,
+            linked_event_subtype: payload.event_subtype || null,
+          },
+        },
       )
     } catch (attachmentError) {
       console.error('[Expediente] Error al guardar adjunto complementario', {
@@ -7467,6 +10004,340 @@ async function saveExplorerTrackingEvent(formElement, mode = 'tracking') {
   return true
 }
 
+async function saveRequirementWorkflowAction(formElement) {
+  if (!supabaseClient) {
+    setExplorerNotice('Supabase no está disponible para registrar el workflow del requerimiento.')
+    return false
+  }
+
+  if (!activeRequirementRecord?.id) {
+    setExplorerNotice('No se encontró un requerimiento activo para continuar el workflow.')
+    return false
+  }
+
+  const formData = new FormData(formElement)
+  syncRequirementWorkflowComposerDraft(formElement)
+  const actionField = formElement?.elements?.workflow_action || formElement?.querySelector('[name="workflow_action"]')
+  const recipientsField = formElement?.elements?.communication_to || formElement?.querySelector('[name="communication_to"]')
+  const subjectField = formElement?.elements?.communication_subject || formElement?.querySelector('[name="communication_subject"]')
+  const commentField = formElement?.elements?.comment || formElement?.querySelector('[name="comment"]')
+  const attachmentField = formElement?.elements?.attachment_file || formElement?.querySelector('[name="attachment_file"]')
+  const submittedActionKey = String(
+    formData.get('workflow_action') ||
+      actionField?.value ||
+      explorerWorkflowComposerActionKey ||
+      getAvailableRequirementWorkflowActions(activeRequirementRecord)[0]?.key ||
+      '',
+  ).trim()
+  const actionDefinition = getRequirementWorkflowActionDefinition(submittedActionKey)
+  if (!actionDefinition) {
+    setExplorerNotice('No se reconoció la acción de workflow seleccionada.')
+    return false
+  }
+
+  if (!canExecuteRequirementWorkflowAction(actionDefinition)) {
+    setExplorerNotice('No tienes permiso para ejecutar esta transición del workflow.')
+    return false
+  }
+
+  const currentStage = getRequirementWorkflowStage(activeRequirementRecord)
+  const allowedActions = getRequirementWorkflowStageActions(currentStage).map((item) => item?.key)
+  if (!allowedActions.includes(actionDefinition.key)) {
+    setExplorerNotice('La etapa actual del requerimiento ya cambió o no permite esa transición.')
+    return false
+  }
+
+  const comment = readRequirementWorkflowFieldValue(formElement, 'comment', formData, explorerWorkflowComposerDraft.comment)
+  const recipients = readRequirementWorkflowFieldValue(
+    formElement,
+    'communication_to',
+    formData,
+    recipientsField?.value || explorerWorkflowComposerDraft.recipients,
+  )
+  const recipientList = parseRequirementWorkflowRecipients(recipients)
+  const subject = readRequirementWorkflowFieldValue(
+    formElement,
+    'communication_subject',
+    formData,
+    subjectField?.value || explorerWorkflowComposerDraft.subject,
+  ) || buildRequirementWorkflowEmailSubject(activeRequirementRecord)
+  const attachmentFile = formData.get('attachment_file')
+  const selectedFile =
+    attachmentField instanceof HTMLInputElement && attachmentField.files instanceof FileList && attachmentField.files.length
+      ? attachmentField.files[0]
+      : attachmentFile instanceof File && attachmentFile.size
+        ? attachmentFile
+        : null
+
+  if (actionDefinition.commentRequired && !comment) {
+    setExplorerNotice('Esta transición requiere un comentario obligatorio antes de continuar.')
+    return false
+  }
+
+  if (actionDefinition.recipientsRequired && !recipients) {
+    setExplorerNotice('Ingresa al menos un destinatario para registrar el envío de notificación.')
+    return false
+  }
+
+  if (actionDefinition.recipientsRequired && !recipientList.length) {
+    setExplorerNotice('Ingresa destinatarios válidos separados por coma o punto y coma.')
+    return false
+  }
+
+  if (
+    actionDefinition.nextStage === 'go_review' &&
+    requiresRequirementFinalConformity(activeRequirementRecord) &&
+    !hasApprovedRequirementFinalConformity(activeRequirementRecord) &&
+    actionDefinition.key !== 'technical_final_conformity_approve'
+  ) {
+    setExplorerNotice('No se puede pasar a Gerencia de Operaciones sin conformidad final aprobada.')
+    return false
+  }
+
+  const nextRequiresFinalConformity =
+    typeof actionDefinition.nextRequiresFinalConformity === 'boolean'
+      ? actionDefinition.nextRequiresFinalConformity
+      : requiresRequirementFinalConformity(activeRequirementRecord)
+  const workflowUpdatedAt = new Date().toISOString()
+  const requiresEmailSuccessToAdvance = Boolean(
+    actionDefinition.opensEmail &&
+      isRequirementWorkflowAutomaticEmailEnabled() &&
+      actionDefinition.requireEmailSuccessToAdvance !== false,
+  )
+  const workflowUpdatePayload = {
+    workflow_stage: actionDefinition.nextStage,
+    workflow_status: actionDefinition.nextStatus || actionDefinition.nextStage,
+    workflow_updated_at: workflowUpdatedAt,
+    workflow_updated_by: authSession?.user?.id || null,
+    pending_role: actionDefinition.pendingRole || null,
+    requires_final_conformity: nextRequiresFinalConformity,
+  }
+
+  const notificationHtml = actionDefinition.opensEmail
+    ? buildRequirementWorkflowNotificationHtml(activeRequirementRecord, actionDefinition, comment)
+    : ''
+  const plainTextBody = actionDefinition.opensEmail
+    ? buildRequirementWorkflowNotificationText(activeRequirementRecord, actionDefinition, comment)
+    : ''
+  const communicationRef = buildRequirementDeepLinkUrl(activeRequirementRecord) || null
+
+  let deliveryResult = null
+  if (requiresEmailSuccessToAdvance) {
+    deliveryResult = await sendRequirementWorkflowEmailViaWebhook({
+      recipients,
+      subject,
+      html: notificationHtml,
+      text: plainTextBody,
+      requirementRecord: activeRequirementRecord,
+      actionDefinition,
+      eventRecord: null,
+      comment,
+    })
+
+    if (!deliveryResult?.ok) {
+      const failedEventPayload = {
+        entity_type: 'requerimiento',
+        entity_id: activeRequirementRecord.id,
+        entity_code: activeRequirementRecord.rq_codigo || '',
+        event_type: 'workflow',
+        event_subtype: `${actionDefinition.key}_failed`,
+        status_before: currentStage,
+        status_after: currentStage,
+        title: `${actionDefinition.title} · envío fallido`,
+        comment: comment || null,
+        channel: 'email',
+        communication_subject: subject,
+        communication_ref: communicationRef,
+        communication_from: currentUserProfile?.email || authSession?.user?.email || null,
+        communication_to: recipientList.join('; ') || null,
+        metadata: {
+          workflow_action: actionDefinition.key,
+          pending_role: activeRequirementRecord.pending_role || null,
+          requires_final_conformity: requiresRequirementFinalConformity(activeRequirementRecord),
+          actor_role: currentUserProfile?.role || '',
+          actor_name: currentUserProfile?.full_name || currentUserProfile?.email || '',
+          deep_link: communicationRef || '',
+          notification_html: notificationHtml || null,
+          intended_next_stage: actionDefinition.nextStage,
+          email_recipients: recipientList,
+          email_delivery: {
+            attempted_at: new Date().toISOString(),
+            mode: deliveryResult?.mode || 'webhook',
+            status: 'failed',
+            provider: deliveryResult?.provider || 'n8n',
+            message_id: deliveryResult?.messageId || '',
+            accepted: Array.isArray(deliveryResult?.accepted) ? deliveryResult.accepted : [],
+            rejected: Array.isArray(deliveryResult?.rejected) ? deliveryResult.rejected : [],
+            error: deliveryResult?.error || 'No se pudo completar el envío.',
+            response: deliveryResult?.response || {},
+          },
+        },
+        created_by: authSession?.user?.id || null,
+        updated_by: authSession?.user?.id || null,
+      }
+
+      const { data: failedEvents } = await supabaseClient.from('seguimiento_eventos').insert(failedEventPayload).select('*')
+      const failedEvent = Array.isArray(failedEvents) ? failedEvents[0] : failedEvents
+      if (selectedFile && failedEvent?.id) {
+        try {
+          await createExplorerAttachmentEvidence(
+            getActiveExplorerEntityContext(),
+            selectedFile,
+            `Sustento workflow · ${actionDefinition.label}`,
+            comment || `${actionDefinition.title} (fallido)`,
+            activeRequirementRecord.rq_codigo || '',
+            {
+              seguimientoEventoId: failedEvent.id,
+              metadata: {
+                workflow_action: actionDefinition.key,
+                originLabel: 'Workflow del requerimiento',
+              },
+            },
+          )
+        } catch {}
+      }
+
+      setExplorerNotice(`No se envió el correo de revisión y el requerimiento no avanzó de etapa: ${deliveryResult?.error || 'Error no identificado.'}`)
+      await refreshExplorerExpedienteData(true)
+      return false
+    }
+  }
+
+  const { error: updateError } = await supabaseClient
+    .from('requerimientos_log')
+    .update(workflowUpdatePayload)
+    .eq('id', activeRequirementRecord.id)
+
+  if (updateError) {
+    setExplorerNotice(`No se pudo actualizar la etapa del requerimiento: ${updateError.message}`)
+    return false
+  }
+  const eventPayload = {
+    entity_type: 'requerimiento',
+    entity_id: activeRequirementRecord.id,
+    entity_code: activeRequirementRecord.rq_codigo || '',
+    event_type: 'workflow',
+    event_subtype: actionDefinition.key,
+    status_before: currentStage,
+    status_after: actionDefinition.nextStage,
+    title: actionDefinition.title,
+    comment: comment || null,
+    channel: actionDefinition.opensEmail ? 'email' : 'interna',
+    communication_subject: actionDefinition.opensEmail ? subject : null,
+    communication_ref: communicationRef,
+    communication_from: actionDefinition.opensEmail ? currentUserProfile?.email || authSession?.user?.email || null : null,
+    communication_to: actionDefinition.opensEmail ? recipientList.join('; ') || null : null,
+    metadata: {
+      workflow_action: actionDefinition.key,
+      pending_role: workflowUpdatePayload.pending_role,
+      requires_final_conformity: workflowUpdatePayload.requires_final_conformity,
+      actor_role: currentUserProfile?.role || '',
+      actor_name: currentUserProfile?.full_name || currentUserProfile?.email || '',
+      deep_link: communicationRef || '',
+      notification_html: notificationHtml || null,
+      email_recipients: actionDefinition.opensEmail ? recipientList : [],
+      email_delivery: actionDefinition.opensEmail
+        ? requiresEmailSuccessToAdvance && deliveryResult?.ok
+          ? {
+              attempted_at: new Date().toISOString(),
+              mode: deliveryResult?.mode || 'webhook',
+              status: 'sent',
+              provider: deliveryResult?.provider || 'n8n',
+              message_id: deliveryResult?.messageId || '',
+              accepted: Array.isArray(deliveryResult?.accepted) ? deliveryResult.accepted : recipientList,
+              rejected: Array.isArray(deliveryResult?.rejected) ? deliveryResult.rejected : [],
+              error: '',
+              response: deliveryResult?.response || {},
+            }
+          : {
+              attempted_at: null,
+              mode: isRequirementWorkflowAutomaticEmailEnabled() ? 'webhook' : 'local',
+              status: 'pending',
+              provider: isRequirementWorkflowAutomaticEmailEnabled() ? 'n8n' : 'local-mail-client',
+            }
+        : null,
+    },
+    created_by: authSession?.user?.id || null,
+    updated_by: authSession?.user?.id || null,
+  }
+
+  const { data: insertedEvents, error: eventError } = await supabaseClient.from('seguimiento_eventos').insert(eventPayload).select('*')
+  if (eventError) {
+    setExplorerNotice(`Se actualizó la etapa, pero no se pudo registrar el historial formal: ${eventError.message}`)
+    applyRequirementWorkflowLocally(workflowUpdatePayload)
+    await refreshExplorerExpedienteData(true)
+    return false
+  }
+
+  const createdEvent = Array.isArray(insertedEvents) ? insertedEvents[0] : insertedEvents
+  if (selectedFile) {
+    try {
+      await createExplorerAttachmentEvidence(
+        getActiveExplorerEntityContext(),
+        selectedFile,
+        `Sustento workflow · ${actionDefinition.label}`,
+        comment || actionDefinition.title,
+        activeRequirementRecord.rq_codigo || '',
+        {
+          seguimientoEventoId: createdEvent?.id || null,
+          metadata: {
+            workflow_action: actionDefinition.key,
+            originLabel: 'Workflow del requerimiento',
+          },
+        },
+      )
+    } catch (attachmentError) {
+      setExplorerNotice(`La transición se registró, pero falló el sustento adjunto: ${attachmentError.message}`)
+    }
+  }
+
+  if (actionDefinition.opensEmail && recipients && !requiresEmailSuccessToAdvance) {
+    if (isRequirementWorkflowAutomaticEmailEnabled()) {
+      deliveryResult = await sendRequirementWorkflowEmailViaWebhook({
+        recipients,
+        subject,
+        html: notificationHtml,
+        text: plainTextBody,
+        requirementRecord: activeRequirementRecord,
+        actionDefinition,
+        eventRecord: createdEvent,
+        comment,
+      })
+    } else {
+      try {
+        await copyRequirementWorkflowNotificationHtml(notificationHtml, plainTextBody)
+      } catch {}
+      deliveryResult = {
+        ok: openRequirementWorkflowMailClient(recipients, subject, plainTextBody),
+        mode: 'local',
+        provider: 'local-mail-client',
+        accepted: recipientList,
+        rejected: [],
+      }
+    }
+
+    await updateRequirementWorkflowEmailAudit(createdEvent, eventPayload.metadata, deliveryResult)
+  }
+
+  explorerWorkflowComposerActionKey = ''
+  resetRequirementWorkflowComposerDraft()
+  explorerTrackingComposerMode = ''
+  applyRequirementWorkflowLocally(workflowUpdatePayload)
+  setExplorerNotice(
+    actionDefinition.opensEmail
+      ? isRequirementWorkflowAutomaticEmailEnabled()
+        ? deliveryResult?.ok
+          ? 'Workflow actualizado y correo enviado correctamente por n8n + Gmail.'
+          : `Workflow actualizado, pero el correo no se pudo enviar automáticamente: ${deliveryResult?.error || 'Error no identificado.'}`
+        : deliveryResult?.ok
+          ? 'Workflow actualizado. La app registró la transición y abrió tu cliente de correo con el mensaje preparado; el envío real debes confirmarlo manualmente.'
+          : 'Workflow actualizado. La trazabilidad quedó registrada, pero no se pudo abrir un cliente de correo local. Copia el contenido preparado y envíalo manualmente.'
+      : 'Workflow actualizado correctamente en el requerimiento.',
+  )
+  await refreshExplorerExpedienteData(true)
+  return true
+}
+
 async function saveExplorerEvidenceRecord(formElement) {
   if (!supabaseClient) {
     setExplorerNotice('Supabase no está disponible para registrar evidencias.')
@@ -7482,10 +10353,65 @@ async function saveExplorerEvidenceRecord(formElement) {
   const formData = new FormData(formElement)
   const relatedRequirementCode = String(formData.get('related_requirement_code') || '').trim()
   const attachmentFile = formData.get('attachment_file')
-  const selectedFile = attachmentFile instanceof File && attachmentFile.size ? attachmentFile : null
+  const attachmentInput = formElement?.querySelector('input[name="attachment_file"]')
+  const inputSelectedFile =
+    attachmentInput instanceof HTMLInputElement && attachmentInput.files instanceof FileList && attachmentInput.files.length
+      ? attachmentInput.files[0]
+      : null
+  const attemptedFileSelection =
+    attachmentInput instanceof HTMLInputElement ? Boolean(String(attachmentInput.value || '').trim()) : false
+  const selectedFile =
+    inputSelectedFile instanceof File && inputSelectedFile.size
+      ? inputSelectedFile
+      : attachmentFile instanceof File && attachmentFile.size
+        ? attachmentFile
+        : null
   const selectedEvidenceType = String(formData.get('evidence_type') || 'otro').trim() || 'otro'
   const selectedSourceType = String(formData.get('source_type') || 'manual').trim() || 'manual'
   const providedTitle = String(formData.get('title') || '').trim()
+  const providedExternalUrl = String(formData.get('external_url') || '').trim()
+  const providedDescription = String(formData.get('description') || '').trim()
+
+  if (!selectedFile && attemptedFileSelection) {
+    setExplorerNotice('Se detectó un intento de adjuntar archivo, pero no se pudo leer el PDF o archivo seleccionado. Vuelve a elegirlo antes de guardar.')
+    return false
+  }
+
+  if (selectedSourceType === 'upload' && !selectedFile) {
+    setExplorerNotice('Si el modo es Archivo digital, primero adjunta un PDF o archivo válido antes de guardar.')
+    return false
+  }
+
+  if (selectedSourceType === 'upload' && providedExternalUrl) {
+    setExplorerNotice('Modo Archivo digital: quita el enlace o cambia el modo a Link antes de guardar.')
+    return false
+  }
+
+  if (selectedSourceType === 'link' && selectedFile) {
+    setExplorerNotice('Si adjuntas un PDF o archivo, cambia el modo a Archivo digital antes de guardar.')
+    return false
+  }
+
+  if (selectedSourceType === 'link' && !providedExternalUrl) {
+    setExplorerNotice('Si el modo es Link, ingresa una URL o referencia válida.')
+    return false
+  }
+
+  if (selectedSourceType === 'manual' && selectedFile) {
+    setExplorerNotice('El modo Manual no acepta archivos. Cambia el modo a Archivo digital para subir el PDF.')
+    return false
+  }
+
+  if (selectedSourceType === 'manual' && providedExternalUrl) {
+    setExplorerNotice('El modo Manual no acepta enlaces. Usa el modo Link si quieres registrar una URL.')
+    return false
+  }
+
+  if (selectedSourceType === 'manual' && !providedTitle && !providedDescription) {
+    setExplorerNotice('Si el modo es Manual, registra al menos un título o una descripción para evitar una evidencia vacía.')
+    return false
+  }
+
   let uploadResult = null
   if (selectedFile) {
     try {
@@ -7512,8 +10438,8 @@ async function saveExplorerEvidenceRecord(formElement) {
     title: buildExplorerRequirementScopePrefix(relatedRequirementCode)
       ? `${defaultTitle} · ${relatedRequirementCode}`
       : defaultTitle,
-    description: prependExplorerRequirementScope(String(formData.get('description') || '').trim(), relatedRequirementCode),
-    external_url: selectedFile ? filePayload.external_url : String(formData.get('external_url') || '').trim() || null,
+    description: prependExplorerRequirementScope(providedDescription, relatedRequirementCode),
+    external_url: selectedFile ? filePayload.external_url : providedExternalUrl || null,
     public_url: selectedFile ? filePayload.public_url : String(formData.get('public_url') || '').trim() || null,
     file_name: selectedFile ? filePayload.file_name : String(formData.get('file_name') || '').trim() || null,
     mime_type: selectedFile ? filePayload.mime_type : String(formData.get('mime_type') || '').trim() || null,
@@ -7534,11 +10460,6 @@ async function saveExplorerEvidenceRecord(formElement) {
         },
     uploaded_by: authSession?.user?.id || null,
     updated_by: authSession?.user?.id || null,
-  }
-
-  if (!selectedFile && payload.source_type === 'link' && !payload.external_url) {
-    setExplorerNotice('Si el modo es Link, ingresa una URL o referencia válida.')
-    return false
   }
 
   console.log('[Expediente] Guardando evidencia', {
@@ -7567,6 +10488,133 @@ async function saveExplorerEvidenceRecord(formElement) {
   setExplorerNotice('Evidencia registrada en el expediente.')
   await refreshExplorerExpedienteData(true)
   return true
+}
+
+async function saveRequirementItemTrackingEvent(formElement) {
+  if (!supabaseClient || !activeRequirementRecord?.id) {
+    setExplorerNotice('No se pudo identificar el requerimiento para guardar el seguimiento por ítem.')
+    return false
+  }
+
+  const formData = new FormData(formElement)
+  const trackingCode = String(formData.get('item_tracking_code') || '').trim()
+  if (!trackingCode) {
+    setExplorerNotice('No se pudo identificar el ítem seleccionado.')
+    return false
+  }
+
+  const itemRecord = requirementModalItems.find((item) => getRequirementItemTrackingKey(item) === trackingCode)
+  if (!itemRecord) {
+    setExplorerNotice('El ítem seleccionado ya no está disponible en la vista actual.')
+    return false
+  }
+
+  const ownerName = String(formData.get('owner_name') || '').trim()
+  const ownerEmail = String(formData.get('owner_email') || '').trim()
+  const statusAfter = String(formData.get('status_after') || '').trim() || 'Pendiente'
+  const pendingLabel = String(formData.get('pending_label') || '').trim()
+  const comment = String(formData.get('comment') || '').trim()
+  const attachmentFile = formData.get('attachment_file')
+  const selectedFile = attachmentFile instanceof File && attachmentFile.size ? attachmentFile : null
+  const summaryBefore = getRequirementItemTrackingSummary(itemRecord)
+
+  const payload = {
+    entity_type: 'requerimiento_item',
+    entity_id: activeRequirementRecord.id,
+    entity_code: trackingCode,
+    event_type: 'workflow_item',
+    event_subtype: 'item_follow_up',
+    status_before: summaryBefore.status === 'Sin seguimiento' ? null : summaryBefore.status,
+    status_after: statusAfter,
+    title: `Seguimiento ítem ${itemRecord.item || '-'}`,
+    comment: comment || null,
+    metadata: {
+      requirement_code: activeRequirementRecord.rq_codigo || '',
+      item_number: itemRecord.item ?? null,
+      item_description: itemRecord.descripcion || itemRecord.codigo || '',
+      owner_name: ownerName || null,
+      owner_email: ownerEmail || null,
+      pending_label: pendingLabel || null,
+      status: statusAfter,
+      actor_name: currentUserProfile?.full_name || currentUserProfile?.email || '',
+      actor_role: currentUserProfile?.role || '',
+    },
+    created_by: authSession?.user?.id || null,
+    updated_by: authSession?.user?.id || null,
+  }
+
+  const { data, error } = await supabaseClient.from('seguimiento_eventos').insert(payload).select('*')
+  if (error) {
+    setExplorerNotice(`No se pudo guardar el seguimiento del ítem: ${error.message}`)
+    return false
+  }
+
+  const createdEvent = Array.isArray(data) ? data[0] : data
+  if (selectedFile) {
+    try {
+      await createExplorerAttachmentEvidence(
+        {
+          entityType: 'requerimiento_item',
+          entityId: activeRequirementRecord.id,
+          entityCode: trackingCode,
+        },
+        selectedFile,
+        `Sustento ítem ${itemRecord.item || '-'}`,
+        comment || `Seguimiento del ítem ${itemRecord.item || '-'}`,
+        activeRequirementRecord.rq_codigo || '',
+        {
+          seguimientoEventoId: createdEvent?.id || null,
+          metadata: {
+            originLabel: 'Seguimiento por ítem',
+            item_tracking_code: trackingCode,
+          },
+        },
+      )
+    } catch (attachmentError) {
+      setExplorerNotice(`Se guardó el seguimiento del ítem, pero falló el adjunto: ${attachmentError.message}`)
+    }
+  }
+
+  activeRequirementItemTrackingCode = ''
+  setExplorerNotice(`Seguimiento del ítem ${itemRecord.item || '-'} registrado correctamente.`)
+  await refreshExplorerExpedienteData(true)
+  return true
+}
+
+function isExplorerCommunicationRecord(eventRecord = {}) {
+  const eventType = String(eventRecord?.event_type || '').trim().toLowerCase()
+  const channel = String(eventRecord?.channel || '').trim().toLowerCase()
+  return eventType === 'comunicacion' || (eventType === 'workflow' && channel === 'email')
+}
+
+function buildExplorerWorkflowDeliverySummary(eventRecord = {}) {
+  const delivery = eventRecord?.metadata?.email_delivery
+  if (!delivery || typeof delivery !== 'object') {
+    return ''
+  }
+
+  const status = String(delivery.status || '').trim().toLowerCase()
+  const statusLabel =
+    status === 'sent'
+      ? 'Envío automático: OK'
+      : status === 'failed'
+        ? 'Envío automático: Falló'
+        : status === 'prepared'
+          ? 'Correo local preparado'
+          : ''
+
+  const detailParts = [
+    statusLabel,
+    delivery.provider ? `Proveedor: ${delivery.provider}` : '',
+    delivery.message_id ? `ID: ${delivery.message_id}` : '',
+    delivery.error ? `Detalle: ${delivery.error}` : '',
+  ].filter(Boolean)
+
+  if (!detailParts.length) {
+    return ''
+  }
+
+  return `<div class="expediente-card__footer">${detailParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div>`
 }
 
 function buildExplorerEmptyState(titleText, bodyText) {
@@ -7621,7 +10669,8 @@ function buildExplorerEventCards(eventRecords, emptyTitle, emptyBody) {
               ? `<div class="expediente-card__status">${escapeHtml(eventRecord.status_before || 'Sin estado')} <span>→</span> ${escapeHtml(eventRecord.status_after || 'Sin cambio')}</div>`
               : ''
 
-          const referenceMarkup = buildExplorerReferenceMarkup(eventRecord.communication_ref)
+          const referenceMarkup = buildExplorerReferenceMarkup(eventRecord)
+          const deliverySummary = buildExplorerWorkflowDeliverySummary(eventRecord)
 
           return `
             <details class="expediente-card"${index === 0 ? ' open' : ''}>
@@ -7638,6 +10687,7 @@ function buildExplorerEventCards(eventRecords, emptyTitle, emptyBody) {
                 ${statusSummary}
                 ${eventRecord.comment ? `<p class="expediente-card__body">${escapeHtml(eventRecord.comment)}</p>` : ''}
                 ${communicationParts.length ? `<div class="expediente-card__footer">${communicationParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : ''}
+                ${deliverySummary}
                 ${referenceMarkup}
               </div>
             </details>
@@ -7752,7 +10802,7 @@ function buildQuotationExpedientePanel() {
       return `<div class="requirements-explorer__panel-wrap">${stateMarkup}</div>`
     }
 
-    const records = explorerTrackingEvents.filter((eventRecord) => eventRecord.event_type !== 'comunicacion')
+    const records = explorerTrackingEvents.filter((eventRecord) => !isExplorerCommunicationRecord(eventRecord))
     const actionMarkup = canManageExplorerExpediente()
       ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-tracking-composer" title="Registra un seguimiento operativo. En esta vista puedes referenciarlo a un requerimiento específico.">Registrar seguimiento</button>`
       : ''
@@ -7773,7 +10823,7 @@ function buildQuotationExpedientePanel() {
       return `<div class="requirements-explorer__panel-wrap">${stateMarkup}</div>`
     }
 
-    const records = explorerTrackingEvents.filter((eventRecord) => eventRecord.event_type === 'comunicacion')
+    const records = explorerTrackingEvents.filter((eventRecord) => isExplorerCommunicationRecord(eventRecord))
     const actionMarkup = canManageExplorerExpediente()
       ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-communication-composer" title="Registra correos, llamadas o coordinaciones. En esta vista puedes asociarlas a un requerimiento específico.">Registrar comunicación</button>`
       : ''
@@ -7825,8 +10875,11 @@ function buildQuotationExpedientePanel() {
 
 function buildRequirementExpedientePanel() {
   if (explorerActiveTab === 'summary') {
+    const activeItemTrackingRecord = requirementModalItems.find((item) => getRequirementItemTrackingKey(item) === activeRequirementItemTrackingCode) || null
     return `
       <div class="requirements-explorer__main">
+        ${buildRequirementWorkflowSummaryMarkup()}
+        ${activeItemTrackingRecord ? buildRequirementItemTrackingComposer(activeItemTrackingRecord) : ''}
         ${buildRequirementModalColumnManager()}
         <div class="requirements-explorer__table-wrap">
           ${buildRequirementModalTable()}
@@ -7841,7 +10894,7 @@ function buildRequirementExpedientePanel() {
       return `<div class="requirements-explorer__panel-wrap">${stateMarkup}</div>`
     }
 
-    const records = explorerTrackingEvents.filter((eventRecord) => eventRecord.event_type !== 'comunicacion')
+    const records = explorerTrackingEvents.filter((eventRecord) => !isExplorerCommunicationRecord(eventRecord))
     const actionMarkup = canManageExplorerExpediente()
       ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-tracking-composer" title="Registra un seguimiento operativo para este requerimiento.">Registrar seguimiento</button>`
       : ''
@@ -7862,7 +10915,7 @@ function buildRequirementExpedientePanel() {
       return `<div class="requirements-explorer__panel-wrap">${stateMarkup}</div>`
     }
 
-    const records = explorerTrackingEvents.filter((eventRecord) => eventRecord.event_type === 'comunicacion')
+    const records = explorerTrackingEvents.filter((eventRecord) => isExplorerCommunicationRecord(eventRecord))
     const actionMarkup = canManageExplorerExpediente()
       ? `<button class="ghost-button ghost-button--soft" type="button" data-action="open-communication-composer" title="Registra una comunicación relacionada directamente a este requerimiento.">Registrar comunicación</button>`
       : ''
@@ -8052,6 +11105,42 @@ async function loadRequirementDetails() {
 
 function findRequirementByKey(requirementKey) {
   return requirementsRecords.find((record) => getRequirementRecordKey(record) === requirementKey) || null
+}
+
+function findRequirementByDeepLinkTarget(requirementTarget = {}) {
+  const normalizedTarget = {
+    id: String(requirementTarget?.id || '').trim(),
+    code: String(requirementTarget?.code || '').trim(),
+    key: String(requirementTarget?.key || '').trim(),
+  }
+
+  if (normalizedTarget.id) {
+    const recordById = requirementsRecords.find((record) =>
+      String(record?.id ?? record?.requerimiento_id ?? record?.requirement_id ?? '').trim() === normalizedTarget.id,
+    )
+    if (recordById) {
+      return recordById
+    }
+  }
+
+  if (normalizedTarget.code) {
+    const recordByCode =
+      requirementsRecords.find(
+        (record) => String(record?.rq_codigo ?? record?.requerimiento_codigo ?? record?.requirement_code ?? '').trim() === normalizedTarget.code,
+      ) || null
+    if (recordByCode) {
+      return recordByCode
+    }
+  }
+
+  if (normalizedTarget.key) {
+    const recordByKey = findRequirementByKey(normalizedTarget.key)
+    if (recordByKey) {
+      return recordByKey
+    }
+  }
+
+  return null
 }
 
 function getRequirementDetailEntries(record) {
@@ -8316,7 +11405,8 @@ async function shareQuotationLinkedLink() {
 function buildQuotationLinkedTable() {
   const permissions = getCurrentQuotationPermissions()
   const visibleColumns = getVisibleQuotationLinkedColumns()
-  const actionsWidth = 112
+  const canManageLinkedRequirements = Boolean(permissions.save_edits)
+  const actionsWidth = canManageLinkedRequirements ? 168 : 112
   const fittedWidths = getFittedColumnWidths(
     visibleColumns,
     quotationLinkedColumnWidths,
@@ -8419,6 +11509,24 @@ function buildQuotationLinkedTable() {
                       </button>`
                     : '<span class="cell-text cell-empty">-</span>'
                 }
+                ${
+                  canManageLinkedRequirements
+                    ? `<button class="table-action table-action--icon" type="button" data-action="edit-linked-requirement" data-requirement-key="${rowKey}" title="Editar requerimiento">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M4 17.2V20h2.8l8.3-8.3-2.8-2.8L4 17.2zm13.7-8.1c.3-.3.3-.8 0-1.1l-1.7-1.7a.8.8 0 0 0-1.1 0l-1.4 1.4 2.8 2.8 1.4-1.4z"></path>
+                        </svg>
+                      </button>`
+                    : ''
+                }
+                ${
+                  canManageLinkedRequirements
+                    ? `<button class="table-action table-action--icon table-action--tone-danger" type="button" data-action="delete-linked-requirement" data-requirement-key="${rowKey}" title="Eliminar requerimiento">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M7 21c-.6 0-1-.4-1-1V7h12v13c0 .6-.4 1-1 1H7zm3-3h2V10h-2v8zm4 0h2V10h-2v8zM15.5 4l-1-1h-5l-1 1H5v2h14V4h-3.5z"></path>
+                        </svg>
+                      </button>`
+                    : ''
+                }
               </td>
             </tr>
           `
@@ -8445,6 +11553,70 @@ function buildQuotationLinkedTable() {
       </div>
     </div>
   `
+}
+
+async function deleteLinkedRequirementRecord(requirementRecord) {
+  const permissions = getCurrentQuotationPermissions()
+  if (!permissions.save_edits) {
+    updateRequirementsStatus('No tienes permiso para eliminar requerimientos vinculados.', 'warning')
+    return
+  }
+
+  if (!requirementRecord) {
+    updateRequirementsStatus('No se encontró el requerimiento que intentas eliminar.', 'warning')
+    return
+  }
+
+  const confirmed = await openConfirmDialog({
+    eyebrow: 'Confirmar eliminación',
+    title: 'Eliminar requerimiento',
+    message: `Se eliminará el requerimiento ${requirementRecord.rq_codigo || 'seleccionado'} y también sus items vinculados. El catálogo maestro de recursos no será afectado. ¿Deseas continuar?`,
+    confirmLabel: 'Eliminar',
+    cancelLabel: 'Cancelar',
+  })
+  if (!confirmed) {
+    return
+  }
+
+  const source = config?.requirementsSource
+  if (!supabaseClient || !source) {
+    const targetKey = getRequirementRecordKey(requirementRecord)
+    requirementsRecords = requirementsRecords.filter((record) => getRequirementRecordKey(record) !== targetKey)
+    quotationLinkedRequirements = quotationLinkedRequirements.filter((record) => getRequirementRecordKey(record) !== targetKey)
+    buildRequirementsHead()
+    renderRequirementsTable()
+    renderQuotationLinkedExplorer()
+    updateRequirementsStatus(`Requerimiento ${requirementRecord.rq_codigo || ''} eliminado en modo local.`, 'warning')
+    return
+  }
+
+  updateRequirementsStatus(`Eliminando requerimiento ${requirementRecord.rq_codigo || ''}...`, 'info')
+  let deleteQuery = supabaseClient.from(source).delete()
+  if (requirementRecord.id !== null && requirementRecord.id !== undefined && requirementRecord.id !== '') {
+    deleteQuery = deleteQuery.eq('id', requirementRecord.id)
+  } else {
+    deleteQuery = deleteQuery
+      .eq('rq_codigo', requirementRecord.rq_codigo || '')
+      .eq('centro_costos', requirementRecord.centro_costos || '')
+      .eq('cotizacion_codigo', requirementRecord.cotizacion_codigo || '')
+  }
+
+  const { error } = await deleteQuery
+  if (error) {
+    updateRequirementsStatus(`No se pudo eliminar el requerimiento: ${error.message}`, 'danger')
+    return
+  }
+
+  await loadRequirementsRecords()
+
+  if (quotationLinkedRecord) {
+    openRequirementListModal(quotationLinkedRecord)
+  }
+
+  updateRequirementsStatus(
+    `Requerimiento ${requirementRecord.rq_codigo || ''} eliminado correctamente junto con sus items vinculados.`,
+    'success',
+  )
 }
 
 function renderQuotationLinkedExplorer() {
@@ -8512,9 +11684,8 @@ function renderQuotationLinkedExplorer() {
       </section>
     `
 
-    const resourceNotice = requirementsExplorerContent.dataset.resourceNotice
-      ? `<div class="sync-status" data-tone="info">${escapeHtml(requirementsExplorerContent.dataset.resourceNotice)}</div>`
-      : ''
+    const resourceNoticeMessage = String(requirementsExplorerContent.dataset.resourceNotice || '').trim()
+    const resourceNotice = `<div class="sync-status${resourceNoticeMessage ? '' : ' is-hidden'}" data-tone="info" data-role="resource-notice">${escapeHtml(resourceNoticeMessage)}</div>`
     const linkedActionsMenu = buildToolbarMenu(
       [
         permissions.show_linked_export_excel_button ? { action: 'download-linked-html', label: 'Descargar HTML' } : null,
@@ -8542,8 +11713,8 @@ function renderQuotationLinkedExplorer() {
             </div>
           </div>
         </div>
-        ${resourceNotice}
-        ${buildQuotationExpedientePanel()}
+            ${resourceNotice}
+            ${buildQuotationExpedientePanel()}
       </div>
     `
   } catch (error) {
@@ -8638,7 +11809,7 @@ function buildRequirementModalTable() {
   const permissions = getCurrentModulePermissions('details')
   const visibleColumns = getVisibleRequirementModalColumns()
   const stickyMetaMap = getFrozenColumnMeta(visibleColumns, requirementDetailsColumnWidths, requirementModalFrozenColumnCount)
-  const actionsWidth = 112
+  const actionsWidth = 156
   const colgroup = visibleColumns
     .map((column) => `<col style="width:${getColumnWidth(column, requirementDetailsColumnWidths)}px">`)
     .join('')
@@ -8705,19 +11876,32 @@ function buildRequirementModalTable() {
   const rows = filtered.length
     ? filtered
         .map(
-          (item) => `
+          (item) => {
+            const trackedItem = enrichRequirementItemTrackingSummary(item)
+            return `
             <tr>
               ${visibleColumns
                 .map((column) => {
                   const editable = permissions.show_add_resource_button && isRequirementModalInlineEditable(item, column.key)
                   return `
                     <td${buildStickyCellAttributes([editable ? 'is-inline-editable-cell' : ''].filter(Boolean), stickyMetaMap.get(column.key), 'body')} data-modal-row-id="${escapeHtml(item.local_item_id || '')}" data-modal-column-key="${column.key}">
-                      ${editable ? buildRequirementInlineEditor(item, column) : formatCellValue(item[column.key], column)}
+                      ${editable ? buildRequirementInlineEditor(item, column) : formatCellValue(trackedItem[column.key], column)}
                     </td>
                   `
                 })
                 .join('')}
               <td class="actions-cell">
+                ${
+                  permissions.show_workflow_actions
+                    ? `
+                      <button class="table-action table-action--icon table-action--tone-view" type="button" data-action="open-item-tracking" data-item-tracking-code="${escapeHtml(getRequirementItemTrackingKey(item))}" title="Seguimiento por ítem">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M4 5h16v10H7l-3 3V5zm4 4h8m-8 3h5"></path>
+                        </svg>
+                      </button>
+                    `
+                    : ''
+                }
                 ${
                   permissions.show_add_resource_button
                     ? `
@@ -8736,7 +11920,8 @@ function buildRequirementModalTable() {
                 }
               </td>
             </tr>
-          `,
+          `
+          },
         )
         .join('')
     : `<tr><td class="empty-table" colspan="${Math.max(visibleColumns.length + 1, 1)}">No se encontraron items para los filtros actuales.</td></tr>`
@@ -8787,12 +11972,24 @@ function renderRequirementResourceSidePanel() {
   requirementsExplorerSidePanel.innerHTML = shouldShowPanel ? buildRequirementResourcePicker() : ''
 }
 
+function canCreateResourceFromRequirement(profile = currentUserProfile) {
+  const detailsPermissions = getCurrentModulePermissions('details', profile)
+  const resourcesPermissions = getCurrentModulePermissions('resources', profile)
+  return Boolean(
+    detailsPermissions.show_create_catalog_resource_button &&
+      resourcesPermissions.access &&
+      resourcesPermissions.show_form &&
+      resourcesPermissions.save_edits,
+  )
+}
+
 function renderRequirementModalExplorer() {
   try {
     const permissions = getCurrentModulePermissions('details')
-    const resourceNotice = requirementsExplorerContent.dataset.resourceNotice
-      ? `<div class="sync-status" data-tone="info">${escapeHtml(requirementsExplorerContent.dataset.resourceNotice)}</div>`
-      : ''
+    const resourceNoticeMessage = String(requirementsExplorerContent.dataset.resourceNotice || '').trim()
+    const resourceNotice = `<div class="sync-status${resourceNoticeMessage ? '' : ' is-hidden'}" data-tone="info" data-role="resource-notice">${escapeHtml(resourceNoticeMessage)}</div>`
+    const availableWorkflowActions = getAvailableRequirementWorkflowActions()
+    const workflowPrimaryAction = availableWorkflowActions[0] || null
     const detailActionsMenu = buildToolbarMenu(
       [
         permissions.show_download_html_button ? { action: 'download-rq-html', label: 'Descargar HTML' } : null,
@@ -8813,6 +12010,7 @@ function renderRequirementModalExplorer() {
             <div class="requirements-explorer__toolbar">
               <div class="requirements-explorer__toolbar-line requirements-explorer__toolbar-line--linked">
                 <div class="requirements-explorer__toolbar-group requirements-explorer__toolbar-actions">
+                  ${permissions.show_workflow_actions && workflowPrimaryAction ? `<button class="ghost-button ghost-button--accent" type="button" data-action="open-requirement-workflow" data-workflow-action="${escapeHtml(workflowPrimaryAction.key)}">${escapeHtml(getRequirementWorkflowPrimaryButtonLabel())}</button>` : ''}
                   ${permissions.show_add_resource_button ? `<button class="ghost-button ghost-button--accent" type="button" data-action="add-existing-resource">${requirementModalResourcePickerOpen ? 'Ocultar catálogo' : 'Agregar recurso'}</button>` : ''}
                   ${permissions.show_add_resource_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="save-rq-resources">Guardar recursos</button>' : ''}
                   ${permissions.show_columns_button ? '<button class="ghost-button ghost-button--soft" type="button" data-action="toggle-modal-columns">Columnas</button>' : ''}
@@ -8990,47 +12188,41 @@ function setRequirementDeepLink(requirementRecord) {
     return
   }
 
-  const requirementKey = encodeURIComponent(getRequirementRecordKey(requirementRecord))
-  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#rq=${requirementKey}`)
+  const targetUrl = new URL(window.location.href)
+  applyRequirementDeepLinkToUrl(targetUrl, buildRequirementDeepLinkTarget(requirementRecord))
+  window.history.replaceState(null, '', `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`)
 }
 
-function readRequirementDeepLink() {
+function clearRequirementDeepLink() {
   if (typeof window === 'undefined') {
-    return ''
+    return
   }
 
-  const match = (window.location.hash || '').match(/^#rq=(.+)$/)
-  return match ? decodeURIComponent(match[1]) : ''
+  const cleanUrl = new URL(window.location.href)
+  applyRequirementDeepLinkToUrl(cleanUrl, {})
+  window.history.replaceState(null, '', `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`)
 }
 
 function consumeRequirementDeepLink() {
-  const requirementKey = readRequirementDeepLink()
-  if (
-    requirementKey &&
-    typeof window !== 'undefined' &&
-    /^#rq=/.test(window.location.hash || '')
-  ) {
-    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-  }
-  return requirementKey
+  return readRequirementDeepLinkTarget()
 }
 
 async function tryOpenRequirementFromDeepLink() {
-  const requirementKey = pendingDeepLinkRequirementKey || readRequirementDeepLink()
-  if (!requirementKey || !requirementsRecords.length || !requirementDetailsRecords.length) {
+  const requirementTarget = pendingDeepLinkRequirementTarget || readRequirementDeepLinkTarget()
+  if (!(requirementTarget?.key || requirementTarget?.id || requirementTarget?.code) || !requirementsRecords.length) {
     return
   }
 
-  const requirementRecord = findRequirementByKey(requirementKey)
+  const requirementRecord = findRequirementByDeepLinkTarget(requirementTarget)
   if (!requirementRecord) {
+    pendingDeepLinkRequirementTarget = null
+    clearRequirementDeepLink()
+    updateStatus('No se encontró el requerimiento vinculado al enlace recibido.', 'warning')
     return
   }
 
-  pendingDeepLinkRequirementKey = ''
-  if (typeof window !== 'undefined' && /^#rq=/.test(window.location.hash || '')) {
-    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-  }
-  setActiveView('requirements-log')
+  pendingDeepLinkRequirementTarget = null
+  clearRequirementDeepLink()
   await openRequirementDetail(requirementRecord, { preserveDeepLink: false })
 }
 
@@ -9540,6 +12732,8 @@ async function saveResourceRecord(payload) {
   }
 
   const wasEditing = Boolean(editingResourceId)
+  const resourceLabel = payload.descripcion || payload.codigo || 'el recurso'
+  const openedFromRequirement = activeResourceModalOrigin === 'requirement-detail'
 
   if (editingResourceId) {
     resourcesRecords = resourcesRecords.map((record) => (record.id === editingResourceId ? payload : record))
@@ -9548,12 +12742,22 @@ async function saveResourceRecord(payload) {
   }
 
   await persistResourcesCatalog()
+  refreshResourceCategoryManagedSelect(payload.categoria || 'MATERIAL')
   renderResourcesTable()
   closeResourcesModal()
   updateResourcesStatus(
     wasEditing ? 'Recurso actualizado en el catálogo local.' : 'Recurso agregado al catálogo local.',
     'success',
   )
+
+  if (openedFromRequirement && activeRequirementRecord) {
+    requirementModalResourcePickerOpen = true
+    requirementModalResourceSearch = String(payload.descripcion || payload.codigo || '').trim()
+    requirementsExplorerContent.dataset.resourceNotice = wasEditing
+      ? `Recurso ${resourceLabel} actualizado en el catálogo maestro de la app. Ya puedes agregarlo al requerimiento.`
+      : `Recurso ${resourceLabel} registrado en el catálogo maestro de la app. Ya puedes agregarlo al requerimiento.`
+    renderRequirementModalExplorer()
+  }
 }
 
 async function deleteResourceRecord(resourceId) {
@@ -10047,6 +13251,15 @@ resourcesNewButton?.addEventListener('click', () => {
   openResourcesModal()
 })
 
+resourceCategoryManageButton?.addEventListener('click', () => {
+  if (!canManageResourceCategories()) {
+    updateResourcesStatus('No tienes permiso para administrar las categorías del catálogo.', 'warning')
+    return
+  }
+
+  openCatalogManager('resource_categoria', 'resource')
+})
+
 closeResourcesModalButton?.addEventListener('click', closeResourcesModal)
 confirmDialogCancelButton?.addEventListener('click', () => closeConfirmDialog(false))
 confirmDialogAcceptButton?.addEventListener('click', () => closeConfirmDialog(true))
@@ -10095,9 +13308,27 @@ resourcesForm?.addEventListener('change', (event) => {
     return
   }
 
+  if (target.name === 'imagen_file') {
+    const nextFiles = Array.from(target.files || [])
+    if (nextFiles.length) {
+      pendingResourceImageFiles = [...pendingResourceImageFiles, ...nextFiles]
+      target.value = ''
+      refreshResourceFileHints()
+    }
+    return
+  }
+
+  if (target.name === 'ficha_tecnica_file') {
+    const nextFiles = Array.from(target.files || [])
+    if (nextFiles.length) {
+      pendingResourceTechnicalFiles = [...pendingResourceTechnicalFiles, ...nextFiles]
+      target.value = ''
+      refreshResourceFileHints()
+    }
+    return
+  }
+
   if (
-    target.name === 'imagen_file' ||
-    target.name === 'ficha_tecnica_file' ||
     target.name === 'imagen_url' ||
     target.name === 'ficha_tecnica_url'
   ) {
@@ -10115,6 +13346,63 @@ resourcesForm?.addEventListener('input', (event) => {
     refreshResourceFileHints()
   }
 })
+
+resourcesForm?.addEventListener('click', (event) => {
+  const previousImageButton = event.target.closest('[data-action="resource-image-prev"]')
+  if (previousImageButton) {
+    event.preventDefault()
+    clampResourceImageIndex(activeResourceImageIndex - 1, getResourceImageItemCount())
+    refreshResourceDocumentPreviews()
+    return
+  }
+
+  const nextImageButton = event.target.closest('[data-action="resource-image-next"]')
+  if (nextImageButton) {
+    event.preventDefault()
+    clampResourceImageIndex(activeResourceImageIndex + 1, getResourceImageItemCount())
+    refreshResourceDocumentPreviews()
+    return
+  }
+
+  const removeButton = event.target.closest('[data-action="remove-resource-attachment"]')
+  if (!removeButton) {
+    return
+  }
+
+  event.preventDefault()
+  const attachmentKind = removeButton.dataset.attachmentKind || 'document'
+  const attachmentSource = removeButton.dataset.attachmentSource || 'existing'
+
+  if (attachmentSource === 'pending') {
+    const attachmentIndex = Number(removeButton.dataset.attachmentIndex || -1)
+    if (attachmentKind === 'image') {
+      pendingResourceImageFiles = pendingResourceImageFiles.filter((_, index) => index !== attachmentIndex)
+    } else {
+      pendingResourceTechnicalFiles = pendingResourceTechnicalFiles.filter((_, index) => index !== attachmentIndex)
+    }
+  } else if (attachmentSource === 'typed-url') {
+    if (attachmentKind === 'image') {
+      resourcesForm.imagen_url.value = ''
+    } else {
+      resourcesForm.ficha_tecnica_url.value = ''
+    }
+  } else {
+    const attachmentId = String(removeButton.dataset.attachmentId || '')
+    if (attachmentKind === 'image') {
+      activeResourceImageAttachments = activeResourceImageAttachments.filter((attachment) => attachment.id !== attachmentId)
+    } else {
+      activeResourceTechnicalAttachments = activeResourceTechnicalAttachments.filter((attachment) => attachment.id !== attachmentId)
+    }
+  }
+
+  if (attachmentKind === 'image') {
+    clampResourceImageIndex(activeResourceImageIndex, getResourceImageItemCount())
+  }
+
+  refreshResourceFileHints()
+})
+
+resourcesCatalogManagerPanel?.addEventListener('click', handleCatalogManagerAction)
 
 resourcesSearch?.addEventListener('input', () => {
   resourcesSearchTerm = resourcesSearch.value
@@ -10446,35 +13734,42 @@ recordFormGrid?.addEventListener('click', handleCatalogManagerAction)
 catalogManagerPanel?.addEventListener('click', handleCatalogManagerAction)
 recordForm?.addEventListener('change', (event) => {
   const target = event.target
-  if (!(target instanceof HTMLSelectElement || target instanceof HTMLInputElement)) {
+  if (!(target instanceof HTMLSelectElement || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
     return
   }
 
   if (target.name === 'solicitado_por' || target.name === 'solicitado') {
     applyLinkedContactFields('solicitado_por', target.value)
+    saveRecordFormDraft()
     return
   }
 
   if (target.name === 'responsable_tecnico') {
     applyLinkedContactFields('responsable_tecnico', target.value)
+    saveRecordFormDraft()
     return
   }
 
   if (target.name === 'responsable_economico') {
     applyLinkedContactFields('responsable_economico', target.value)
+    saveRecordFormDraft()
     return
   }
+
+  saveRecordFormDraft()
 })
 
 recordForm?.addEventListener('input', (event) => {
   const target = event.target
-  if (!(target instanceof HTMLInputElement)) {
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
     return
   }
 
-  if (target.name === 'cotizacion') {
+  if (target instanceof HTMLInputElement && target.name === 'cotizacion') {
     validateQuotationCode(target.value)
   }
+
+  saveRecordFormDraft()
 })
 
 tableHead?.addEventListener('input', (event) => {
@@ -10726,6 +14021,85 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
     return
   }
 
+  const openRequirementWorkflowButton = event.target.closest('[data-action="open-requirement-workflow"]')
+  if (openRequirementWorkflowButton) {
+    if (!getCurrentModulePermissions('details').show_workflow_actions) {
+      setExplorerNotice('No tienes permiso para continuar el workflow del requerimiento.')
+      return
+    }
+
+    const requestedActionKey = String(openRequirementWorkflowButton.dataset.workflowAction || '').trim()
+    explorerActiveTab = 'summary'
+    explorerTrackingComposerMode = ''
+    explorerEvidenceComposerOpen = false
+    explorerWorkflowComposerActionKey = requestedActionKey
+    if (explorerWorkflowComposerDraft.actionKey !== requestedActionKey) {
+      resetRequirementWorkflowComposerDraft(requestedActionKey)
+    }
+    if (explorerWorkflowComposerActionKey === 'send_for_review' && explorerWorkflowRecipientsState === 'idle') {
+      void loadRequirementWorkflowRecipientOptions().then(() => {
+        if (explorerWorkflowComposerActionKey === 'send_for_review' && activeExplorerMode === 'rq-detail') {
+          renderRequirementModalExplorer()
+        }
+      })
+    }
+    renderRequirementModalExplorer()
+    return
+  }
+
+  const cancelRequirementWorkflowButton = event.target.closest('[data-action="cancel-requirement-workflow"]')
+  if (cancelRequirementWorkflowButton) {
+    explorerWorkflowComposerActionKey = ''
+    resetRequirementWorkflowComposerDraft()
+    renderRequirementModalExplorer()
+    return
+  }
+
+  const appendWorkflowRecipientButton = event.target.closest('[data-action="append-workflow-recipient"]')
+  if (appendWorkflowRecipientButton) {
+    const workflowForm = appendWorkflowRecipientButton.closest('form[data-action="submit-requirement-workflow"]')
+    const recipientsInput = workflowForm?.querySelector('input[name="communication_to"]')
+    appendWorkflowRecipients(recipientsInput, appendWorkflowRecipientButton.dataset.recipientEmail || '')
+    syncRequirementWorkflowComposerDraft(workflowForm)
+    return
+  }
+
+  const openItemTrackingButton = event.target.closest('[data-action="open-item-tracking"]')
+  if (openItemTrackingButton) {
+    if (!detailsPermissions.show_workflow_actions) {
+      setExplorerNotice('No tienes permiso para gestionar el seguimiento por ítem.')
+      return
+    }
+    activeRequirementItemTrackingCode = String(openItemTrackingButton.dataset.itemTrackingCode || '').trim()
+    explorerTrackingComposerMode = ''
+    explorerEvidenceComposerOpen = false
+    explorerActiveTab = 'summary'
+    renderRequirementModalExplorer()
+    return
+  }
+
+  const closeItemTrackingButton = event.target.closest('[data-action="close-item-tracking"]')
+  if (closeItemTrackingButton) {
+    activeRequirementItemTrackingCode = ''
+    renderRequirementModalExplorer()
+    return
+  }
+
+  const openReferenceRequirementButton = event.target.closest('[data-action="open-reference-requirement"]')
+  if (openReferenceRequirementButton) {
+    const requirementRecord = findRequirementByDeepLinkTarget({
+      key: openReferenceRequirementButton.dataset.requirementKey,
+      id: openReferenceRequirementButton.dataset.requirementId,
+      code: openReferenceRequirementButton.dataset.requirementCode,
+    })
+    if (!requirementRecord) {
+      setExplorerNotice('No se encontró el requerimiento vinculado a esta referencia. Verifica si el RQ todavía existe o si el enlace quedó desactualizado.')
+      return
+    }
+    void openRequirementDetail(requirementRecord)
+    return
+  }
+
   const detailButton = event.target.closest('[data-action="open-requirement-detail"]')
   if (detailButton) {
     if (!quotationPermissions.show_linked_detail_button) {
@@ -10736,6 +14110,36 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
     if (requirementRecord) {
       void openRequirementDetail(requirementRecord)
     }
+    return
+  }
+
+  const editLinkedRequirementButton = event.target.closest('[data-action="edit-linked-requirement"]')
+  if (editLinkedRequirementButton) {
+    if (!quotationPermissions.save_edits) {
+      updateRequirementsStatus('No tienes permiso para editar requerimientos desde esta vista.', 'warning')
+      return
+    }
+    const requirementRecord = findRequirementByKey(editLinkedRequirementButton.dataset.requirementKey)
+    if (!requirementRecord) {
+      updateRequirementsStatus('No se encontró el requerimiento que intentas editar.', 'warning')
+      return
+    }
+    openRequirementEntryModal(requirementRecord)
+    return
+  }
+
+  const deleteLinkedRequirementButton = event.target.closest('[data-action="delete-linked-requirement"]')
+  if (deleteLinkedRequirementButton) {
+    if (!quotationPermissions.save_edits) {
+      updateRequirementsStatus('No tienes permiso para eliminar requerimientos desde esta vista.', 'warning')
+      return
+    }
+    const requirementRecord = findRequirementByKey(deleteLinkedRequirementButton.dataset.requirementKey)
+    if (!requirementRecord) {
+      updateRequirementsStatus('No se encontró el requerimiento que intentas eliminar.', 'warning')
+      return
+    }
+    void deleteLinkedRequirementRecord(requirementRecord)
     return
   }
 
@@ -11031,7 +14435,9 @@ requirementsExplorerContent?.addEventListener('submit', (event) => {
   if (
     !form.matches('[data-action="submit-tracking-event"]') &&
     !form.matches('[data-action="submit-communication-event"]') &&
-    !form.matches('[data-action="submit-evidence-record"]')
+    !form.matches('[data-action="submit-evidence-record"]') &&
+    !form.matches('[data-action="submit-requirement-workflow"]') &&
+    !form.matches('[data-action="submit-item-tracking"]')
   ) {
     return
   }
@@ -11049,6 +14455,10 @@ requirementsExplorerContent?.addEventListener('submit', (event) => {
         didSave = await saveExplorerTrackingEvent(form, 'communication')
       } else if (form.matches('[data-action="submit-evidence-record"]')) {
         didSave = await saveExplorerEvidenceRecord(form)
+      } else if (form.matches('[data-action="submit-requirement-workflow"]')) {
+        didSave = await saveRequirementWorkflowAction(form)
+      } else if (form.matches('[data-action="submit-item-tracking"]')) {
+        didSave = await saveRequirementItemTrackingEvent(form)
       }
     } finally {
       restoreFormState()
@@ -11063,6 +14473,16 @@ requirementsExplorerContent?.addEventListener('submit', (event) => {
 })
 
 requirementsExplorerContent?.addEventListener('input', (event) => {
+  const workflowField = event.target.closest(
+    'form[data-action="submit-requirement-workflow"] input, form[data-action="submit-requirement-workflow"] textarea',
+  )
+  if (workflowField) {
+    const workflowForm = workflowField.closest('form[data-action="submit-requirement-workflow"]')
+    syncRequirementWorkflowComposerDraft(workflowForm)
+    refreshWorkflowEmailComposerPreview(workflowForm)
+    return
+  }
+
   const pickerSearch = event.target.closest('[data-resource-picker-search="true"]')
   if (pickerSearch) {
     requirementModalResourceSearch = pickerSearch.value
@@ -11093,6 +14513,23 @@ requirementsExplorerContent?.addEventListener('input', (event) => {
 
 requirementsExplorerSidePanel?.addEventListener('click', (event) => {
   const detailsPermissions = getCurrentModulePermissions('details')
+  const createResourceFromRequirementButton = event.target.closest('[data-action="create-resource-from-requirement"]')
+  if (createResourceFromRequirementButton) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (!canCreateResourceFromRequirement()) {
+      requirementsExplorerContent.dataset.resourceNotice =
+        'No tienes permiso para registrar nuevos recursos desde este requerimiento.'
+      renderRequirementModalExplorer()
+      return
+    }
+
+    openResourcesModal(null, { origin: 'requirement-detail' })
+    updateResourcesStatus('Registra el nuevo recurso y luego aparecerá en este panel para poder agregarlo al requerimiento.', 'info')
+    return
+  }
+
   const attachResourceButton = event.target.closest('[data-action="attach-resource"]')
   if (!attachResourceButton) {
     return
@@ -11119,6 +14556,52 @@ requirementsExplorerSidePanel?.addEventListener('input', (event) => {
 })
 
 requirementsExplorerContent?.addEventListener('change', (event) => {
+  const workflowActionSelect = event.target.closest('form[data-action="submit-requirement-workflow"] select[name="workflow_action"]')
+  if (workflowActionSelect instanceof HTMLSelectElement) {
+    explorerWorkflowComposerActionKey = String(workflowActionSelect.value || '').trim()
+    resetRequirementWorkflowComposerDraft(explorerWorkflowComposerActionKey)
+    if (explorerWorkflowComposerActionKey === 'send_for_review' && explorerWorkflowRecipientsState === 'idle') {
+      void loadRequirementWorkflowRecipientOptions().then(() => {
+        if (explorerWorkflowComposerActionKey === 'send_for_review' && activeExplorerMode === 'rq-detail') {
+          renderRequirementModalExplorer()
+        }
+      })
+    }
+    renderRequirementModalExplorer()
+    return
+  }
+
+  const evidenceModeSelect = event.target.closest('[data-evidence-source-mode]')
+  if (evidenceModeSelect) {
+    const evidenceForm = evidenceModeSelect.closest('form[data-action="submit-evidence-record"]')
+    syncEvidenceComposerMode(evidenceForm, {
+      clearExternalUrl: evidenceModeSelect.value !== 'link',
+      clearAttachment: evidenceModeSelect.value !== 'upload',
+      clearFileName: evidenceModeSelect.value !== 'manual',
+    })
+    setExplorerNotice('')
+    return
+  }
+
+  const evidenceFileInput = event.target.closest('[data-evidence-file-input]')
+  if (evidenceFileInput) {
+    const evidenceForm = evidenceFileInput.closest('form[data-action="submit-evidence-record"]')
+    if (evidenceForm instanceof HTMLFormElement) {
+      const sourceSelect = evidenceForm.querySelector('select[name="source_type"]')
+      if (sourceSelect instanceof HTMLSelectElement && evidenceFileInput.files?.length) {
+        if (sourceSelect.value !== 'upload') {
+          sourceSelect.value = 'upload'
+          setExplorerNotice('Se cambió el modo a Archivo digital para registrar el PDF o archivo adjunto.')
+        } else {
+          setExplorerNotice('')
+        }
+      }
+
+      syncEvidenceComposerMode(evidenceForm)
+    }
+    return
+  }
+
   const modalFrozenColumnsControl = event.target.closest('[data-action="set-modal-frozen-columns"]')
   if (modalFrozenColumnsControl) {
     requirementModalFrozenColumnCount = Math.max(0, Math.min(3, Number(modalFrozenColumnsControl.value || 0)))
@@ -11195,6 +14678,39 @@ requirementsExplorerContent?.addEventListener('change', (event) => {
 
   quotationLinkedFilters[linkedInput.dataset.linkedFilterKey] = linkedInput.value
   renderQuotationLinkedExplorer()
+})
+
+requirementsExplorerContent?.addEventListener('reset', (event) => {
+  const workflowForm = event.target.closest('form[data-action="submit-requirement-workflow"]')
+  if (workflowForm instanceof HTMLFormElement) {
+    window.setTimeout(() => {
+      resetRequirementWorkflowComposerDraft(explorerWorkflowComposerActionKey || workflowForm.querySelector('[name="workflow_action"]')?.value || '')
+      const commentField = workflowForm.querySelector('textarea[name="comment"]')
+      if (commentField instanceof HTMLTextAreaElement) {
+        commentField.value = ''
+      }
+      refreshWorkflowEmailComposerPreview(workflowForm)
+    }, 0)
+    return
+  }
+
+  const evidenceForm = event.target.closest('form[data-action="submit-evidence-record"]')
+  if (!(evidenceForm instanceof HTMLFormElement)) {
+    return
+  }
+
+  window.setTimeout(() => {
+    const sourceSelect = evidenceForm.querySelector('select[name="source_type"]')
+    if (sourceSelect instanceof HTMLSelectElement) {
+      sourceSelect.value = 'upload'
+    }
+    syncEvidenceComposerMode(evidenceForm, {
+      clearExternalUrl: true,
+      clearAttachment: true,
+      clearFileName: true,
+    })
+    setExplorerNotice('')
+  }, 0)
 })
 
 requirementsExplorerContent?.addEventListener(

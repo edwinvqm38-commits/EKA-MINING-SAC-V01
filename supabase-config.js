@@ -14,4 +14,10 @@ window.SUPABASE_CONFIG = {
   requirementDetailsStageSource: '',
   expedienteEvidenceBucket: 'requerimientos',
   expedienteEvidencePathPrefix: 'expediente',
+  workflowEmailDelivery: {
+    mode: 'n8n-webhook',
+    webhookUrl: 'https://prinessrl.app.n8n.cloud/webhook/opsia-rq-review',
+    webhookToken: 'f8K2mP9xR4vL7qT1nW6zA3cY8uH5eB2',
+    timeoutMs: 15000,
+  },
 }

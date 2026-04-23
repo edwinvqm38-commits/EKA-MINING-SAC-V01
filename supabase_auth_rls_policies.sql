@@ -23,6 +23,7 @@ drop policy if exists "auth update cotizaciones" on public.cotizaciones;
 drop policy if exists "auth read requerimientos_log" on public.requerimientos_log;
 drop policy if exists "auth insert requerimientos_log" on public.requerimientos_log;
 drop policy if exists "auth update requerimientos_log" on public.requerimientos_log;
+drop policy if exists "auth delete requerimientos_log" on public.requerimientos_log;
 drop policy if exists "auth read requerimiento_items" on public.requerimiento_items;
 drop policy if exists "auth manage requerimiento_items" on public.requerimiento_items;
 drop policy if exists "auth read requerimiento_adjuntos" on public.requerimiento_adjuntos;
@@ -91,6 +92,12 @@ for update
 to authenticated
 using (public.current_app_role() in ('admin', 'comercial', 'logistica'))
 with check (public.current_app_role() in ('admin', 'comercial', 'logistica'));
+
+create policy "auth delete requerimientos_log"
+on public.requerimientos_log
+for delete
+to authenticated
+using (public.current_app_role() in ('admin', 'comercial', 'logistica'));
 
 create policy "auth read requerimiento_items"
 on public.requerimiento_items

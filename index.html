@@ -579,14 +579,21 @@
                 <span>Descripción</span>
                 <input id="resourceDescription" name="descripcion" type="text" placeholder="Nombre del recurso" required />
               </label>
-              <label class="field">
+              <label class="field field--managed">
                 <span>Categoría</span>
-                <select id="resourceCategory" name="categoria">
-                  <option value="MATERIAL">Material</option>
-                  <option value="EQUIPO">Equipo</option>
-                  <option value="MANO DE OBRA">Mano de obra</option>
-                  <option value="SERVICIO">Servicio</option>
-                </select>
+                <div class="field__managed-control">
+                  <select id="resourceCategory" name="categoria">
+                    <option value="MATERIAL">MATERIAL</option>
+                    <option value="EQUIPO">EQUIPO</option>
+                    <option value="MANO DE OBRA">MANO DE OBRA</option>
+                    <option value="SERVICIO">SERVICIO</option>
+                  </select>
+                  <button class="field__manage-button" id="resourceCategoryManageButton" type="button" title="Administrar categorías" hidden>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75zM20.7 7.04a1 1 0 0 0 0-1.41L18.37 3.3a1 1 0 0 0-1.41 0L15.13 5.13l3.75 3.75z"></path>
+                    </svg>
+                  </button>
+                </div>
               </label>
               <label class="field">
                 <span>Unidad</span>
@@ -629,14 +636,14 @@
               <label class="field">
                 <span>Imagen referencia</span>
                 <input id="resourceImageUrl" name="imagen_url" type="text" placeholder="URL de imagen" />
-                <input id="resourceImageFile" name="imagen_file" type="file" accept="image/*" />
+                <input id="resourceImageFile" name="imagen_file" type="file" accept="image/*" multiple />
                 <small class="resource-form__hint" id="resourceImageHint">Puedes ingresar una URL o subir una imagen.</small>
                 <div class="resource-form__preview is-hidden" id="resourceImagePreview"></div>
               </label>
               <label class="field">
                 <span>Ficha técnica</span>
                 <input id="resourceTechnicalSheetUrl" name="ficha_tecnica_url" type="text" placeholder="URL de ficha técnica o documento" />
-                <input id="resourceTechnicalSheetFile" name="ficha_tecnica_file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" />
+                <input id="resourceTechnicalSheetFile" name="ficha_tecnica_file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" multiple />
                 <small class="resource-form__hint" id="resourceTechnicalSheetHint">Puedes ingresar una URL o subir un archivo digital.</small>
                 <div class="resource-form__preview is-hidden" id="resourceTechnicalSheetPreview"></div>
               </label>
@@ -661,6 +668,7 @@
             <button class="ghost-button ghost-button--soft" id="resourcesFormReset" type="button">Limpiar</button>
             <button class="ghost-button ghost-button--accent" id="resourcesFormSubmit" type="submit">Guardar recurso</button>
           </div>
+          <div class="catalog-manager-panel is-hidden" id="resourcesCatalogManagerPanel"></div>
         </form>
       </section>
     </div>
@@ -756,7 +764,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./supabase-config.js"></script>
+    <script src="./supabase-config.js?v=20260423-1"></script>
     <script src="./app.js"></script>
   </body>
 </html>
