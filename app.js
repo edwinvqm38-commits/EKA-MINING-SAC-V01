@@ -176,6 +176,7 @@ const workflowEmailDeliveryConfig = {
   webhookToken: String(config?.workflowEmailDelivery?.webhookToken || '').trim(),
   timeoutMs: Math.max(5000, Number(config?.workflowEmailDelivery?.timeoutMs || 15000) || 15000),
 }
+const appPublicUrl = String(config?.appPublicUrl || '').trim()
 const primarySuperAdminEmail = 'edwin.qm@outlook.com'
 const companyDocumentRepositoryEmail = 'presupuestos@ekamining.com'
 const initialAuthSearch = typeof window !== 'undefined' ? String(window.location.search || '') : ''
@@ -2230,7 +2231,12 @@ async function applyAuthSession(session) {
     closeRequirementsExplorer()
     closeRequirementEntryModal()
     resetAppData()
-    showAuthShell('Ingresa con tu usuario de Supabase para continuar.', 'info')
+    showAuthShell(
+      pendingDeepLinkRequirementTarget?.id || pendingDeepLinkRequirementTarget?.code || pendingDeepLinkRequirementTarget?.key
+        ? getRequirementDeepLinkAccessMessage()
+        : 'Ingresa con tu usuario de Supabase para continuar.',
+      pendingDeepLinkRequirementTarget?.id || pendingDeepLinkRequirementTarget?.code || pendingDeepLinkRequirementTarget?.key ? 'warning' : 'info',
+    )
     return
   }
 
@@ -2254,7 +2260,9 @@ async function applyAuthSession(session) {
     const userEmail = String(authSession?.user?.email || '').trim().toLowerCase()
     const isPrimaryAdmin = userEmail === primarySuperAdminEmail
     showAuthShell(
-      isPrimaryAdmin
+      pendingDeepLinkRequirementTarget?.id || pendingDeepLinkRequirementTarget?.code || pendingDeepLinkRequirementTarget?.key
+        ? getRequirementDeepLinkAccessMessage()
+        : isPrimaryAdmin
         ? 'Tu cuenta existe, pero tu perfil admin todavía no está activo en user_profiles. Ejecuta el seed de administrador y vuelve a ingresar.'
         : 'Cuenta pendiente de aprobación por el administrador.',
       'danger',
@@ -8503,12 +8511,74 @@ function getRequirementWorkflowInterestedSuggestions(record = activeRequirementR
   )
 }
 
-function buildRequirementDeepLinkUrl(requirementRecord = activeRequirementRecord) {
-  if (typeof window === 'undefined' || !requirementRecord) {
+function normalizeAppBaseUrl(rawUrl = '') {
+  const normalized = String(rawUrl || '').trim()
+  if (!normalized) {
     return ''
   }
 
-  const targetUrl = new URL(window.location.href)
+  try {
+    const parsedUrl = new URL(normalized)
+    parsedUrl.hash = ''
+    return `${parsedUrl.origin}${parsedUrl.pathname}`
+      .replace(/\/+$/, '')
+  } catch {
+    return ''
+  }
+}
+
+function isLocalhostAppUrl(url = '') {
+  const normalized = String(url || '').trim()
+  if (!normalized) {
+    return false
+  }
+
+  try {
+    const parsedUrl = new URL(normalized)
+    return ['localhost', '127.0.0.1'].includes(parsedUrl.hostname)
+  } catch {
+    return false
+  }
+}
+
+function getRuntimeAppBaseUrl() {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  return normalizeAppBaseUrl(`${window.location.origin}${window.location.pathname}`)
+}
+
+function getShareableAppBaseUrl() {
+  const configuredUrl = normalizeAppBaseUrl(appPublicUrl)
+  if (configuredUrl) {
+    return configuredUrl
+  }
+
+  const runtimeUrl = getRuntimeAppBaseUrl()
+  if (runtimeUrl && !isLocalhostAppUrl(runtimeUrl)) {
+    return runtimeUrl
+  }
+
+  return ''
+}
+
+function getRequirementDeepLinkAccessMessage() {
+  return 'No tiene acceso. Regístrese o inicie sesión. Su acceso debe ser aprobado por el administrador antes de poder ingresar.'
+}
+
+function buildRequirementDeepLinkUrl(requirementRecord = activeRequirementRecord, options = {}) {
+  if (!requirementRecord) {
+    return ''
+  }
+
+  const { shared = true } = options
+  const baseUrl = shared ? getShareableAppBaseUrl() : getRuntimeAppBaseUrl()
+  if (!baseUrl) {
+    return ''
+  }
+
+  const targetUrl = new URL(baseUrl)
   applyRequirementDeepLinkToUrl(targetUrl, buildRequirementDeepLinkTarget(requirementRecord))
   return targetUrl.toString()
 }
@@ -12207,9 +12277,31 @@ function consumeRequirementDeepLink() {
   return readRequirementDeepLinkTarget()
 }
 
+function ensureRequirementDeepLinkAccess(requirementTarget = pendingDeepLinkRequirementTarget) {
+  if (!(requirementTarget?.id || requirementTarget?.code || requirementTarget?.key)) {
+    return true
+  }
+
+  if (supabaseClient?.auth && !authSession?.user) {
+    showAuthShell(getRequirementDeepLinkAccessMessage(), 'warning')
+    return false
+  }
+
+  if (supabaseClient?.auth && !currentUserProfile?.active) {
+    showAuthShell(getRequirementDeepLinkAccessMessage(), 'danger')
+    return false
+  }
+
+  return true
+}
+
 async function tryOpenRequirementFromDeepLink() {
   const requirementTarget = pendingDeepLinkRequirementTarget || readRequirementDeepLinkTarget()
   if (!(requirementTarget?.key || requirementTarget?.id || requirementTarget?.code) || !requirementsRecords.length) {
+    return
+  }
+
+  if (!ensureRequirementDeepLinkAccess(requirementTarget)) {
     return
   }
 
@@ -12391,8 +12483,14 @@ async function shareRequirementLink() {
     return
   }
 
-  setRequirementDeepLink(activeRequirementRecord)
-  const shareUrl = window.location.href
+  const shareUrl = buildRequirementDeepLinkUrl(activeRequirementRecord)
+  if (!shareUrl) {
+    requirementsExplorerContent.dataset.resourceNotice =
+      'No hay una URL pública configurada para compartir este requerimiento. Define SUPABASE_CONFIG.appPublicUrl con la URL de Vercel.'
+    renderRequirementModalExplorer()
+    return
+  }
+
   try {
     await navigator.clipboard.writeText(shareUrl)
     requirementsExplorerContent.dataset.resourceNotice = 'Enlace del requerimiento copiado al portapapeles.'

@@ -14,6 +14,9 @@ window.SUPABASE_CONFIG = {
   requirementDetailsStageSource: '',
   expedienteEvidenceBucket: 'requerimientos',
   expedienteEvidencePathPrefix: 'expediente',
+  // URL pública de producción para links compartibles en correos.
+  // Si queda vacía, la app intentará usar el origen actual solo cuando no sea localhost.
+  appPublicUrl: 'https://tu-app.vercel.app/index.html',
   workflowEmailDelivery: {
     mode: 'n8n-webhook',
     webhookUrl: 'https://prinessrl.app.n8n.cloud/webhook/opsia-rq-review',
