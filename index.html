@@ -225,6 +225,21 @@
 
             <div class="sync-status" id="syncStatus">Configura Supabase para ver tus registros reales.</div>
 
+            <div class="table-pager">
+              <span class="table-pager__summary" id="quotationsPagerSummary">Mostrando 0-0 de 0</span>
+              <div class="table-pager__controls">
+                <label class="table-pager__label" for="quotationsPageSize">Filas</label>
+                <select class="table-pager__select" id="quotationsPageSize">
+                  <option value="25">25</option>
+                  <option value="50" selected>50</option>
+                  <option value="100">100</option>
+                </select>
+                <button class="ghost-button ghost-button--soft table-pager__button" id="quotationsPrevPage" type="button">Anterior</button>
+                <span class="table-pager__page" id="quotationsPageIndicator">Página 1 / 1</span>
+                <button class="ghost-button ghost-button--soft table-pager__button" id="quotationsNextPage" type="button">Siguiente</button>
+              </div>
+            </div>
+
             <div class="log-table-shell">
               <div class="column-manager is-hidden" id="columnManager">
                 <div class="column-manager__header">
@@ -271,6 +286,21 @@
               Pendiente de conectar la tabla consolidada de requerimientos en Supabase.
             </div>
 
+            <div class="table-pager">
+              <span class="table-pager__summary" id="requirementsPagerSummary">Mostrando 0-0 de 0</span>
+              <div class="table-pager__controls">
+                <label class="table-pager__label" for="requirementsPageSize">Filas</label>
+                <select class="table-pager__select" id="requirementsPageSize">
+                  <option value="25">25</option>
+                  <option value="50" selected>50</option>
+                  <option value="100">100</option>
+                </select>
+                <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsPrevPage" type="button">Anterior</button>
+                <span class="table-pager__page" id="requirementsPageIndicator">Página 1 / 1</span>
+                <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsNextPage" type="button">Siguiente</button>
+              </div>
+            </div>
+
             <div class="log-table-shell">
               <div class="log-table-scroll">
                 <table class="log-table log-table--requirements is-pending-layout" id="requirementsTable">
@@ -291,23 +321,27 @@
                 <h3>Items del requerimiento</h3>
               </div>
               <div class="panel__actions">
-                <div class="table-pager__controls table-pager__controls--header">
-                  <label class="table-pager__label" for="requirementsDetailPageSize">Filas</label>
-                  <select class="table-pager__select" id="requirementsDetailPageSize">
-                    <option value="100">100</option>
-                    <option value="200" selected>200</option>
-                    <option value="500">500</option>
-                  </select>
-                  <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsDetailPrevPage" type="button">Anterior</button>
-                  <span class="table-pager__page" id="requirementsDetailPageIndicator">Página 1 / 1</span>
-                  <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsDetailNextPage" type="button">Siguiente</button>
-                </div>
                 <button class="ghost-button ghost-button--soft" id="requirementsDetailRefreshButton" type="button">Actualizar</button>
               </div>
             </div>
 
             <div class="sync-status" id="requirementsDetailStatus">
               Selecciona un requerimiento para ver sus items y su traza operativa.
+            </div>
+
+            <div class="table-pager">
+              <span class="table-pager__summary" id="requirementsDetailPagerSummary">Mostrando 0-0 de 0</span>
+              <div class="table-pager__controls">
+                <label class="table-pager__label" for="requirementsDetailPageSize">Filas</label>
+                <select class="table-pager__select" id="requirementsDetailPageSize">
+                  <option value="25">25</option>
+                  <option value="50" selected>50</option>
+                  <option value="100">100</option>
+                </select>
+                <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsDetailPrevPage" type="button">Anterior</button>
+                <span class="table-pager__page" id="requirementsDetailPageIndicator">Página 1 / 1</span>
+                <button class="ghost-button ghost-button--soft table-pager__button" id="requirementsDetailNextPage" type="button">Siguiente</button>
+              </div>
             </div>
 
             <div class="log-table-shell">

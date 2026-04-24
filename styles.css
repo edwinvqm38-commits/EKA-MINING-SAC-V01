@@ -1134,7 +1134,6 @@ button {
   position: relative;
   overflow-x: auto;
   overflow-y: auto;
-  scrollbar-gutter: stable;
   min-height: 0;
   max-height: none;
   width: 100%;
@@ -1371,6 +1370,22 @@ button {
 
 .log-table tbody tr:hover td.log-table__sticky-left {
   background: #f5f9fd;
+}
+
+.log-table-scroll--explorer-lightweight {
+  contain: layout paint;
+}
+
+.log-table--modal-detail-lightweight thead,
+.log-table--modal-detail-lightweight thead th,
+.log-table--modal-detail-lightweight .log-table__sticky-left,
+.log-table--modal-detail-lightweight .log-table__filters-row th {
+  position: static;
+  left: auto;
+}
+
+.log-table--modal-detail-lightweight .log-table__sticky-left--edge {
+  box-shadow: none;
 }
 
 .group-row td {
@@ -2268,6 +2283,10 @@ input[name='cotizacion'][data-duplicate='true'] {
   background: #fbfcff;
 }
 
+.table-pager--compact {
+  margin-bottom: 10px;
+}
+
 .table-pager__summary,
 .table-pager__page,
 .table-pager__label {
@@ -2742,8 +2761,6 @@ input[name='cotizacion'][data-duplicate='true'] {
   max-height: min(68vh, 640px);
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
   align-content: start;
 }
 
@@ -4266,26 +4283,6 @@ input[name='cotizacion'][data-duplicate='true'] {
   font-size: 1.10rem;
   color: #0f1d2e;
   letter-spacing: -0.025em;
-}
-
-/* Scrollbar más elegante */
-.log-table-scroll::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
-}
-
-.log-table-scroll::-webkit-scrollbar-track {
-  background: rgba(200, 215, 235, 0.30);
-  border-radius: 999px;
-}
-
-.log-table-scroll::-webkit-scrollbar-thumb {
-  background: rgba(90, 120, 160, 0.28);
-  border-radius: 999px;
-}
-
-.log-table-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(90, 120, 160, 0.45);
 }
 
 /* Botón danger más premium */

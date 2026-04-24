@@ -43,6 +43,11 @@ const columnManager = document.getElementById('columnManager')
 const columnManagerList = document.getElementById('columnManagerList')
 const resetColumnsButton = document.getElementById('resetColumnsButton')
 const columnFreezeCount = document.getElementById('columnFreezeCount')
+const quotationsPagerSummary = document.getElementById('quotationsPagerSummary')
+const quotationsPageIndicator = document.getElementById('quotationsPageIndicator')
+const quotationsPrevPage = document.getElementById('quotationsPrevPage')
+const quotationsNextPage = document.getElementById('quotationsNextPage')
+const quotationsPageSize = document.getElementById('quotationsPageSize')
 
 const requirementsTableHead = document.getElementById('requirementsTableHead')
 const requirementsTableBody = document.getElementById('requirementsTableBody')
@@ -51,6 +56,11 @@ const requirementsTable = document.getElementById('requirementsTable')
 const requirementsSyncStatus = document.getElementById('requirementsSyncStatus')
 const requirementsRefreshButton = document.getElementById('requirementsRefreshButton')
 const newRequirementButton = document.getElementById('newRequirementButton')
+const requirementsPagerSummary = document.getElementById('requirementsPagerSummary')
+const requirementsPageIndicator = document.getElementById('requirementsPageIndicator')
+const requirementsPrevPage = document.getElementById('requirementsPrevPage')
+const requirementsNextPage = document.getElementById('requirementsNextPage')
+const requirementsPageSize = document.getElementById('requirementsPageSize')
 
 const requirementsDetailTableHead = document.getElementById('requirementsDetailTableHead')
 const requirementsDetailTableBody = document.getElementById('requirementsDetailTableBody')
@@ -217,19 +227,26 @@ let activeFilters = {}
 let activeSort = { key: '', direction: 'asc' }
 let columnWidths = loadStoredMap(quotationWidthStorageKey)
 let quotationFrozenColumnCount = loadStoredCount(quotationFrozenColumnsStorageKey)
+let quotationsFilterRenderDebounceId = 0
+let quotationsPage = 1
+let quotationsPageSizeValue = Math.max(1, Number(quotationsPageSize?.value || 50) || 50)
 
 let requirementsRecords = []
 let requirementsActiveFilters = {}
 let requirementsSort = { key: 'cotizacion_codigo', direction: 'asc' }
 let selectedRequirementKey = ''
 let requirementsColumnWidths = loadStoredMap(requirementsWidthStorageKey)
+let requirementsFilterRenderDebounceId = 0
+let requirementsPage = 1
+let requirementsPageSizeValue = Math.max(1, Number(requirementsPageSize?.value || 50) || 50)
 let requirementDetailsRecords = []
 let requirementDetailsColumns = []
 let requirementDetailsActiveFilters = {}
 let requirementDetailsSort = { key: 'descripcion', direction: 'asc' }
 let requirementDetailsColumnWidths = loadStoredMap(requirementDetailsWidthStorageKey)
 let requirementDetailsPage = 1
-let requirementDetailsPageSizeValue = Number(requirementsDetailPageSize?.value || 200)
+let requirementDetailsFilterRenderDebounceId = 0
+let requirementDetailsPageSizeValue = Math.max(1, Number(requirementsDetailPageSize?.value || 50) || 50)
 let requirementModalItems = []
 let requirementModalColumns = []
 let requirementModalFilters = {}
@@ -239,6 +256,9 @@ let requirementModalFrozenColumnCount = loadStoredCount(requirementModalFrozenCo
 let requirementModalColumnManagerOpen = false
 let requirementModalResourcePickerOpen = false
 let requirementModalResourceSearch = ''
+let requirementModalPage = 1
+let requirementModalPageSizeValue = 50
+let requirementModalFilterRenderDebounceId = 0
 const requirementAttachmentViewerRegistry = new Map()
 let activeRequirementAttachmentViewerId = ''
 let activeRequirementRecord = null
@@ -276,6 +296,7 @@ let explorerWorkflowRecipientsState = 'idle'
 let explorerWorkflowRecipientsError = ''
 let explorerExpedienteSnapshotRecord = null
 let explorerExpedienteSnapshotSource = ''
+let requirementsExplorerViewportRestoreRafId = 0
 let resourcesRecords = []
 let resourcesSearchTerm = ''
 let resourcesActiveFilters = {}
@@ -3981,6 +4002,7 @@ function buildRequirementSummaryMarkup(requirementRecord = activeRequirementReco
   const statusTone = getTagTone(requirementRecord.estado)
   const attachmentCount = countRequirementAttachments(detailItems)
   const localItemsCount = detailItems.filter((item) => String(item.fuente || '').toUpperCase() === 'LOCAL').length
+  const resolvedItemsCount = getRequirementResolvedItemsCount(requirementRecord, { detailItems })
   const workflowStage = getRequirementWorkflowStage(requirementRecord)
   const workflowStatus = getRequirementWorkflowStatus(requirementRecord)
   const pendingRoleLabel = getRequirementPendingRoleLabel(requirementRecord.pending_role || '')
@@ -3997,7 +4019,7 @@ function buildRequirementSummaryMarkup(requirementRecord = activeRequirementReco
           <span class="rq-chip">${escapeHtml(getRequirementWorkflowStageLabel(workflowStage))}</span>
           <span class="rq-chip">${escapeHtml(pendingRoleLabel)}</span>
           ${workflowStatus !== workflowStage ? `<span class="rq-chip">${escapeHtml(getRequirementWorkflowStageLabel(workflowStatus))}</span>` : ''}
-          <span class="rq-chip rq-chip--accent">${escapeHtml(`${requirementRecord.cantidad_items ?? detailItems.length ?? 0} items`)}</span>
+          <span class="rq-chip rq-chip--accent">${escapeHtml(`${resolvedItemsCount} items`)}</span>
           <span class="rq-chip ${alerts.length ? 'rq-chip--warning' : 'rq-chip--ok'}">${escapeHtml(alerts.length ? `${alerts.length} alerta(s)` : 'Sin alertas')}</span>
           <span class="rq-chip">${escapeHtml(`${attachmentCount} adjuntos`)}</span>
           <span class="rq-chip">${escapeHtml(`${localItemsCount} locales`)}</span>
@@ -4196,15 +4218,36 @@ function captureRequirementsExplorerViewportState() {
 
 function restoreRequirementsExplorerViewportState(state = {}, options = {}) {
   const { focusSelector = '', selectInput = false } = options
-  window.requestAnimationFrame(() => {
+  if (requirementsExplorerViewportRestoreRafId) {
+    window.cancelAnimationFrame(requirementsExplorerViewportRestoreRafId)
+    requirementsExplorerViewportRestoreRafId = 0
+  }
+
+  const shouldRestoreScroll =
+    Number(state.tableLeft ?? 0) !== 0 ||
+    Number(state.tableTop ?? 0) !== 0 ||
+    Number(state.sideTop ?? 0) !== 0
+
+  if (!shouldRestoreScroll && !focusSelector) {
+    return
+  }
+
+  requirementsExplorerViewportRestoreRafId = window.requestAnimationFrame(() => {
+    requirementsExplorerViewportRestoreRafId = 0
     const tableScroll = requirementsExplorerContent?.querySelector('.log-table-scroll--explorer')
     const sideScroll = requirementsExplorerSidePanel?.querySelector('.resource-picker')
     if (tableScroll) {
-      tableScroll.scrollLeft = state.tableLeft ?? 0
-      tableScroll.scrollTop = state.tableTop ?? 0
+      if ((state.tableLeft ?? 0) !== tableScroll.scrollLeft) {
+        tableScroll.scrollLeft = state.tableLeft ?? 0
+      }
+      if ((state.tableTop ?? 0) !== tableScroll.scrollTop) {
+        tableScroll.scrollTop = state.tableTop ?? 0
+      }
     }
     if (sideScroll) {
-      sideScroll.scrollTop = state.sideTop ?? 0
+      if ((state.sideTop ?? 0) !== sideScroll.scrollTop) {
+        sideScroll.scrollTop = state.sideTop ?? 0
+      }
     }
 
     if (focusSelector) {
@@ -5362,14 +5405,61 @@ function getQuotationRequirementLinks(record) {
   })
 }
 
-function buildRow(record) {
+function buildQuotationRequirementLookup(nextRequirements = requirementsRecords) {
+  const byCostCenter = new Map()
+  const byQuotationCode = new Map()
+
+  ;(Array.isArray(nextRequirements) ? nextRequirements : []).forEach((requirement) => {
+    const requirementKey = getRequirementRecordKey(requirement)
+    const costCenter = String(requirement?.centro_costos ?? '').trim()
+    const quotationCode = String(requirement?.cotizacion_codigo ?? '').trim()
+
+    if (costCenter) {
+      if (!byCostCenter.has(costCenter)) {
+        byCostCenter.set(costCenter, new Set())
+      }
+      byCostCenter.get(costCenter).add(requirementKey)
+    }
+
+    if (quotationCode) {
+      if (!byQuotationCode.has(quotationCode)) {
+        byQuotationCode.set(quotationCode, new Set())
+      }
+      byQuotationCode.get(quotationCode).add(requirementKey)
+    }
+  })
+
+  return { byCostCenter, byQuotationCode }
+}
+
+function getQuotationLinkedRequirementCount(record, lookup = null) {
+  if (!lookup) {
+    return getQuotationRequirementLinks(record).length
+  }
+
+  const costCenter = String(record?.oc ?? record?.centro_costos ?? '').trim()
+  const quotationCode = String(record?.cotizacion ?? record?.cotizacion_codigo ?? '').trim()
+  const matchedKeys = new Set()
+
+  if (costCenter && lookup.byCostCenter.has(costCenter)) {
+    lookup.byCostCenter.get(costCenter).forEach((key) => matchedKeys.add(key))
+  }
+
+  if (quotationCode && lookup.byQuotationCode.has(quotationCode)) {
+    lookup.byQuotationCode.get(quotationCode).forEach((key) => matchedKeys.add(key))
+  }
+
+  return matchedKeys.size
+}
+
+function buildRow(record, context = {}) {
   const permissions = getCurrentQuotationPermissions()
-  const visibleColumns = getVisibleColumns()
-  const stickyMetaMap = getFrozenColumnMeta(visibleColumns, columnWidths, quotationFrozenColumnCount)
+  const visibleColumns = Array.isArray(context.visibleColumns) ? context.visibleColumns : getVisibleColumns()
+  const stickyMetaMap = context.stickyMetaMap instanceof Map ? context.stickyMetaMap : getFrozenColumnMeta(visibleColumns, columnWidths, quotationFrozenColumnCount)
   const cells = visibleColumns
     .map((column) => `<td${buildStickyCellAttributes([], stickyMetaMap.get(column.key), 'body')}>${formatCellValue(record[column.key], column)}</td>`)
     .join('')
-  const linkedRequirements = getQuotationRequirementLinks(record)
+  const linkedRequirementsCount = getQuotationLinkedRequirementCount(record, context.linkedRequirementLookup)
   const actions = []
 
   if (permissions.show_edit_button) {
@@ -5392,7 +5482,7 @@ function buildRow(record) {
     `)
   }
 
-  if (permissions.show_eye_button && linkedRequirements.length) {
+  if (permissions.show_eye_button && linkedRequirementsCount > 0) {
     actions.push(`
       <button class="table-action table-action--icon table-action--tone-view" type="button" data-action="view-requirements" data-id="${record[primaryKey] ?? ''}" title="Ver requerimientos vinculados">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -5453,8 +5543,123 @@ function getSortedRecords(nextRecords) {
   )
 }
 
+function paginateRecords(recordsToPaginate = [], currentPage = 1, pageSize = 50) {
+  const isArraySource = Array.isArray(recordsToPaginate)
+  const totalRows = isArraySource ? recordsToPaginate.length : Math.max(0, Number(recordsToPaginate) || 0)
+  const safePageSize = Math.max(1, Number(pageSize) || 50)
+  const totalPages = Math.max(1, Math.ceil(totalRows / safePageSize))
+  const safeCurrentPage = Math.min(Math.max(1, Number(currentPage) || 1), totalPages)
+  const start = totalRows ? (safeCurrentPage - 1) * safePageSize + 1 : 0
+  const end = totalRows ? Math.min(start + safePageSize - 1, totalRows) : 0
+  const startIndex = start ? start - 1 : 0
+  const endIndex = end
+
+  return {
+    totalRows,
+    totalPages,
+    currentPage: safeCurrentPage,
+    pageSize: safePageSize,
+    start,
+    end,
+    startIndex,
+    endIndex,
+    pageRows: isArraySource && totalRows ? recordsToPaginate.slice(startIndex, endIndex) : [],
+  }
+}
+
+function syncTablePagerUi(
+  {
+    summaryElement = null,
+    indicatorElement = null,
+    prevButton = null,
+    nextButton = null,
+  } = {},
+  pager = {},
+) {
+  const totalRows = Number(pager.totalRows || 0)
+  const totalPages = Math.max(1, Number(pager.totalPages || 1))
+  const currentPage = Math.min(Math.max(1, Number(pager.currentPage || 1)), totalPages)
+  const start = Number(pager.start || 0)
+  const end = Number(pager.end || 0)
+
+  if (summaryElement) {
+    summaryElement.textContent = `Mostrando ${start}-${end} de ${totalRows}`
+  }
+
+  if (indicatorElement) {
+    indicatorElement.textContent = `Página ${currentPage} / ${totalPages}`
+  }
+
+  if (prevButton) {
+    prevButton.disabled = currentPage <= 1
+  }
+
+  if (nextButton) {
+    nextButton.disabled = currentPage >= totalPages
+  }
+
+  return pager
+}
+
+function buildRequirementsPageGroups(recordsToGroup = [], totalItemsLookup = null) {
+  const groups = new Map()
+
+  recordsToGroup.forEach((record) => {
+    const groupKey = `${record.cotizacion_codigo ?? ''}::${record.centro_costos ?? ''}`
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, {
+        key: groupKey,
+        cotizacion_codigo: record.cotizacion_codigo ?? '',
+        centro_costos: record.centro_costos ?? '',
+        totalItems:
+          totalItemsLookup instanceof Map && totalItemsLookup.has(groupKey) ? Number(totalItemsLookup.get(groupKey) || 0) : undefined,
+        items: [],
+      })
+    }
+
+    groups.get(groupKey).items.push(record)
+  })
+
+  return [...groups.values()]
+}
+
+function buildInlineTablePagerMarkup({ pageSizeValue = 50, pager = {}, scope = '' } = {}) {
+  const safeScope = escapeHtml(scope)
+  const currentSize = Math.max(1, Number(pageSizeValue) || 50)
+  return `
+    <div class="table-pager table-pager--compact" data-table-pager="${safeScope}">
+      <span class="table-pager__summary">Mostrando ${pager.start || 0}-${pager.end || 0} de ${pager.totalRows || 0}</span>
+      <div class="table-pager__controls">
+        <label class="table-pager__label" for="${safeScope}-page-size">Filas</label>
+        <select class="table-pager__select" id="${safeScope}-page-size" data-action="set-inline-page-size" data-page-scope="${safeScope}">
+          <option value="25" ${currentSize === 25 ? 'selected' : ''}>25</option>
+          <option value="50" ${currentSize === 50 ? 'selected' : ''}>50</option>
+          <option value="100" ${currentSize === 100 ? 'selected' : ''}>100</option>
+        </select>
+        <button class="ghost-button ghost-button--soft table-pager__button" type="button" data-action="inline-page-prev" data-page-scope="${safeScope}" ${pager.currentPage <= 1 ? 'disabled' : ''}>Anterior</button>
+        <span class="table-pager__page">Página ${pager.currentPage || 1} / ${pager.totalPages || 1}</span>
+        <button class="ghost-button ghost-button--soft table-pager__button" type="button" data-action="inline-page-next" data-page-scope="${safeScope}" ${pager.currentPage >= pager.totalPages ? 'disabled' : ''}>Siguiente</button>
+      </div>
+    </div>
+  `
+}
+
 function renderTable() {
+  if (quotationsFilterRenderDebounceId) {
+    window.clearTimeout(quotationsFilterRenderDebounceId)
+    quotationsFilterRenderDebounceId = 0
+  }
+
   if (currentUserProfile && !userCanAccessQuotations()) {
+    syncTablePagerUi(
+      {
+        summaryElement: quotationsPagerSummary,
+        indicatorElement: quotationsPageIndicator,
+        prevButton: quotationsPrevPage,
+        nextButton: quotationsNextPage,
+      },
+      paginateRecords([], quotationsPage, quotationsPageSizeValue),
+    )
     tableBody.innerHTML = `
       <tr>
         <td class="empty-table" colspan="${Math.max(getVisibleColumns().length + 1, 1)}">
@@ -5465,12 +5670,25 @@ function renderTable() {
     return
   }
 
+  const visibleColumns = getVisibleColumns()
+  const stickyMetaMap = getFrozenColumnMeta(visibleColumns, columnWidths, quotationFrozenColumnCount)
+  const linkedRequirementLookup = buildQuotationRequirementLookup(requirementsRecords)
   const filteredRecords = getSortedRecords(getFilteredRecords())
+  const pager = syncTablePagerUi(
+    {
+      summaryElement: quotationsPagerSummary,
+      indicatorElement: quotationsPageIndicator,
+      prevButton: quotationsPrevPage,
+      nextButton: quotationsNextPage,
+    },
+    paginateRecords(filteredRecords, quotationsPage, quotationsPageSizeValue),
+  )
+  quotationsPage = pager.currentPage
 
   if (!filteredRecords.length) {
     tableBody.innerHTML = `
       <tr>
-        <td class="empty-table" colspan="${getVisibleColumns().length + 1}">
+        <td class="empty-table" colspan="${visibleColumns.length + 1}">
           No hay registros que coincidan con los filtros actuales.
         </td>
       </tr>
@@ -5478,7 +5696,15 @@ function renderTable() {
     return
   }
 
-  tableBody.innerHTML = filteredRecords.map(buildRow).join('')
+  tableBody.innerHTML = pager.pageRows
+    .map((record) =>
+      buildRow(record, {
+        visibleColumns,
+        stickyMetaMap,
+        linkedRequirementLookup,
+      }),
+    )
+    .join('')
   markTableLayoutReady(quotationsTable)
 }
 
@@ -7345,6 +7571,82 @@ function getRequirementRecordKey(record) {
   return [record.cotizacion_codigo, record.centro_costos, record.rq_codigo].map((value) => String(value ?? '').trim()).join('::')
 }
 
+function getRequirementIdentityCandidates(record = {}) {
+  const candidates = [record?.id, record?.requirement_id, record?.requerimiento_id, record?.rq_id]
+  return [...new Set(candidates.map((value) => String(value ?? '').trim()).filter(Boolean))]
+}
+
+function doesRequirementItemBelongToRecord(item = {}, record = {}) {
+  if (!item || !record) {
+    return false
+  }
+
+  const recordIdentityCandidates = getRequirementIdentityCandidates(record)
+  const itemIdentityCandidates = getRequirementIdentityCandidates(item)
+  if (recordIdentityCandidates.length && itemIdentityCandidates.length) {
+    const itemIdentitySet = new Set(itemIdentityCandidates)
+    if (recordIdentityCandidates.some((candidate) => itemIdentitySet.has(candidate))) {
+      return true
+    }
+  }
+
+  const itemRequirementCode = String(item.rq_codigo ?? item.requirement_code ?? item.requerimiento_codigo ?? '').trim()
+  const recordRequirementCode = String(record.rq_codigo ?? record.requirement_code ?? record.requerimiento_codigo ?? '').trim()
+  if (itemRequirementCode && recordRequirementCode && itemRequirementCode === recordRequirementCode) {
+    return true
+  }
+
+  const itemCompositeKey = [item.cotizacion_codigo, item.centro_costos, item.rq_codigo].map((value) => String(value ?? '').trim()).join('::')
+  return Boolean(itemCompositeKey && itemCompositeKey === getRequirementRecordKey(record))
+}
+
+function getRequirementItemsForRecord(record = {}, itemsSource = requirementDetailsRecords) {
+  if (!record || !Array.isArray(itemsSource) || !itemsSource.length) {
+    return []
+  }
+
+  return itemsSource.filter((item) => doesRequirementItemBelongToRecord(item, record))
+}
+
+function getRequirementResolvedItemsCount(record = {}, options = {}) {
+  const explicitItems = Array.isArray(options.detailItems) ? options.detailItems : null
+  if (explicitItems) {
+    return explicitItems.length
+  }
+
+  const linkedItems = getRequirementItemsForRecord(record, options.itemsSource ?? requirementDetailsRecords)
+  if (linkedItems.length) {
+    return linkedItems.length
+  }
+
+  const storedCount = Number(record?.cantidad_items)
+  return Number.isFinite(storedCount) && storedCount >= 0 ? storedCount : 0
+}
+
+function reconcileRequirementItemCounts(itemsSource = requirementDetailsRecords) {
+  if (!Array.isArray(requirementsRecords) || !requirementsRecords.length || !Array.isArray(itemsSource) || !itemsSource.length) {
+    return false
+  }
+
+  let changed = false
+  const activeKey = activeRequirementRecord ? getRequirementRecordKey(activeRequirementRecord) : ''
+  requirementsRecords = requirementsRecords.map((record) => {
+    const nextCount = getRequirementItemsForRecord(record, itemsSource).length
+    const currentCount = Number(record?.cantidad_items)
+    if (currentCount === nextCount) {
+      return record
+    }
+    changed = true
+    const updatedRecord = { ...record, cantidad_items: nextCount }
+    if (activeKey && getRequirementRecordKey(updatedRecord) === activeKey) {
+      activeRequirementRecord = updatedRecord
+    }
+    return updatedRecord
+  })
+
+  return changed
+}
+
 function getRequirementRevisionState(record) {
   return getRequirementAlerts(record).length > 0 ? 'Revisar' : 'OK'
 }
@@ -7353,6 +7655,7 @@ function buildRequirementsRow(record) {
   const permissions = getCurrentModulePermissions('requirements')
   const rowKey = getRequirementRecordKey(record)
   const rowClass = rowKey === selectedRequirementKey ? 'is-selected' : ''
+  const resolvedItemsCount = getRequirementResolvedItemsCount(record)
 
   return `
     <tr class="${rowClass}" data-requirement-key="${rowKey}">
@@ -7370,6 +7673,10 @@ function buildRequirementsRow(record) {
 
           if (column.key === 'fecha_rq') {
             return `<td><span class="cell-text">${formatDate(value)}</span></td>`
+          }
+
+          if (column.key === 'cantidad_items') {
+            return `<td><span class="cell-text">${escapeHtml(String(resolvedItemsCount))}</span></td>`
           }
 
           if (value === null || value === undefined || value === '') {
@@ -7503,7 +7810,8 @@ function getSortedRequirementsRecords(nextRecords) {
 }
 
 function buildRequirementsGroupRow(group) {
-  const itemsLabel = group.items.length === 1 ? '1 requerimiento' : `${group.items.length} requerimientos`
+  const totalItems = Math.max(1, Number(group.totalItems || group.items.length) || group.items.length || 1)
+  const itemsLabel = totalItems === 1 ? '1 requerimiento' : `${totalItems} requerimientos`
 
   return `
     <tr class="group-row">
@@ -7527,6 +7835,15 @@ function renderRequirementsTable() {
 
   const permissions = getCurrentModulePermissions('requirements')
   if (!permissions.access) {
+    syncTablePagerUi(
+      {
+        summaryElement: requirementsPagerSummary,
+        indicatorElement: requirementsPageIndicator,
+        prevButton: requirementsPrevPage,
+        nextButton: requirementsNextPage,
+      },
+      paginateRecords([], requirementsPage, requirementsPageSizeValue),
+    )
     requirementsTableBody.innerHTML = `
       <tr>
         <td class="empty-table" colspan="${requirementsColumns.length + 1}">
@@ -7539,6 +7856,20 @@ function renderRequirementsTable() {
   }
 
   const filtered = getFilteredRequirementsRecords()
+  const sortedGroups = getSortedRequirementsRecords(filtered)
+  const flatSortedRecords = sortedGroups.flatMap((group) => group.items)
+  const totalItemsLookup = new Map(sortedGroups.map((group) => [group.key, group.items.length]))
+  const pager = syncTablePagerUi(
+    {
+      summaryElement: requirementsPagerSummary,
+      indicatorElement: requirementsPageIndicator,
+      prevButton: requirementsPrevPage,
+      nextButton: requirementsNextPage,
+    },
+    paginateRecords(flatSortedRecords, requirementsPage, requirementsPageSizeValue),
+  )
+  requirementsPage = pager.currentPage
+
   if (!filtered.length) {
     requirementsTableBody.innerHTML = `
       <tr>
@@ -7551,7 +7882,7 @@ function renderRequirementsTable() {
     return
   }
 
-  const groupedRecords = getSortedRequirementsRecords(filtered)
+  const groupedRecords = buildRequirementsPageGroups(pager.pageRows, totalItemsLookup)
   requirementsTableBody.innerHTML = groupedRecords
     .map((group) => `${buildRequirementsGroupRow(group)}${group.items.map(buildRequirementsRow).join('')}`)
     .join('')
@@ -7712,30 +8043,18 @@ function getSortedRequirementDetailsRecords(nextRecords) {
 }
 
 function updateRequirementDetailsPager(totalRows) {
-  const safePageSize = Math.max(1, Number(requirementDetailsPageSizeValue) || 200)
-  const totalPages = Math.max(1, Math.ceil(totalRows / safePageSize))
-  requirementDetailsPage = Math.min(Math.max(1, requirementDetailsPage), totalPages)
+  const pager = syncTablePagerUi(
+    {
+      summaryElement: requirementsDetailPagerSummary,
+      indicatorElement: requirementsDetailPageIndicator,
+      prevButton: requirementsDetailPrevPage,
+      nextButton: requirementsDetailNextPage,
+    },
+    paginateRecords(totalRows, requirementDetailsPage, requirementDetailsPageSizeValue),
+  )
 
-  const start = totalRows ? (requirementDetailsPage - 1) * safePageSize + 1 : 0
-  const end = totalRows ? Math.min(start + safePageSize - 1, totalRows) : 0
-
-  if (requirementsDetailPagerSummary) {
-    requirementsDetailPagerSummary.textContent = `Mostrando ${start}-${end} de ${totalRows}`
-  }
-
-  if (requirementsDetailPageIndicator) {
-    requirementsDetailPageIndicator.textContent = `Página ${requirementDetailsPage} / ${totalPages}`
-  }
-
-  if (requirementsDetailPrevPage) {
-    requirementsDetailPrevPage.disabled = requirementDetailsPage <= 1
-  }
-
-  if (requirementsDetailNextPage) {
-    requirementsDetailNextPage.disabled = requirementDetailsPage >= totalPages
-  }
-
-  return { totalPages, startIndex: start ? start - 1 : 0, endIndex: end }
+  requirementDetailsPage = pager.currentPage
+  return pager
 }
 
 function renderRequirementDetailsTable() {
@@ -9150,6 +9469,7 @@ function summarizeWorkflowWebhookResponse(payload = {}) {
 function buildRequirementWorkflowNotificationHtml(requirementRecord = activeRequirementRecord, actionDefinition = {}, comment = '') {
   const safeComment = escapeHtml(comment || 'Sin comentario adicional.')
   const directLink = buildRequirementDeepLinkUrl(requirementRecord)
+  const resolvedItemsCount = getRequirementResolvedItemsCount(requirementRecord, { detailItems: requirementModalItems })
   return `
     <section style="font-family:Segoe UI,Arial,sans-serif;color:#23314d">
       <h2 style="margin:0 0 12px">Notificación de requerimiento</h2>
@@ -9162,7 +9482,7 @@ function buildRequirementWorkflowNotificationHtml(requirementRecord = activeRequ
         <tr><td style="padding:6px 0;color:#60708b">Cliente</td><td style="padding:6px 0">${escapeHtml(requirementRecord?.cliente || '-')}</td></tr>
         <tr><td style="padding:6px 0;color:#60708b">Unidad</td><td style="padding:6px 0">${escapeHtml(requirementRecord?.unidad || '-')}</td></tr>
         <tr><td style="padding:6px 0;color:#60708b">Fecha RQ</td><td style="padding:6px 0">${escapeHtml(formatDate(requirementRecord?.fecha_rq) || '-')}</td></tr>
-        <tr><td style="padding:6px 0;color:#60708b">Items</td><td style="padding:6px 0">${escapeHtml(String(requirementRecord?.cantidad_items ?? requirementModalItems.length ?? 0))}</td></tr>
+        <tr><td style="padding:6px 0;color:#60708b">Items</td><td style="padding:6px 0">${escapeHtml(String(resolvedItemsCount))}</td></tr>
         <tr><td style="padding:6px 0;color:#60708b">Etapa actual</td><td style="padding:6px 0">${escapeHtml(getRequirementWorkflowStageLabel(actionDefinition.nextStage || getRequirementWorkflowStage(requirementRecord)))}</td></tr>
       </table>
       <p style="margin:0 0 12px"><strong>Comentario:</strong><br>${safeComment}</p>
@@ -9176,6 +9496,7 @@ function buildRequirementWorkflowNotificationHtml(requirementRecord = activeRequ
 }
 
 function buildRequirementWorkflowNotificationText(requirementRecord = activeRequirementRecord, actionDefinition = {}, comment = '') {
+  const resolvedItemsCount = getRequirementResolvedItemsCount(requirementRecord, { detailItems: requirementModalItems })
   const lines = [
     `Acción: ${actionDefinition.notificationLabel || actionDefinition.label || 'Workflow'}`,
     `Centro de costo: ${requirementRecord?.centro_costos || '-'}`,
@@ -9185,7 +9506,7 @@ function buildRequirementWorkflowNotificationText(requirementRecord = activeRequ
     `Cliente: ${requirementRecord?.cliente || '-'}`,
     `Unidad: ${requirementRecord?.unidad || '-'}`,
     `Fecha RQ: ${formatDate(requirementRecord?.fecha_rq) || '-'}`,
-    `Items: ${requirementRecord?.cantidad_items ?? requirementModalItems.length ?? 0}`,
+    `Items: ${resolvedItemsCount}`,
     `Etapa actual: ${getRequirementWorkflowStageLabel(actionDefinition.nextStage || getRequirementWorkflowStage(requirementRecord))}`,
     '',
     `Comentario: ${comment || 'Sin comentario adicional.'}`,
@@ -9299,7 +9620,7 @@ async function sendRequirementWorkflowEmailViaWebhook({
       fechaRq: requirementRecord?.fecha_rq || '',
       workflowStage: actionDefinition?.nextStage || getRequirementWorkflowStage(requirementRecord),
       workflowStatus: actionDefinition?.nextStatus || actionDefinition?.nextStage || '',
-      itemCount: Number(requirementRecord?.cantidad_items ?? requirementModalItems.length ?? 0) || 0,
+      itemCount: getRequirementResolvedItemsCount(requirementRecord, { detailItems: requirementModalItems }),
       deepLink: buildRequirementDeepLinkUrl(requirementRecord) || '',
     },
     actor: {
@@ -11522,9 +11843,13 @@ async function loadRequirementDetails() {
     const cached = await readCachedDataset(cacheKey)
     if (Array.isArray(cached?.records) && cached.records.length) {
       requirementDetailsRecords = mergeRequirementDetailRecords(cached.records, customRequirementItems)
+      const countsReconciled = reconcileRequirementItemCounts(requirementDetailsRecords)
       requirementDetailsColumns = getRequirementDetailsColumns(requirementDetailsRecords)
       buildRequirementDetailsHead()
       renderRequirementDetailsTable()
+      if (countsReconciled) {
+        renderRequirementsTable()
+      }
       updateRequirementDetailsContext({
         finalCount: requirementDetailsRecords.filter((item) => item.fuente === 'FINAL').length,
         stageCount: requirementDetailsRecords.filter((item) => item.fuente === 'STAGE').length,
@@ -11555,9 +11880,13 @@ async function loadRequirementDetails() {
       )
 
       requirementDetailsRecords = mergeRequirementDetailRecords(fallbackItems, customRequirementItems)
+      const countsReconciled = reconcileRequirementItemCounts(requirementDetailsRecords)
       requirementDetailsColumns = getRequirementDetailsColumns(requirementDetailsRecords)
       buildRequirementDetailsHead()
       renderRequirementDetailsTable()
+      if (countsReconciled) {
+        renderRequirementsTable()
+      }
       updateRequirementDetailsContext({
         finalCount: 0,
         stageCount: fallbackItems.length,
@@ -11595,10 +11924,14 @@ async function loadRequirementDetails() {
   const merged = mergeRequirementDetailRecords(mergedBase, customRequirementItems)
 
   requirementDetailsRecords = merged
+  const countsReconciled = reconcileRequirementItemCounts(requirementDetailsRecords)
   requirementDetailsColumns = getRequirementDetailsColumns(merged)
 
   buildRequirementDetailsHead()
   renderRequirementDetailsTable()
+  if (countsReconciled) {
+    renderRequirementsTable()
+  }
   updateRequirementDetailsContext({
     finalCount: detailData.length,
     stageCount: stageData.length,
@@ -11676,7 +12009,7 @@ function getRequirementDetailEntries(record) {
     ['Solicitante', record.solicitante],
     ['Área', record.area],
     ['Estado', record.estado],
-    ['Items', record.cantidad_items],
+    ['Items', getRequirementResolvedItemsCount(record)],
     ['Descripción cotización', record.descripcion_cotizacion],
     ['Alertas', getRequirementAlerts(record).join(' | ') || 'Sin alertas'],
   ]
@@ -12325,11 +12658,20 @@ function getSortedRequirementModalRecords(recordsToSort) {
   )
 }
 
+function shouldUseLightweightRequirementModalTable(visibleColumns = [], filteredRecords = []) {
+  return visibleColumns.length > 12 || filteredRecords.length > 40
+}
+
 function buildRequirementModalTable() {
   const permissions = getCurrentModulePermissions('details')
   requirementAttachmentViewerRegistry.clear()
   const visibleColumns = getVisibleRequirementModalColumns()
-  const stickyMetaMap = getFrozenColumnMeta(visibleColumns, requirementDetailsColumnWidths, requirementModalFrozenColumnCount)
+  const filtered = getSortedRequirementModalRecords(getFilteredRequirementModalRecords())
+  const pager = paginateRecords(filtered, requirementModalPage, requirementModalPageSizeValue)
+  requirementModalPage = pager.currentPage
+  const useLightweightTable = shouldUseLightweightRequirementModalTable(visibleColumns, filtered)
+  const effectiveFrozenColumnCount = useLightweightTable ? 0 : requirementModalFrozenColumnCount
+  const stickyMetaMap = getFrozenColumnMeta(visibleColumns, requirementDetailsColumnWidths, effectiveFrozenColumnCount)
   const actionsWidth = 156
   const colgroup = visibleColumns
     .map((column) => `<col style="width:${getColumnWidth(column, requirementDetailsColumnWidths)}px">`)
@@ -12393,9 +12735,8 @@ function buildRequirementModalTable() {
     })
     .join('')
 
-  const filtered = getSortedRequirementModalRecords(getFilteredRequirementModalRecords())
   const rows = filtered.length
-    ? filtered
+    ? pager.pageRows
         .map(
           (item) => {
             const trackedItem = enrichRequirementItemTrackingSummary(item)
@@ -12449,8 +12790,9 @@ function buildRequirementModalTable() {
 
   return `
     <div class="log-table-shell">
-      <div class="log-table-scroll log-table-scroll--explorer">
-        <table class="log-table log-table--modal-detail" style="width:${totalWidth}px">
+      ${buildInlineTablePagerMarkup({ pageSizeValue: requirementModalPageSizeValue, pager, scope: 'requirement-modal' })}
+      <div class="log-table-scroll log-table-scroll--explorer${useLightweightTable ? ' log-table-scroll--explorer-lightweight' : ''}">
+        <table class="log-table log-table--modal-detail${useLightweightTable ? ' log-table--modal-detail-lightweight' : ''}" style="width:${totalWidth}px">
           <colgroup>${colgroup}<col style="width:${actionsWidth}px"></colgroup>
           <thead>
             <tr>${headers}<th>ACCIONES</th></tr>
@@ -12838,6 +13180,7 @@ function buildRequirementSnapshotHtml() {
 
   const exportColumns = getRequirementModalExportColumns()
   const exportRows = getRequirementModalExportRows()
+  const resolvedItemsCount = getRequirementResolvedItemsCount(activeRequirementRecord, { detailItems: exportRows })
   const summaryCards = [
     ['Cotización', activeRequirementRecord.cotizacion_codigo],
     ['Centro de costo', activeRequirementRecord.centro_costos],
@@ -12846,10 +13189,10 @@ function buildRequirementSnapshotHtml() {
     ['Tipo de servicio', activeRequirementRecord.tipo_servicio],
     ['Fecha RQ', formatDate(activeRequirementRecord.fecha_rq)],
     ['Estado', activeRequirementRecord.estado],
-    ['Items', activeRequirementRecord.cantidad_items],
+    ['Items', resolvedItemsCount],
   ]
     .map(
-      ([label, value]) => `<div class="card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || '-')}</strong></div>`,
+      ([label, value]) => `<div class="card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value ?? '-')}</strong></div>`,
     )
     .join('')
 
@@ -12900,7 +13243,7 @@ th{background:#f2f5ff;color:#7c89ab;font-weight:800}
   <section class="hero">
     <div class="chips">
       <span class="chip">${escapeHtml(activeRequirementRecord.estado || 'Sin estado')}</span>
-      <span class="chip">${escapeHtml(`${activeRequirementRecord.cantidad_items || exportRows.length} items`)}</span>
+      <span class="chip">${escapeHtml(`${resolvedItemsCount} items`)}</span>
       <span class="chip">${escapeHtml(activeRequirementRecord.rq_codigo || 'Sin RQ')}</span>
     </div>
     <h1>${escapeHtml(activeRequirementRecord.rq_codigo || 'Detalle de requerimiento')}</h1>
@@ -13011,6 +13354,8 @@ async function openRequirementDetail(requirementRecord, options = {}) {
   requirementModalColumns = getRequirementDetailsColumns(linkedItems, true)
   requirementModalFilters = {}
   requirementModalSort = { key: 'item', direction: 'asc' }
+  requirementModalPage = 1
+  requirementModalPageSizeValue = Math.max(1, Number(requirementModalPageSizeValue) || 50)
   requirementModalVisibleColumnKeys = loadColumnKeys(requirementModalVisibilityStorageKey, requirementModalColumns)
   syncRequirementModalVisibleColumnKeys(requirementModalColumns, { reason: 'openRequirementDetail' })
   requirementModalColumnManagerOpen = false
@@ -13036,6 +13381,7 @@ async function openRequirementDetail(requirementRecord, options = {}) {
 async function loadRecords() {
   const cacheKey = buildCacheKey('quotations', config?.table)
   const permissions = getCurrentQuotationPermissions()
+  quotationsPage = 1
 
   if (currentUserProfile && !permissions.access) {
     records = []
@@ -13206,6 +13552,7 @@ async function deleteQuotationRecord(recordId) {
 
 async function loadRequirementsRecords() {
   const permissions = getCurrentModulePermissions('requirements')
+  requirementsPage = 1
   if (!permissions.access) {
     requirementsRecords = []
     buildRequirementsHead()
@@ -14187,7 +14534,14 @@ requirementsTableHead?.addEventListener('input', (event) => {
   }
 
   requirementsActiveFilters[input.dataset.requirementsFilterKey] = input.value
-  renderWithPreservedFocus(input, () => renderRequirementsTable())
+  requirementsPage = 1
+  if (requirementsFilterRenderDebounceId) {
+    window.clearTimeout(requirementsFilterRenderDebounceId)
+  }
+  requirementsFilterRenderDebounceId = window.setTimeout(() => {
+    requirementsFilterRenderDebounceId = 0
+    renderWithPreservedFocus(input, () => renderRequirementsTable())
+  }, 140)
 })
 
 requirementsTableHead?.addEventListener('change', (event) => {
@@ -14197,6 +14551,11 @@ requirementsTableHead?.addEventListener('change', (event) => {
   }
 
   requirementsActiveFilters[input.dataset.requirementsFilterKey] = input.value
+  requirementsPage = 1
+  if (requirementsFilterRenderDebounceId) {
+    window.clearTimeout(requirementsFilterRenderDebounceId)
+    requirementsFilterRenderDebounceId = 0
+  }
   renderRequirementsTable()
 })
 
@@ -14209,6 +14568,7 @@ requirementsTableHead?.addEventListener('click', (event) => {
         ? { key: sortKey, direction: requirementsSort.direction === 'asc' ? 'desc' : 'asc' }
         : { key: sortKey, direction: 'asc' }
 
+    requirementsPage = 1
     buildRequirementsHead()
     renderRequirementsTable()
     return
@@ -14220,6 +14580,11 @@ requirementsTableHead?.addEventListener('click', (event) => {
   }
 
   requirementsActiveFilters = {}
+  requirementsPage = 1
+  if (requirementsFilterRenderDebounceId) {
+    window.clearTimeout(requirementsFilterRenderDebounceId)
+    requirementsFilterRenderDebounceId = 0
+  }
   buildRequirementsHead()
   renderRequirementsTable()
 })
@@ -14232,7 +14597,13 @@ requirementsDetailTableHead?.addEventListener('input', (event) => {
 
   requirementDetailsActiveFilters[input.dataset.detailFilterKey] = input.value
   requirementDetailsPage = 1
-  renderWithPreservedFocus(input, () => renderRequirementDetailsTable())
+  if (requirementDetailsFilterRenderDebounceId) {
+    window.clearTimeout(requirementDetailsFilterRenderDebounceId)
+  }
+  requirementDetailsFilterRenderDebounceId = window.setTimeout(() => {
+    requirementDetailsFilterRenderDebounceId = 0
+    renderWithPreservedFocus(input, () => renderRequirementDetailsTable())
+  }, 140)
 })
 
 requirementsDetailTableHead?.addEventListener('change', (event) => {
@@ -14243,6 +14614,10 @@ requirementsDetailTableHead?.addEventListener('change', (event) => {
 
   requirementDetailsActiveFilters[input.dataset.detailFilterKey] = input.value
   requirementDetailsPage = 1
+  if (requirementDetailsFilterRenderDebounceId) {
+    window.clearTimeout(requirementDetailsFilterRenderDebounceId)
+    requirementDetailsFilterRenderDebounceId = 0
+  }
   renderRequirementDetailsTable()
 })
 
@@ -14277,7 +14652,7 @@ requirementsDetailTableBody?.addEventListener('click', (event) => {
 })
 
 requirementsDetailPageSize?.addEventListener('change', () => {
-  requirementDetailsPageSizeValue = Math.max(1, Number(requirementsDetailPageSize.value) || 200)
+  requirementDetailsPageSizeValue = Math.max(1, Number(requirementsDetailPageSize.value) || 50)
   requirementDetailsPage = 1
   renderRequirementDetailsTable()
 })
@@ -14290,6 +14665,38 @@ requirementsDetailPrevPage?.addEventListener('click', () => {
 requirementsDetailNextPage?.addEventListener('click', () => {
   requirementDetailsPage += 1
   renderRequirementDetailsTable()
+})
+
+quotationsPageSize?.addEventListener('change', () => {
+  quotationsPageSizeValue = Math.max(1, Number(quotationsPageSize.value) || 50)
+  quotationsPage = 1
+  renderTable()
+})
+
+quotationsPrevPage?.addEventListener('click', () => {
+  quotationsPage = Math.max(1, quotationsPage - 1)
+  renderTable()
+})
+
+quotationsNextPage?.addEventListener('click', () => {
+  quotationsPage += 1
+  renderTable()
+})
+
+requirementsPageSize?.addEventListener('change', () => {
+  requirementsPageSizeValue = Math.max(1, Number(requirementsPageSize.value) || 50)
+  requirementsPage = 1
+  renderRequirementsTable()
+})
+
+requirementsPrevPage?.addEventListener('click', () => {
+  requirementsPage = Math.max(1, requirementsPage - 1)
+  renderRequirementsTable()
+})
+
+requirementsNextPage?.addEventListener('click', () => {
+  requirementsPage += 1
+  renderRequirementsTable()
 })
 
 newRecordButton?.addEventListener('click', () => {
@@ -14373,7 +14780,14 @@ tableHead?.addEventListener('input', (event) => {
   }
 
   activeFilters[input.dataset.filterKey] = input.value
-  renderWithPreservedFocus(input, () => renderTable())
+  quotationsPage = 1
+  if (quotationsFilterRenderDebounceId) {
+    window.clearTimeout(quotationsFilterRenderDebounceId)
+  }
+  quotationsFilterRenderDebounceId = window.setTimeout(() => {
+    quotationsFilterRenderDebounceId = 0
+    renderWithPreservedFocus(input, () => renderTable())
+  }, 140)
 })
 
 tableHead?.addEventListener('change', (event) => {
@@ -14383,6 +14797,11 @@ tableHead?.addEventListener('change', (event) => {
   }
 
   activeFilters[input.dataset.filterKey] = input.value
+  quotationsPage = 1
+  if (quotationsFilterRenderDebounceId) {
+    window.clearTimeout(quotationsFilterRenderDebounceId)
+    quotationsFilterRenderDebounceId = 0
+  }
   renderTable()
 })
 
@@ -14395,6 +14814,7 @@ tableHead?.addEventListener('click', (event) => {
         ? { key: sortKey, direction: activeSort.direction === 'asc' ? 'desc' : 'asc' }
         : { key: sortKey, direction: 'asc' }
 
+    quotationsPage = 1
     buildTableHead()
     renderTable()
     return
@@ -14406,6 +14826,11 @@ tableHead?.addEventListener('click', (event) => {
   }
 
   activeFilters = {}
+  quotationsPage = 1
+  if (quotationsFilterRenderDebounceId) {
+    window.clearTimeout(quotationsFilterRenderDebounceId)
+    quotationsFilterRenderDebounceId = 0
+  }
   buildTableHead()
   renderTable()
 })
@@ -14882,7 +15307,26 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
   const clearModalFiltersButton = event.target.closest('[data-action="clear-modal-filters"]')
   if (clearModalFiltersButton) {
     requirementModalFilters = {}
+    requirementModalPage = 1
+    if (requirementModalFilterRenderDebounceId) {
+      window.clearTimeout(requirementModalFilterRenderDebounceId)
+      requirementModalFilterRenderDebounceId = 0
+    }
     renderRequirementModalExplorer()
+    return
+  }
+
+  const modalPrevPageButton = event.target.closest('[data-action="inline-page-prev"][data-page-scope="requirement-modal"]')
+  if (modalPrevPageButton) {
+    requirementModalPage = Math.max(1, requirementModalPage - 1)
+    renderRequirementModalExplorerPreservingViewport()
+    return
+  }
+
+  const modalNextPageButton = event.target.closest('[data-action="inline-page-next"][data-page-scope="requirement-modal"]')
+  if (modalNextPageButton) {
+    requirementModalPage += 1
+    renderRequirementModalExplorerPreservingViewport()
     return
   }
 
@@ -14994,7 +15438,8 @@ requirementsExplorerContent?.addEventListener('click', (event) => {
         ? { key: sortKey, direction: requirementModalSort.direction === 'asc' ? 'desc' : 'asc' }
         : { key: sortKey, direction: 'asc' }
 
-    renderRequirementModalExplorer()
+    requirementModalPage = 1
+    renderRequirementModalExplorerPreservingViewport()
     return
   }
 
@@ -15103,7 +15548,14 @@ requirementsExplorerContent?.addEventListener('input', (event) => {
   const input = event.target.closest('[data-modal-detail-filter-key]')
   if (input) {
     requirementModalFilters[input.dataset.modalDetailFilterKey] = input.value
-    renderWithPreservedFocus(input, () => renderRequirementModalExplorer())
+    requirementModalPage = 1
+    if (requirementModalFilterRenderDebounceId) {
+      window.clearTimeout(requirementModalFilterRenderDebounceId)
+    }
+    requirementModalFilterRenderDebounceId = window.setTimeout(() => {
+      requirementModalFilterRenderDebounceId = 0
+      renderWithPreservedFocus(input, () => renderRequirementModalExplorerPreservingViewport())
+    }, 140)
     return
   }
 
@@ -15246,7 +15698,20 @@ requirementsExplorerContent?.addEventListener('change', (event) => {
   const input = event.target.closest('[data-modal-detail-filter-key]')
   if (input) {
     requirementModalFilters[input.dataset.modalDetailFilterKey] = input.value
-    renderRequirementModalExplorer()
+    requirementModalPage = 1
+    if (requirementModalFilterRenderDebounceId) {
+      window.clearTimeout(requirementModalFilterRenderDebounceId)
+      requirementModalFilterRenderDebounceId = 0
+    }
+    renderRequirementModalExplorerPreservingViewport()
+    return
+  }
+
+  const modalPageSizeSelect = event.target.closest('[data-action="set-inline-page-size"][data-page-scope="requirement-modal"]')
+  if (modalPageSizeSelect) {
+    requirementModalPageSizeValue = Math.max(1, Number(modalPageSizeSelect.value) || 50)
+    requirementModalPage = 1
+    renderRequirementModalExplorerPreservingViewport()
     return
   }
 
