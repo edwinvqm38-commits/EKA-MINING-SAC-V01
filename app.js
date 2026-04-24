@@ -216,6 +216,7 @@ const cacheDatabaseName = 'eka-dashboard-cache'
 const cacheStoreName = 'datasets'
 const resourcesCatalogCacheKey = 'resources-catalog::local'
 const requirementLocalItemsCacheKey = 'requirements-detail-local::custom-items'
+const resourcesCatalogSupabaseTable = 'recursos_catalogo'
 
 let supabaseClient = null
 let columns = Array.isArray(config?.columns) ? [...config.columns] : []
@@ -2339,16 +2340,29 @@ async function loadSecureDatasets() {
   if (pendingDeepLinkRequirementTarget?.id || pendingDeepLinkRequirementTarget?.code || pendingDeepLinkRequirementTarget?.key) {
     startRequirementDeepLinkProgress(10, 'Iniciando apertura del enlace')
   }
-  await loadResourcesCatalog()
-  if (resourcesModal?.classList.contains('is-hidden')) {
-    fillResourcesForm()
-  }
-  await loadRecords()
-  await loadRequirementsRecords()
-  await loadRequirementDetails()
-  if (canManageAdminModule(currentUserProfile)) {
-    await loadAdminUsers()
-  }
+
+  // ─── Carga paralela: todos los módulos arrancan al mismo tiempo ───
+  // Cada función muestra su cache local primero (render inmediato) y luego
+  // sincroniza con Supabase en segundo plano. Esto reduce el tiempo total
+  // de N peticiones secuenciales a ~1 sola petición en paralelo.
+  const adminLoad = canManageAdminModule(currentUserProfile) ? loadAdminUsers() : Promise.resolve()
+
+  await Promise.all([
+    loadResourcesCatalog().then(() => {
+      if (resourcesModal?.classList.contains('is-hidden')) {
+        fillResourcesForm()
+      }
+    }),
+    loadRecords(),
+    loadRequirementsRecords(),
+    loadRequirementDetails(),
+    adminLoad,
+  ])
+
+  // Re-renderizar cotizaciones para actualizar conteos de requerimientos vinculados
+  // (pueden haber llegado después que las cotizaciones en la carga paralela)
+  renderTable()
+
   await tryOpenRequirementFromDeepLink()
 }
 
@@ -3779,7 +3793,23 @@ async function collectResourceFormData() {
 }
 
 async function persistResourcesCatalog() {
-  await writeCachedDataset(resourcesCatalogCacheKey, resourcesRecords)
+  // Persiste siempre en cache local (IndexedDB) para render inmediato en próxima carga
+  try {
+    await writeCachedDataset(resourcesCatalogCacheKey, resourcesRecords)
+  } catch {}
+}
+
+// Sincroniza un lote de cambios de categoría al Supabase (usado en migración de categorías)
+async function syncResourceCategoryInSupabase(sourceCategory, destinationCategory) {
+  if (!supabaseClient || !sourceCategory || !destinationCategory) return
+  try {
+    await supabaseClient
+      .from(resourcesCatalogSupabaseTable)
+      .update({ categoria: destinationCategory })
+      .eq('categoria', sourceCategory)
+  } catch (error) {
+    console.warn('syncResourceCategoryInSupabase error:', error.message)
+  }
 }
 
 async function loadResourcesCatalog() {
@@ -3792,6 +3822,7 @@ async function loadResourcesCatalog() {
     return []
   }
 
+  // Paso 1: mostrar cache local inmediatamente para render rápido
   try {
     const cached = await readCachedDataset(resourcesCatalogCacheKey)
     if (Array.isArray(cached?.records) && cached.records.length) {
@@ -3799,20 +3830,53 @@ async function loadResourcesCatalog() {
       renderResourcesTable()
       refreshResourceCategoryManagedSelect()
       updateResourcesStatus(
-        `Catálogo local listo. ${resourcesRecords.length} recurso(s) cargados. Ult. sync: ${formatCacheTimestamp(cached.updatedAt) || 'sin fecha'}.`,
-        'success',
+        `Catálogo listo (${resourcesRecords.length} recursos). Sincronizando con Supabase...`,
+        'info',
       )
-      return resourcesRecords
     }
   } catch {}
 
-  resourcesRecords = [...defaultResourceCatalog]
-  renderResourcesTable()
-  refreshResourceCategoryManagedSelect()
-  updateResourcesStatus('Catálogo local inicial cargado. Puedes editarlo y ampliarlo desde esta pestaña.', 'info')
-  try {
+  // Paso 2: si hay Supabase, sincronizar desde la tabla compartida
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from(resourcesCatalogSupabaseTable)
+        .select('*')
+        .order('id', { ascending: true })
+
+      if (error) throw error
+
+      if (Array.isArray(data)) {
+        resourcesRecords = data
+        renderResourcesTable()
+        refreshResourceCategoryManagedSelect()
+        await persistResourcesCatalog()
+        updateResourcesStatus(
+          `Catálogo sincronizado desde Supabase. ${resourcesRecords.length} recurso(s) cargados.`,
+          'success',
+        )
+        return resourcesRecords
+      }
+    } catch (error) {
+      updateResourcesStatus(
+        resourcesRecords.length
+          ? `No se pudo sincronizar Supabase: ${error.message}. Se mantiene el catálogo local.`
+          : `Error al cargar recursos: ${error.message}`,
+        resourcesRecords.length ? 'warning' : 'danger',
+      )
+      if (resourcesRecords.length) return resourcesRecords
+    }
+  }
+
+  // Paso 3: fallback si no hay Supabase ni cache
+  if (!resourcesRecords.length) {
+    resourcesRecords = [...defaultResourceCatalog]
+    renderResourcesTable()
+    refreshResourceCategoryManagedSelect()
+    updateResourcesStatus('Catálogo de ejemplo cargado. Conecta Supabase para el catálogo compartido.', 'info')
     await persistResourcesCatalog()
-  } catch {}
+  }
+
   return resourcesRecords
 }
 
@@ -6464,6 +6528,8 @@ async function executeResourceCategoryMigration(sourceValue, destinationValue) {
   }
 
   await persistResourcesCatalog()
+  // Sincronizar cambio de categoría al Supabase compartido
+  void syncResourceCategoryInSupabase(sourceCategory, destinationCategory)
   removeCatalogOptionValue('resource_categoria', sourceCategory, { nextValue: destinationCategory })
   clearPendingCategoryMigration()
   renderResourcesTable()
@@ -13648,27 +13714,107 @@ async function saveResourceRecord(payload) {
   const resourceLabel = payload.descripcion || payload.codigo || 'el recurso'
   const openedFromRequirement = activeResourceModalOrigin === 'requirement-detail'
 
-  if (editingResourceId) {
-    resourcesRecords = resourcesRecords.map((record) => (record.id === editingResourceId ? payload : record))
-  } else {
-    resourcesRecords = [payload, ...resourcesRecords]
-  }
+  // ─── Guardar en Supabase (tabla compartida entre todos los usuarios) ───
+  if (supabaseClient) {
+    updateResourcesStatus(wasEditing ? 'Actualizando recurso en Supabase...' : 'Guardando recurso en Supabase...', 'info')
 
-  await persistResourcesCatalog()
-  refreshResourceCategoryManagedSelect(payload.categoria || 'MATERIAL')
-  renderResourcesTable()
-  closeResourcesModal()
-  updateResourcesStatus(
-    wasEditing ? 'Recurso actualizado en el catálogo local.' : 'Recurso agregado al catálogo local.',
-    'success',
-  )
+    // Construir payload para Supabase (excluir id local tipo string, incluir created_by)
+    const supabasePayload = {
+      codigo: payload.codigo || null,
+      codigo_fabricante: payload.codigo_fabricante || null,
+      descripcion: payload.descripcion,
+      categoria: payload.categoria || null,
+      marca: payload.marca || null,
+      unidad: payload.unidad || null,
+      tiempo_entrega: payload.tiempo_entrega || null,
+      moneda: payload.moneda || 'PEN',
+      costo_unitario: payload.costo_unitario != null ? Number(payload.costo_unitario) : null,
+      proveedor: payload.proveedor || null,
+      observacion: payload.observacion || null,
+      imagen_url: payload.imagen_url || null,
+      imagen_nombre_archivo: payload.imagen_nombre_archivo || null,
+      imagen_source: payload.imagen_source || null,
+      imagen_mime_type: payload.imagen_mime_type || null,
+      imagen_size_bytes: payload.imagen_size_bytes != null ? Number(payload.imagen_size_bytes) : null,
+      imagen_adjuntos: Array.isArray(payload.imagen_adjuntos) ? payload.imagen_adjuntos : [],
+      ficha_tecnica_url: payload.ficha_tecnica_url || null,
+      ficha_tecnica_nombre_archivo: payload.ficha_tecnica_nombre_archivo || null,
+      ficha_tecnica_source: payload.ficha_tecnica_source || null,
+      ficha_tecnica_mime_type: payload.ficha_tecnica_mime_type || null,
+      ficha_tecnica_size_bytes: payload.ficha_tecnica_size_bytes != null ? Number(payload.ficha_tecnica_size_bytes) : null,
+      ficha_tecnica_adjuntos: Array.isArray(payload.ficha_tecnica_adjuntos) ? payload.ficha_tecnica_adjuntos : [],
+    }
+
+    // Determinar si es update (id numérico = Supabase id) o insert
+    const supabaseId = editingResourceId && !isNaN(Number(editingResourceId)) ? Number(editingResourceId) : null
+
+    if (supabaseId) {
+      // UPDATE
+      const { data, error } = await supabaseClient
+        .from(resourcesCatalogSupabaseTable)
+        .update(supabasePayload)
+        .eq('id', supabaseId)
+        .select()
+        .single()
+
+      if (error) {
+        updateResourcesStatus(`No se pudo actualizar el recurso: ${error.message}`, 'danger')
+        return
+      }
+
+      const savedRecord = data || { ...supabasePayload, id: supabaseId }
+      resourcesRecords = resourcesRecords.map((record) =>
+        Number(record.id) === supabaseId ? savedRecord : record,
+      )
+    } else {
+      // INSERT
+      supabasePayload.created_by = authSession?.user?.id || null
+      const { data, error } = await supabaseClient
+        .from(resourcesCatalogSupabaseTable)
+        .insert(supabasePayload)
+        .select()
+        .single()
+
+      if (error) {
+        updateResourcesStatus(`No se pudo guardar el recurso: ${error.message}`, 'danger')
+        return
+      }
+
+      const savedRecord = data || { ...supabasePayload, id: Date.now() }
+      resourcesRecords = [savedRecord, ...resourcesRecords]
+    }
+
+    await persistResourcesCatalog()
+    refreshResourceCategoryManagedSelect(payload.categoria || 'MATERIAL')
+    renderResourcesTable()
+    closeResourcesModal()
+    updateResourcesStatus(
+      wasEditing ? `Recurso "${resourceLabel}" actualizado en el catálogo compartido.` : `Recurso "${resourceLabel}" guardado en el catálogo compartido.`,
+      'success',
+    )
+  } else {
+    // ─── Modo offline: solo cache local (IndexedDB) ───
+    if (wasEditing) {
+      resourcesRecords = resourcesRecords.map((record) => (record.id === editingResourceId ? payload : record))
+    } else {
+      resourcesRecords = [payload, ...resourcesRecords]
+    }
+    await persistResourcesCatalog()
+    refreshResourceCategoryManagedSelect(payload.categoria || 'MATERIAL')
+    renderResourcesTable()
+    closeResourcesModal()
+    updateResourcesStatus(
+      wasEditing ? 'Recurso actualizado (modo local — sin Supabase).' : 'Recurso agregado (modo local — sin Supabase).',
+      'warning',
+    )
+  }
 
   if (openedFromRequirement && activeRequirementRecord) {
     requirementModalResourcePickerOpen = true
     requirementModalResourceSearch = String(payload.descripcion || payload.codigo || '').trim()
     requirementsExplorerContent.dataset.resourceNotice = wasEditing
-      ? `Recurso ${resourceLabel} actualizado en el catálogo maestro de la app. Ya puedes agregarlo al requerimiento.`
-      : `Recurso ${resourceLabel} registrado en el catálogo maestro de la app. Ya puedes agregarlo al requerimiento.`
+      ? `Recurso "${resourceLabel}" actualizado en el catálogo compartido. Ya puedes agregarlo al requerimiento.`
+      : `Recurso "${resourceLabel}" registrado en el catálogo compartido. Ya puedes agregarlo al requerimiento.`
     renderRequirementModalExplorer()
   }
 }
@@ -13680,7 +13826,7 @@ async function deleteResourceRecord(resourceId) {
     return
   }
 
-  const resource = resourcesRecords.find((record) => record.id === resourceId)
+  const resource = resourcesRecords.find((record) => String(record.id) === String(resourceId))
   if (!resource) {
     updateResourcesStatus('No se encontró el recurso que intentas eliminar.', 'warning')
     return
@@ -13689,7 +13835,7 @@ async function deleteResourceRecord(resourceId) {
   const confirmed = await openConfirmDialog({
     eyebrow: 'Confirmar eliminación',
     title: 'Eliminar recurso del catálogo',
-    message: `¿Deseas eliminar el recurso ${resource.descripcion || 'seleccionado'}? Esta acción no se puede deshacer.`,
+    message: `¿Deseas eliminar "${resource.descripcion || 'el recurso seleccionado'}"? Esta acción es permanente y no se puede deshacer.`,
     confirmLabel: 'Eliminar',
     cancelLabel: 'Cancelar',
   })
@@ -13697,13 +13843,27 @@ async function deleteResourceRecord(resourceId) {
     return
   }
 
-  resourcesRecords = resourcesRecords.filter((record) => record.id !== resourceId)
+  // Eliminar de Supabase si el id es numérico (Supabase id)
+  const supabaseId = !isNaN(Number(resourceId)) ? Number(resourceId) : null
+  if (supabaseClient && supabaseId) {
+    const { error } = await supabaseClient
+      .from(resourcesCatalogSupabaseTable)
+      .delete()
+      .eq('id', supabaseId)
+
+    if (error) {
+      updateResourcesStatus(`No se pudo eliminar el recurso en Supabase: ${error.message}`, 'danger')
+      return
+    }
+  }
+
+  resourcesRecords = resourcesRecords.filter((record) => String(record.id) !== String(resourceId))
   await persistResourcesCatalog()
   renderResourcesTable()
-  if (editingResourceId === resourceId) {
+  if (String(editingResourceId) === String(resourceId)) {
     closeResourcesModal()
   }
-  updateResourcesStatus('Recurso eliminado del catálogo local.', 'warning')
+  updateResourcesStatus(`Recurso "${resource.descripcion || ''}" eliminado del catálogo.`, 'warning')
 }
 
 async function attachResourceToActiveRequirement(resourceId) {
